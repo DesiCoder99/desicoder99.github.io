@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock Returns Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.3.0/papaparse.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        #chartContainer {
+            width: 80%;
+            max-width: 800px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Stock Returns Visualization</h1>
+    <div id="chartContainer">
+        <canvas id="scatterChart"></canvas>
+    </div>
+
+    <script>
+        // Function to calculate returns
+        function calculateReturns(data, maxDuration) {
+            const results = [];
+            for (let i = 0; i < data.length; i++) {
+                const startYear = new Date(data[i].Date).getFullYear();
+                for (let duration = 1; duration <= maxDuration && i + duration * 252 < data.length; duration++) {
+                    const startPrice = parseFloat(data[i].Close);
+                    const endPrice = parseFloat(data[i + duration * 252].Close);
+                    const annualReturn = 100*(Math.pow(endPrice / startPrice, 1 / duration) - 1);
+                    results.push({
+                        startYear: startYear,
+                        duration: duration,
+                        annualReturn: annualReturn
+                    });
+                }
+            }
+            return results;
+        }
+
+        // Function to create the chart
+        function createChart(data) {
+            const ctx = document.getElementById('scatterChart').getContext('2d');
+            const minYear = Math.min(...data.map(d => d.startYear));
+            const maxYear = Math.max(...data.map(d => d.startYear));
+
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        data: data.map(d => ({
+                            x: d.duration,
+                            y: d.annualReturn,
+                            startYear: d.startYear
+                        })),
+                        backgroundColor: data.map(d => {
+                            const normalizedYear = (d.startYear - minYear) / (maxYear - minYear);
+                            const grayValue = Math.floor(128 + normalizedYear * 127);
+                            return `rgb(${grayValue},${grayValue},${grayValue})`;
+                        }),
+                        pointRadius: 5,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Duration (Years)'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Annual Return'
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(2) + '%';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const point = context.raw;
+                                    return [
+                                        `Start Year: ${point.startYear}`,
+                                        `Duration: ${point.x.toFixed(1)} years`,
+                                        `Annual Return: ${(point.y * 100).toFixed(2)}%`
+                                    ];
+                                }
+                            }
+                        },
+                        legend: {
+                            display: false
+                        },
+                        title: {
+                            display: true,
+                            text: 'Stock Returns by Duration'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Fetch CSV data and create chart
+        Papa.parse('https://query1.finance.yahoo.com/v7/finance/download/AAPL?period1=946684800&period2=1683763200&interval=1d&events=history&includeAdjustedClose=true', {
+            download: true,
+            header: true,
+            complete: function(results) {
+                const returns = calculateReturns(results.data, 10);
+                createChart(returns);
+            }
+        });
+    </script>
+</body>
+</html>
