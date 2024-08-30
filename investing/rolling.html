@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stock Returns Visualization</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -34,8 +34,9 @@
         <input type="text" id="tickerInput" placeholder="Ticker (e.g., AAPL)" value="AAPL">
         <input type="number" id="startYearInput" placeholder="Start Year (e.g., 2000)" value="2000">
         <input type="number" id="maxDurationInput" placeholder="Max Duration (years)" value="10">
-        <button onclick="updateChart()">Update Chart</button>
+        <button id="updateButton">Update Chart</button>
     </div>
+    <div id="errorMessage" style="color: red; margin-top: 10px;"></div>
     <div id="chartContainer">
         <canvas id="scatterChart"></canvas>
     </div>
@@ -43,7 +44,6 @@
     <script>
         let chart;
 
-        // Function to calculate returns
         function calculateReturns(data, maxDuration) {
             const results = [];
             for (let i = 0; i < data.length; i++) {
@@ -62,7 +62,6 @@
             return results;
         }
 
-        // Function to create the chart
         function createChart(data) {
             const ctx = document.getElementById('scatterChart').getContext('2d');
             const minYear = Math.min(...data.map(d => d.startYear));
@@ -139,40 +138,66 @@
             });
         }
 
-        // Function to update the chart
         async function updateChart() {
             const ticker = document.getElementById('tickerInput').value.toUpperCase();
-            const startYear = document.getElementById('startYearInput').value;
+            const startYear = parseInt(document.getElementById('startYearInput').value);
             const maxDuration = parseInt(document.getElementById('maxDurationInput').value);
+            const errorMessageElement = document.getElementById('errorMessage');
 
-            const apiKey = 'WWGO1J9HG8TENLSH';
-            const url = `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${ticker}&outputsize=full&apikey=${apiKey}`;
+            errorMessageElement.textContent = 'Fetching data...';
+
+            const endDate = new Date();
+            const startDate = new Date(startYear, 0, 1);
+            const period1 = Math.floor(startDate.getTime() / 1000);
+            const period2 = Math.floor(endDate.getTime() / 1000);
+
+            const yahooFinanceUrl = `https://query1.finance.yahoo.com/v7/finance/download/${ticker}?period1=${period1}&period2=${period2}&interval=1d&events=history&includeAdjustedClose=true`;
+            const proxyUrl = `https://cors-anywhere.herokuapp.com/${yahooFinanceUrl}`;
 
             try {
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (data['Time Series (Daily)']) {
-                    const stockData = Object.entries(data['Time Series (Daily)'])
-                        .map(([date, values]) => ({
-                            date: date,
-                            close: values['5. adjusted close']
-                        }))
-                        .filter(item => new Date(item.date).getFullYear() >= startYear)
-                        .reverse();
-
-                    const returns = calculateReturns(stockData, maxDuration);
-                    createChart(returns);
-                } else {
-                    console.error('No data received from Alpha Vantage');
+                const response = await fetch(proxyUrl, {
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                });
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
                 }
+                const csvText = await response.text();
+                
+                Papa.parse(csvText, {
+                    complete: function(results) {
+                        const stockData = results.data
+                            .filter(row => row.Date && new Date(row.Date).getFullYear() >= startYear)
+                            .map(row => ({
+                                date: row.Date,
+                                close: parseFloat(row['Adj Close'])
+                            }));
+
+                        console.log('Processed Stock Data:', stockData.slice(0, 5));
+
+                        if (stockData.length === 0) {
+                            errorMessageElement.textContent = 'No data available for the selected date range.';
+                            return;
+                        }
+
+                        const returns = calculateReturns(stockData, maxDuration);
+                        createChart(returns);
+                        errorMessageElement.textContent = ''; // Clear error message on success
+                    },
+                    header: true,
+                    skipEmptyLines: true
+                });
             } catch (error) {
                 console.error('Error fetching data:', error);
+                errorMessageElement.textContent = 'Error fetching data. Please check the console for more details.';
             }
         }
 
-        // Initial chart creation
-        updateChart();
+        document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('updateButton').addEventListener('click', updateChart);
+            updateChart();
+        });
     </script>
 </body>
 </html>
