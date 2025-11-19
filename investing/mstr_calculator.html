@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSTR vs BTC Calculator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #fff;
+            font-size: 2em;
+        }
+        
+        .controls {
+            background: #1a1a1a;
+            padding: 30px;
+            border-radius: 12px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .slider-group {
+            margin-bottom: 25px;
+        }
+        
+        .slider-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .slider-value {
+            float: right;
+            color: #4a9eff;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #333;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4a9eff;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4a9eff;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .heatmap-container {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            overflow-x: auto;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        
+        th, td {
+            padding: 12px 8px;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        
+        th {
+            background: #2a2a2a;
+            font-weight: 600;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        th:first-child {
+            background: #2a2a2a;
+            position: sticky;
+            left: 0;
+            z-index: 11;
+        }
+        
+        td:first-child {
+            background: #1a1a1a;
+            font-weight: 600;
+            position: sticky;
+            left: 0;
+            z-index: 5;
+        }
+        
+        .cell {
+            font-weight: bold;
+            border-radius: 4px;
+            transition: all 0.1s;
+        }
+        
+        .cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 10px rgba(74, 158, 255, 0.5);
+            z-index: 100;
+        }
+        
+        .highlight {
+            outline: 3px solid #ff4444;
+            outline-offset: -3px;
+            box-shadow: 0 0 10px rgba(255, 68, 68, 0.6);
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .stat-card {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        
+        .stat-card h3 {
+            font-size: 12px;
+            color: #b0b0b0;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #4a9eff;
+        }
+        
+        .legend {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-top: 20px;
+            padding: 15px;
+            background: #1a1a1a;
+            border-radius: 8px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+        
+        .legend-color {
+            width: 30px;
+            height: 20px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MSTR vs BTC Strategy Calculator (5-Year)</h1>
+        
+        <div class="controls">
+            <div class="slider-group">
+                <label>
+                    mNAV Premium
+                    <span class="slider-value" id="premiumValue">1.50x</span>
+                </label>
+                <input type="range" id="premium" min="0.5" max="3.5" step="0.1" value="1.5">
+            </div>
+        </div>
+        
+        <div class="heatmap-container">
+            <table id="heatmap"></table>
+        </div>
+        
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #c51b1a;"></div>
+                <span>< 1.5x (Weak)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #f5d033;"></div>
+                <span>1.5-2.5x (Good)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #7fb03d;"></div>
+                <span>2.5-3.5x (Strong)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #2a7e3e;"></div>
+                <span>> 3.5x (Excellent)</span>
+            </div>
+            <div class="legend-item" style="margin-left: auto;">
+                <span style="border: 3px solid #ff4444; padding: 2px 8px; border-radius: 4px;">
+                    Base case: 20% CAGR, $10B STRC
+                </span>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Base Case Ratio</h3>
+                <div class="value" id="baseRatio">2.31x</div>
+            </div>
+            <div class="stat-card">
+                <h3>Base Case MSTR Price</h3>
+                <div class="value" id="baseMstrPrice">$1,147</div>
+            </div>
+            <div class="stat-card">
+                <h3>BTC Final Price</h3>
+                <div class="value">$238,879</div>
+            </div>
+            <div class="stat-card">
+                <h3>Time Horizon</h3>
+                <div class="value">5 Years</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CURRENT_BTC_PRICE = 96000;
+        const CURRENT_MSTR_PRICE = 200;
+        const CURRENT_BTC_HOLDINGS = 641000;
+        const SHARES_OUTSTANDING = 287000000;
+        const YEARS = 5;
+        const STRC_GROWTH_RATE = 0.10;
+        const STRC_DIVIDEND_RATE = 0.10;
+        const SOFTWARE_INCOME = 100000000;
+        
+        const BTC_EQUIVALENT_TODAY = CURRENT_MSTR_PRICE / CURRENT_BTC_PRICE;
+        
+        // Ranges
+        const STRC_RANGE = [];
+        for (let i = 5; i <= 25; i += 2.5) {
+            STRC_RANGE.push(i * 1e9);
+        }
+        
+        const BTC_CAGR_RANGE = [];
+        for (let i = 0.05; i <= 0.45; i += 0.025) {
+            BTC_CAGR_RANGE.push(i);
+        }
+        
+        function calculateMstrPrice(btcCagr, finalPremium, baseStrcIssuance) {
+            let btcPrice = CURRENT_BTC_PRICE;
+            let btcHoldings = CURRENT_BTC_HOLDINGS;
+            let cumulativeStrc = 0;
+            
+            for (let year = 1; year <= YEARS; year++) {
+                btcPrice = CURRENT_BTC_PRICE * Math.pow(1 + btcCagr, year);
+                const strcIssued = baseStrcIssuance * Math.pow(1 + STRC_GROWTH_RATE, year - 1);
+                cumulativeStrc += strcIssued;
+                const annualDividends = cumulativeStrc * STRC_DIVIDEND_RATE;
+                const netCash = strcIssued - annualDividends + SOFTWARE_INCOME;
+                
+                if (netCash > 0) {
+                    btcHoldings += netCash / btcPrice;
+                } else {
+                    btcHoldings -= Math.abs(netCash) / btcPrice;
+                }
+            }
+            
+            const btcValue = btcHoldings * btcPrice;
+            const navPerShare = btcValue / SHARES_OUTSTANDING;
+            const mstrPrice = navPerShare * finalPremium;
+            
+            return { mstrPrice, btcPrice };
+        }
+        
+        function getColor(ratio) {
+            if (ratio < 1.5) return '#c51b1a';
+            if (ratio < 2.0) return '#e67c30';
+            if (ratio < 2.5) return '#f5d033';
+            if (ratio < 3.0) return '#b8d645';
+            if (ratio < 3.5) return '#7fb03d';
+            if (ratio < 4.0) return '#4d9645';
+            return '#2a7e3e';
+        }
+        
+        function updateHeatmap() {
+            const premium = parseFloat(document.getElementById('premium').value);
+            document.getElementById('premiumValue').textContent = premium.toFixed(2) + 'x';
+            
+            const table = document.getElementById('heatmap');
+            table.innerHTML = '';
+            
+            // Header row
+            const headerRow = table.insertRow();
+            headerRow.insertCell().innerHTML = '<th>STRC / CAGR →</th>';
+            BTC_CAGR_RANGE.forEach(cagr => {
+                const th = document.createElement('th');
+                th.textContent = (cagr * 100).toFixed(0) + '%';
+                headerRow.appendChild(th);
+            });
+            
+            // Data rows
+            STRC_RANGE.forEach((strcBase, i) => {
+                const row = table.insertRow();
+                const labelCell = row.insertCell();
+                labelCell.innerHTML = `<td>$${(strcBase / 1e9).toFixed(1)}B</td>`;
+                
+                BTC_CAGR_RANGE.forEach((cagr, j) => {
+                    const { mstrPrice, btcPrice } = calculateMstrPrice(cagr, premium, strcBase);
+                    const btcFinalValue = BTC_EQUIVALENT_TODAY * btcPrice;
+                    const ratio = mstrPrice / btcFinalValue;
+                    
+                    const cell = row.insertCell();
+                    cell.className = 'cell';
+                    cell.textContent = ratio.toFixed(2) + 'x';
+                    cell.style.backgroundColor = getColor(ratio);
+                    cell.style.color = ratio < 2.0 ? '#000' : '#fff';
+                    
+                    // Highlight base case: 20% CAGR, $10B STRC
+                    if (Math.abs(cagr - 0.20) < 0.01 && Math.abs(strcBase - 10e9) < 1e8) {
+                        cell.classList.add('highlight');
+                        
+                        // Update stats
+                        document.getElementById('baseRatio').textContent = ratio.toFixed(2) + 'x';
+                        document.getElementById('baseMstrPrice').textContent = '$' + Math.round(mstrPrice).toLocaleString();
+                    }
+                });
+            });
+        }
+        
+        document.getElementById('premium').addEventListener('input', updateHeatmap);
+        
+        // Initial render
+        updateHeatmap();
+    </script>
+</body>
+</html>
