@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MSTR Strategy Heatmap</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #e0e0e0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            color: #fff;
+            font-size: 2.2em;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+        
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 0.9em;
+        }
+        
+        .controls {
+            background: rgba(26, 26, 26, 0.95);
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .controls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 25px;
+        }
+        
+        .slider-group {
+            background: rgba(255,255,255,0.02);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .slider-group label {
+            display: block;
+            margin-bottom: 12px;
+            font-weight: 600;
+            font-size: 13px;
+            color: #b0b0b0;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .slider-value {
+            float: right;
+            color: #4a9eff;
+            font-size: 15px;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #333 0%, #4a9eff 100%);
+            outline: none;
+            -webkit-appearance: none;
+            margin-top: 8px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a9eff 0%, #357abd 100%);
+            cursor: pointer;
+            box-shadow: 0 4px 8px rgba(74, 158, 255, 0.4);
+            border: 2px solid #fff;
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4a9eff 0%, #357abd 100%);
+            cursor: pointer;
+            border: 2px solid #fff;
+            box-shadow: 0 4px 8px rgba(74, 158, 255, 0.4);
+        }
+        
+        .heatmap-container {
+            background: rgba(26, 26, 26, 0.95);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.05);
+            overflow-x: auto;
+        }
+        
+        .heatmap-header {
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .heatmap-header h2 {
+            font-size: 1.4em;
+            color: #fff;
+        }
+        
+        .current-values {
+            text-align: right;
+            font-size: 0.9em;
+            color: #888;
+        }
+        
+        .current-values span {
+            color: #4a9eff;
+            font-weight: 600;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 2px;
+            font-size: 13px;
+        }
+        
+        th, td {
+            padding: 16px 12px;
+            text-align: center;
+            border-radius: 4px;
+        }
+        
+        th {
+            background: rgba(255,255,255,0.05);
+            font-weight: 600;
+            color: #888;
+            text-transform: uppercase;
+            font-size: 11px;
+            letter-spacing: 0.5px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        
+        th:first-child {
+            text-align: right;
+            padding-right: 20px;
+        }
+        
+        td:first-child {
+            background: rgba(255,255,255,0.03);
+            font-weight: 600;
+            color: #888;
+            text-align: right;
+            padding-right: 20px;
+        }
+        
+        .cell {
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .cell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(74, 158, 255, 0.5);
+            z-index: 100;
+        }
+        
+        .highlight {
+            outline: 3px solid #ff4444;
+            outline-offset: -3px;
+            box-shadow: 0 0 20px rgba(255, 68, 68, 0.6);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(255, 68, 68, 0.6); }
+            50% { box-shadow: 0 0 30px rgba(255, 68, 68, 0.9); }
+        }
+        
+        .legend {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 12px;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .legend-scale {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex: 1;
+        }
+        
+        .legend-gradient {
+            height: 30px;
+            width: 300px;
+            border-radius: 6px;
+            background: linear-gradient(90deg, 
+                #c51b1a 0%, 
+                #e67c30 20%, 
+                #f5d033 40%, 
+                #7fb03d 60%, 
+                #4d9645 80%, 
+                #2a7e3e 100%);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            font-size: 11px;
+            color: #888;
+        }
+        
+        .legend-info {
+            text-align: right;
+            font-size: 12px;
+        }
+        
+        .legend-info strong {
+            color: #4a9eff;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .stat-card {
+            background: linear-gradient(135deg, rgba(26, 26, 26, 0.95) 0%, rgba(30, 30, 40, 0.95) 100%);
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        
+        .stat-card h3 {
+            font-size: 11px;
+            color: #888;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #4a9eff 0%, #357abd 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        @media (max-width: 768px) {
+            .controls-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .legend {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .legend-scale {
+                flex-direction: column;
+                align-items: flex-start;
+                width: 100%;
+            }
+            
+            .legend-gradient,
+            .legend-labels {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MSTR/BTC Advantage Heatmap</h1>
+        <div class="subtitle">Interactive Strategy Explorer</div>
+        
+        <div class="controls">
+            <div class="controls-grid">
+                <div class="slider-group">
+                    <label>
+                        mNAV Premium
+                        <span class="slider-value" id="premiumValue">1.50x</span>
+                    </label>
+                    <input type="range" id="premium" min="0.5" max="3.5" step="0.05" value="1.5">
+                </div>
+                
+                <div class="slider-group">
+                    <label>
+                        Current BTC Price
+                        <span class="slider-value" id="btcPriceValue">$96,000</span>
+                    </label>
+                    <input type="range" id="btcPrice" min="50000" max="150000" step="1000" value="96000">
+                </div>
+                
+                <div class="slider-group">
+                    <label>
+                        Current MSTR Price
+                        <span class="slider-value" id="mstrPriceValue">$200</span>
+                    </label>
+                    <input type="range" id="mstrPrice" min="100" max="500" step="10" value="200">
+                </div>
+                
+                <div class="slider-group">
+                    <label>
+                        STRC Growth Rate
+                        <span class="slider-value" id="strcGrowthValue">10%</span>
+                    </label>
+                    <input type="range" id="strcGrowth" min="0" max="20" step="1" value="10">
+                </div>
+            </div>
+        </div>
+        
+        <div class="heatmap-container">
+            <div class="heatmap-header">
+                <h2>MSTR/BTC Advantage Ratio</h2>
+                <div class="current-values">
+                    Premium: <span id="currentPremium">1.50x</span> | 
+                    STRC Growth: <span id="currentGrowth">10%</span>
+                </div>
+            </div>
+            
+            <table id="heatmap"></table>
+            
+            <div class="legend">
+                <div class="legend-scale">
+                    <div>
+                        <div class="legend-gradient"></div>
+                        <div class="legend-labels">
+                            <span>1.0x</span>
+                            <span>2.0x</span>
+                            <span>3.0x</span>
+                            <span>4.0x</span>
+                            <span>5.0x</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="legend-info">
+                    <strong>Red box</strong> = Base case<br>
+                    (20% CAGR, $10B STRC)
+                </div>
+            </div>
+        </div>
+        
+        <div class="stats">
+            <div class="stat-card">
+                <h3>Selected Cell</h3>
+                <div class="value" id="selectedRatio">2.31x</div>
+            </div>
+            <div class="stat-card">
+                <h3>MSTR Final Price</h3>
+                <div class="value" id="selectedMstr">$1,147</div>
+            </div>
+            <div class="stat-card">
+                <h3>BTC Final Value</h3>
+                <div class="value" id="selectedBtc">$498</div>
+            </div>
+            <div class="stat-card">
+                <h3>BTC Holdings (Year 5)</h3>
+                <div class="value" id="selectedHoldings">918,890</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const CURRENT_BTC_HOLDINGS = 641000;
+        const SHARES_OUTSTANDING = 287000000;
+        const YEARS = 5;
+        const STRC_DIVIDEND_RATE = 0.10;
+        const SOFTWARE_INCOME = 100000000;
+        
+        // Heatmap ranges
+        const STRC_RANGE = [];
+        for (let i = 0; i <= 30; i += 2.5) {
+            STRC_RANGE.push(i * 1e9);
+        }
+        
+        const BTC_CAGR_RANGE = [];
+        for (let i = 0.05; i <= 0.50; i += 0.025) {
+            BTC_CAGR_RANGE.push(i);
+        }
+        
+        function calculateMstrPrice(btcCagr, finalPremium, baseStrcIssuance, currentBtcPrice, strcGrowthRate) {
+            let btcPrice = currentBtcPrice;
+            let btcHoldings = CURRENT_BTC_HOLDINGS;
+            let cumulativeStrc = 0;
+            
+            for (let year = 1; year <= YEARS; year++) {
+                btcPrice = currentBtcPrice * Math.pow(1 + btcCagr, year);
+                const strcIssued = baseStrcIssuance * Math.pow(1 + strcGrowthRate, year - 1);
+                cumulativeStrc += strcIssued;
+                const annualDividends = cumulativeStrc * STRC_DIVIDEND_RATE;
+                const netCash = strcIssued - annualDividends + SOFTWARE_INCOME;
+                
+                if (netCash > 0) {
+                    btcHoldings += netCash / btcPrice;
+                } else {
+                    btcHoldings -= Math.abs(netCash) / btcPrice;
+                }
+            }
+            
+            const btcValue = btcHoldings * btcPrice;
+            const navPerShare = btcValue / SHARES_OUTSTANDING;
+            const mstrPrice = navPerShare * finalPremium;
+            
+            return { mstrPrice, btcPrice, btcHoldings };
+        }
+        
+        function getColor(ratio) {
+            if (ratio < 1.5) return '#c51b1a';
+            if (ratio < 2.0) return '#e67c30';
+            if (ratio < 2.5) return '#f5d033';
+            if (ratio < 3.0) return '#b8d645';
+            if (ratio < 3.5) return '#7fb03d';
+            if (ratio < 4.0) return '#4d9645';
+            return '#2a7e3e';
+        }
+        
+        function formatNumber(num, decimals = 0) {
+            return new Intl.NumberFormat('en-US', { 
+                minimumFractionDigits: decimals,
+                maximumFractionDigits: decimals 
+            }).format(num);
+        }
+        
+        let selectedCell = null;
+        
+        function updateHeatmap() {
+            const premium = parseFloat(document.getElementById('premium').value);
+            const currentBtcPrice = parseFloat(document.getElementById('btcPrice').value);
+            const currentMstrPrice = parseFloat(document.getElementById('mstrPrice').value);
+            const strcGrowthRate = parseFloat(document.getElementById('strcGrowth').value) / 100;
+            
+            document.getElementById('premiumValue').textContent = premium.toFixed(2) + 'x';
+            document.getElementById('btcPriceValue').textContent = '$' + formatNumber(currentBtcPrice);
+            document.getElementById('mstrPriceValue').textContent = '$' + formatNumber(currentMstrPrice);
+            document.getElementById('strcGrowthValue').textContent = (strcGrowthRate * 100).toFixed(0) + '%';
+            
+            document.getElementById('currentPremium').textContent = premium.toFixed(2) + 'x';
+            document.getElementById('currentGrowth').textContent = (strcGrowthRate * 100).toFixed(0) + '%';
+            
+            const btcEquivalent = currentMstrPrice / currentBtcPrice;
+            
+            const table = document.getElementById('heatmap');
+            table.innerHTML = '';
+            
+            // Header row
+            const headerRow = table.insertRow();
+            const cornerCell = document.createElement('th');
+            cornerCell.textContent = 'STRC ($B) ↓ / BTC CAGR →';
+            headerRow.appendChild(cornerCell);
+            
+            BTC_CAGR_RANGE.forEach(cagr => {
+                const th = document.createElement('th');
+                th.textContent = (cagr * 100).toFixed(1) + '%';
+                headerRow.appendChild(th);
+            });
+            
+            // Data rows
+            STRC_RANGE.forEach((strcBase, i) => {
+                const row = table.insertRow();
+                const labelCell = row.insertCell();
+                labelCell.textContent = '$' + (strcBase / 1e9).toFixed(1);
+                
+                BTC_CAGR_RANGE.forEach((cagr, j) => {
+                    const { mstrPrice, btcPrice, btcHoldings } = calculateMstrPrice(
+                        cagr, premium, strcBase, currentBtcPrice, strcGrowthRate
+                    );
+                    const btcFinalValue = btcEquivalent * btcPrice;
+                    const ratio = mstrPrice / btcFinalValue;
+                    
+                    const cell = row.insertCell();
+                    cell.className = 'cell';
+                    cell.textContent = ratio.toFixed(2);
+                    cell.style.backgroundColor = getColor(ratio);
+                    cell.style.color = ratio < 2.0 ? '#000' : '#fff';
+                    
+                    // Store data for click handler
+                    cell.dataset.ratio = ratio;
+                    cell.dataset.mstrPrice = mstrPrice;
+                    cell.dataset.btcValue = btcFinalValue;
+                    cell.dataset.holdings = btcHoldings;
+                    cell.dataset.cagr = cagr;
+                    cell.dataset.strc = strcBase;
+                    
+                    // Highlight base case: 20% CAGR, $10B STRC
+                    if (Math.abs(cagr - 0.20) < 0.01 && Math.abs(strcBase - 10e9) < 1e8) {
+                        cell.classList.add('highlight');
+                        
+                        // Set as initial selected cell
+                        if (!selectedCell) {
+                            updateSelectedStats(cell);
+                        }
+                    }
+                    
+                    // Click handler
+                    cell.addEventListener('click', function() {
+                        // Remove previous highlight if it's not the base case
+                        if (selectedCell && !selectedCell.classList.contains('highlight')) {
+                            selectedCell.style.outline = 'none';
+                        }
+                        
+                        // Add highlight to clicked cell (unless it's base case which already has it)
+                        if (!this.classList.contains('highlight')) {
+                            this.style.outline = '3px solid #4a9eff';
+                            this.style.outlineOffset = '-3px';
+                        }
+                        
+                        selectedCell = this;
+                        updateSelectedStats(this);
+                    });
+                });
+            });
+        }
+        
+        function updateSelectedStats(cell) {
+            document.getElementById('selectedRatio').textContent = 
+                parseFloat(cell.dataset.ratio).toFixed(2) + 'x';
+            document.getElementById('selectedMstr').textContent = 
+                '$' + formatNumber(parseFloat(cell.dataset.mstrPrice));
+            document.getElementById('selectedBtc').textContent = 
+                '$' + formatNumber(parseFloat(cell.dataset.btcValue));
+            document.getElementById('selectedHoldings').textContent = 
+                formatNumber(parseFloat(cell.dataset.holdings));
+        }
+        
+        // Event listeners
+        ['premium', 'btcPrice', 'mstrPrice', 'strcGrowth'].forEach(id => {
+            document.getElementById(id).addEventListener('input', updateHeatmap);
+        });
+        
+        // Initial render
+        updateHeatmap();
+    </script>
+</body>
+</html>
