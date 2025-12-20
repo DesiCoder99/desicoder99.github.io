@@ -3,7 +3,7 @@
 	<head>
 		<meta charset="UTF-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>DesiCoder99's DevShed</title>
+		<title>About - DesiCoder99</title>
 		<style>
 			* {
 				margin: 0;
@@ -87,59 +87,75 @@
 
 			.container {
 				flex: 1;
-				max-width: 1200px;
+				max-width: 1000px;
 				width: 100%;
 				margin: 0 auto;
 				padding: 3rem 2rem;
 			}
 
-			.blurb h1 {
-				font-size: 3rem;
-				margin-bottom: 0.5rem;
+			h1 {
+				font-size: 2.5rem;
+				margin-bottom: 1.5rem;
 				background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
 				-webkit-background-clip: text;
 				-webkit-text-fill-color: transparent;
 				background-clip: text;
-				text-shadow: 0 0 30px rgba(0, 217, 255, 0.3);
 				font-weight: 900;
 				letter-spacing: -1px;
 			}
 
-			.blurb::before {
-				content: '> ';
+			h2 {
+				font-size: 1.5rem;
+				margin-top: 2rem;
+				margin-bottom: 1rem;
+				color: var(--accent-cyan);
+				border-bottom: 2px solid var(--border-color);
+				padding-bottom: 0.5rem;
+			}
+
+			h2::before {
+				content: '▸ ';
 				color: var(--accent-green);
-				font-weight: bold;
+				margin-right: 0.5rem;
 			}
 
-			.blurb {
-				margin-bottom: 2rem;
-				font-size: 0.95rem;
-			}
-
-			.blurb p {
-				margin: 1.5rem 0;
-				padding: 1rem 1.5rem;
-				background: rgba(30, 41, 70, 0.5);
+			.bio-section {
+				background: rgba(30, 41, 70, 0.4);
 				border-left: 3px solid var(--accent-cyan);
 				border-radius: 4px;
+				padding: 1.5rem;
+				margin: 1.5rem 0;
 				transition: all 0.3s ease;
-				display: flex;
-				align-items: center;
-				gap: 0.8rem;
 			}
 
-			.blurb p:hover {
-				background: rgba(30, 41, 70, 0.8);
-				border-left-color: var(--accent-green);
+			.bio-section:hover {
+				background: rgba(30, 41, 70, 0.6);
 				box-shadow: var(--hover-shadow);
-				transform: translateX(4px);
 			}
 
-			.blurb p::before {
+			p {
+				margin: 1rem 0;
+				color: var(--text-primary);
+				line-height: 1.8;
+			}
+
+			ul {
+				margin: 1rem 0 1rem 2rem;
+				list-style: none;
+			}
+
+			li {
+				margin: 0.5rem 0;
+				padding-left: 1.5rem;
+				position: relative;
+			}
+
+			li::before {
 				content: '→';
+				position: absolute;
+				left: 0;
 				color: var(--accent-green);
 				font-weight: bold;
-				min-width: 1.2rem;
 			}
 
 			a {
@@ -171,6 +187,29 @@
 				background: var(--accent-green);
 			}
 
+			.skills-grid {
+				display: grid;
+				grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+				gap: 1rem;
+				margin: 1.5rem 0;
+			}
+
+			.skill-tag {
+				background: rgba(124, 58, 237, 0.2);
+				border: 1px solid var(--accent-purple);
+				padding: 0.7rem 1rem;
+				border-radius: 4px;
+				text-align: center;
+				transition: all 0.3s ease;
+				font-size: 0.9rem;
+			}
+
+			.skill-tag:hover {
+				background: rgba(124, 58, 237, 0.4);
+				border-color: var(--accent-cyan);
+				box-shadow: 0 0 15px rgba(0, 217, 255, 0.2);
+			}
+
 			footer {
 				background: rgba(10, 14, 39, 0.95);
 				border-top: 1px solid var(--border-color);
@@ -187,6 +226,11 @@
 				justify-content: center;
 				gap: 2rem;
 				flex-wrap: wrap;
+				margin: 0;
+			}
+
+			footer li::before {
+				content: none;
 			}
 
 			footer a {
@@ -198,35 +242,53 @@
 				color: var(--accent-cyan);
 			}
 
-			/* Responsive */
+			.cta-button {
+				display: inline-block;
+				background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+				color: #000;
+				padding: 0.8rem 1.5rem;
+				border-radius: 4px;
+				font-weight: bold;
+				margin-top: 1rem;
+				transition: all 0.3s ease;
+				cursor: pointer;
+				text-decoration: none;
+			}
+
+			.cta-button:hover {
+				transform: translateY(-2px);
+				box-shadow: 0 8px 20px rgba(0, 217, 255, 0.3);
+			}
+
+			.cta-button::after {
+				display: none;
+			}
+
 			@media (max-width: 768px) {
-				.blurb h1 {
-					font-size: 2rem;
+				h1 {
+					font-size: 1.8rem;
 				}
 
-				nav ul {
-					gap: 1rem;
-				}
-
-				nav a {
-					padding: 0.3rem 0.7rem;
-					font-size: 0.85rem;
+				h2 {
+					font-size: 1.2rem;
 				}
 
 				.container {
 					padding: 2rem 1rem;
 				}
 
-				.blurb p {
-					flex-direction: column;
-					align-items: flex-start;
+				.skills-grid {
+					grid-template-columns: 1fr;
 				}
-			}
 
-			/* Glow effect on focus */
-			a:focus {
-				outline: none;
-				filter: brightness(1.2);
+				nav ul {
+					gap: 1rem;
+				}
+
+				footer ul {
+					flex-direction: column;
+					gap: 1rem;
+				}
 			}
 		</style>
 	</head>
@@ -234,19 +296,53 @@
 		<nav>
     		<ul>
         		<li><a href="/">Home</a></li>
-	        	<li><a href="about.html">About</a></li>
-        		<li><a href="blog">Blog</a></li>
+	        	<li><a href="/about.html">About</a></li>
+        		<li><a href="/blog">Blog</a></li>
     		</ul>
 		</nav>
+
 		<div class="container">
-    		<div class="blurb">
-        		<h1>DesiCoder's DevShed</h1>
-				<p>Investing: <a href="investing/rolling.html">rolling returns</a></p>
-				<p>Blog: <a href="blog/bitcoin-value-debate.html">Bitcoin Value Debate: Proof-of-Work and Network Effects</a></p>
-				<p>MSTR Calc: <a href="investing/mstr_heatmap.html">MicroStrategy valuation with preferred and mNAV expansion</a></p>
-				<p>Fun: <a href="fun/find_duplicate_game.html">Christmas find duplicate movie poster game</a></p>
-    		</div>
+			<h1>About Me</h1>
+
+			<div class="bio-section">
+				<p>Hey! I'm DesiCoder99, a software engineer passionate about building tools, analyzing data, and exploring the intersection of technology and real world.</p>
+			</div>
+
+			<h2>Background</h2>
+			<div class="bio-section">
+				<p>I'm deeply interested in software engineering, financial analysis, and how technology shapes markets. I love experimenting with new ideas, whether it's building interactive tools, analyzing investment patterns or general fun stuff.</p>
+			</div>
+
+			<h2>What You'll Find Here</h2>
+			<div class="bio-section">
+				<p>This workspace contains my experiments and projects:</p>
+				<ul>
+					<li><strong>Investing Tools:</strong> Analytical tools for understanding market trends and valuations</li>
+					<li><strong>Blog Posts:</strong> Explorations of tech, finance, and their intersection</li>
+					<li><strong>Fun Projects:</strong> Interactive games and creative coding experiments</li>
+					<li><strong>Technical Work:</strong> Backend systems and data processing</li>
+				</ul>
+			</div>
+
+			<h2>Skills & Interests</h2>
+			<div class="skills-grid">
+				<div class="skill-tag">Graphics</div>
+				<div class="skill-tag">Video processing</div>
+				<div class="skill-tag">High Performance Computing/GPGPU</div>
+				<div class="skill-tag">Finance</div>
+				<div class="skill-tag">System Architecture</div>
+			</div>
+
+			<h2>Contact</h2>
+			<div class="bio-section">
+				<p>Interested in collaborating, discussing ideas, or just saying hello? Feel free to reach out:</p>
+				<ul>
+					<li><a href="mailto:codemajdoor@gmail.com">📧 Email</a></li>
+					<li><a href="https://github.com/DesiCoder99">🔗 GitHub</a></li>
+				</ul>
+			</div>
 		</div>
+
 		<footer>
     		<ul>
         		<li><a href="mailto:codemajdoor@gmail.com">email</a></li>
