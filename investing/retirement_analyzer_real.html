@@ -1,0 +1,960 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retirement Path Analyzer (Real Returns)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+        }
+        h1 { 
+            color: #4a9eff;
+            margin-bottom: 20px;
+            font-size: 20px;
+        }
+        h2 {
+            color: #4a9eff;
+            margin: 16px 0 12px 0;
+            font-size: 14px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+        }
+        .input-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            margin-bottom: 3px;
+            color: #a0a0a0;
+            font-size: 11px;
+        }
+        input, select {
+            width: 100%;
+            padding: 6px 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 3px;
+            color: #e0e0e0;
+            font-size: 12px;
+            font-family: inherit;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #4a9eff;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background: #4a9eff;
+            color: #fff;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-top: 8px;
+            font-family: inherit;
+        }
+        button:hover { background: #357abd; }
+        .chart-container {
+            position: relative;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            background: #0a0a0a;
+            padding: 12px;
+            border-radius: 3px;
+            border-left: 2px solid #4a9eff;
+        }
+        .stat-label {
+            color: #808080;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #4a9eff;
+            margin-top: 4px;
+        }
+        .warn { border-left-color: #ff6b6b; }
+        .warn .stat-value { color: #ff6b6b; }
+        .success { border-left-color: #51cf66; }
+        .success .stat-value { color: #51cf66; }
+        .path-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 3px;
+            padding: 8px;
+        }
+        .path-item {
+            padding: 6px 8px;
+            margin: 2px 0;
+            cursor: pointer;
+            border-radius: 2px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .path-item:hover {
+            background: #1a1a1a;
+        }
+        .path-item.selected {
+            background: #2a4a6a;
+            border-left: 2px solid #4a9eff;
+        }
+        .path-item.failed {
+            color: #ff6b6b;
+        }
+        .path-item.success {
+            color: #51cf66;
+        }
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .controls button {
+            flex: 1;
+            padding: 6px;
+            font-size: 11px;
+        }
+        .secondary {
+            background: #333;
+        }
+        .secondary:hover {
+            background: #444;
+        }
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 12px;
+            font-size: 11px;
+            flex-wrap: wrap;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .legend-box {
+            width: 16px;
+            height: 3px;
+            border-radius: 1px;
+        }
+        .note {
+            background: #1a2a1a;
+            padding: 10px;
+            border-left: 3px solid #51cf66;
+            margin-bottom: 12px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <h1>Path Analyzer</h1>
+            
+            <div class="note">
+                All values in REAL (inflation-adjusted) terms, matching ficalc.app
+            </div>
+            
+            <h2>Portfolio</h2>
+            <div class="input-group">
+                <label>Starting Value ($)</label>
+                <input type="number" id="portfolio" value="5000000" step="100000">
+            </div>
+            <div class="input-group">
+                <label>Start Age</label>
+                <input type="number" id="startAge" value="50" min="30" max="70">
+            </div>
+            <div class="input-group">
+                <label>Years</label>
+                <input type="number" id="years" value="40" min="10" max="60">
+            </div>
+            
+            <h2>Strategy</h2>
+            <div class="input-group">
+                <label>Withdrawal Method</label>
+                <select id="strategy" onchange="updateStrategyInputs()">
+                    <option value="constant">Constant Dollar</option>
+                    <option value="percent">Portfolio %</option>
+                    <option value="guardrails" selected>Guardrails</option>
+                    <option value="gk">Guyton-Klinger</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Annual Spending ($/yr, real)</label>
+                <input type="number" id="withdrawal" value="180000" step="5000">
+            </div>
+            <div class="input-group">
+                <label>Floor ($/yr, real)</label>
+                <input type="number" id="floor" value="0" step="5000">
+            </div>
+            
+            <div id="guardrailsInputs" style="display: none;">
+                <h2>Guardrails</h2>
+                <div class="input-group">
+                    <label>Portfolio Trigger (±%)</label>
+                    <input type="number" id="portTrigger" value="20" min="5" max="50">
+                </div>
+                <div class="input-group">
+                    <label>Spending Adjust (±%)</label>
+                    <input type="number" id="spendAdjust" value="10" min="5" max="30">
+                </div>
+            </div>
+            
+            <div id="gkInputs" style="display: none;">
+                <h2>Guyton-Klinger</h2>
+                <div class="input-group">
+                    <label>Upper Limit (%)</label>
+                    <input type="number" id="gkUpper" value="20" min="10" max="30">
+                </div>
+                <div class="input-group">
+                    <label>Lower Limit (%)</label>
+                    <input type="number" id="gkLower" value="15" min="10" max="25">
+                </div>
+            </div>
+            
+            <h2>Additional Cash Flows</h2>
+            <div class="input-group">
+                <label>Social Security / Pension ($/yr, real)</label>
+                <input type="number" id="income" value="0" step="5000">
+            </div>
+            <div class="input-group">
+                <label>Income Start Age</label>
+                <input type="number" id="incomeStartAge" value="65" min="50" max="75">
+            </div>
+            <div class="input-group">
+                <label>Mortgage / Debt ($/yr, real)</label>
+                <input type="number" id="debt" value="0" step="5000">
+            </div>
+            <div class="input-group">
+                <label>Debt End Age</label>
+                <input type="number" id="debtEndAge" value="70" min="50" max="90">
+            </div>
+            
+            <h2>Market (Real Returns)</h2>
+            <div class="input-group">
+                <label>Expected Real Return (%)</label>
+                <input type="number" id="expReturn" value="6.0" step="0.1">
+            </div>
+            <div class="input-group">
+                <label>Volatility (%)</label>
+                <input type="number" id="volatility" value="10" step="1">
+            </div>
+            
+            <h2>Simulation</h2>
+            <div class="input-group">
+                <label>Paths</label>
+                <select id="numPaths">
+                    <option value="50">50 (fast)</option>
+                    <option value="100" selected>100 (balanced)</option>
+                    <option value="200">200 (detailed)</option>
+                    <option value="500">500 (comprehensive)</option>
+                </select>
+            </div>
+            
+            <button onclick="runSimulation()">Run Simulation</button>
+            
+            <h2>Path Selection</h2>
+            <div class="controls">
+                <button class="secondary" onclick="showAll()">All</button>
+                <button class="secondary" onclick="showFailed()">Failed</button>
+                <button class="secondary" onclick="showSuccess()">Success</button>
+                <button class="secondary" onclick="showMedian()">Median</button>
+            </div>
+            
+            <div class="path-list" id="pathList"></div>
+        </div>
+        
+        <div>
+            <div class="stats">
+                <div class="stat" id="successStat">
+                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Median Final</div>
+                    <div class="stat-value" id="medianFinal">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Worst Case</div>
+                    <div class="stat-value" id="worstCase">--</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Best Case</div>
+                    <div class="stat-value" id="bestCase">--</div>
+                </div>
+            </div>
+            
+            <div class="chart-container">
+                <h2 style="margin-top: 0;">Portfolio Value Over Time (Real $)</h2>
+                <canvas id="portfolioChart" width="1200" height="500"></canvas>
+                <div class="legend" id="portfolioLegend"></div>
+            </div>
+            
+            <div class="chart-container">
+                <h2 style="margin-top: 0;">Annual Withdrawal (Real $)</h2>
+                <canvas id="withdrawalChart" width="1200" height="400"></canvas>
+                <div class="legend" id="withdrawalLegend"></div>
+            </div>
+            
+            <div class="chart-container">
+                <h2 style="margin-top: 0;">Withdrawal Rate (% of Portfolio)</h2>
+                <canvas id="rateChart" width="1200" height="400"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let simulationResults = null;
+        let selectedPaths = new Set();
+        
+        function randn() {
+            let u1 = Math.random();
+            let u2 = Math.random();
+            return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        }
+        
+        function fmt(val, decimals = 0) {
+            if (!val && val !== 0) return '--';
+            return val.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function fmtM(val) {
+            if (!val && val !== 0) return '--';
+            return '$' + (val / 1e6).toFixed(2) + 'M';
+        }
+        
+        function fmtK(val) {
+            if (!val && val !== 0) return '--';
+            return '$' + (val / 1e3).toFixed(0) + 'K';
+        }
+        
+        function updateStrategyInputs() {
+            const strategy = document.getElementById('strategy').value;
+            document.getElementById('guardrailsInputs').style.display = strategy === 'guardrails' ? 'block' : 'none';
+            document.getElementById('gkInputs').style.display = strategy === 'gk' ? 'block' : 'none';
+        }
+        
+        function getInputs() {
+            return {
+                portfolio: parseFloat(document.getElementById('portfolio').value),
+                startAge: parseInt(document.getElementById('startAge').value),
+                years: parseInt(document.getElementById('years').value),
+                strategy: document.getElementById('strategy').value,
+                withdrawal: parseFloat(document.getElementById('withdrawal').value),
+                floor: parseFloat(document.getElementById('floor').value),
+                portTrigger: parseFloat(document.getElementById('portTrigger').value) / 100,
+                spendAdjust: parseFloat(document.getElementById('spendAdjust').value) / 100,
+                gkUpper: parseFloat(document.getElementById('gkUpper').value) / 100,
+                gkLower: parseFloat(document.getElementById('gkLower').value) / 100,
+                expReturn: parseFloat(document.getElementById('expReturn').value) / 100,
+                volatility: parseFloat(document.getElementById('volatility').value) / 100,
+                numPaths: parseInt(document.getElementById('numPaths').value),
+                income: parseFloat(document.getElementById('income').value),
+                incomeStartAge: parseInt(document.getElementById('incomeStartAge').value),
+                debt: parseFloat(document.getElementById('debt').value),
+                debtEndAge: parseInt(document.getElementById('debtEndAge').value)
+            };
+        }
+        
+        // Simulation in REAL terms (like ficalc)
+        // - Returns are REAL (already inflation-adjusted)
+        // - Withdrawals are in REAL dollars (constant purchasing power)
+        function simulatePath(inputs, pathId) {
+            const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge, income, incomeStartAge, debt, debtEndAge } = inputs;
+            
+            let portfolioValue = portfolio;
+            let prevWithdrawal = withdrawal;
+            
+            const history = {
+                portfolioValues: [portfolioValue],
+                withdrawals: [0],
+                rates: [0],
+                returns: [0],
+                meta: []
+            };
+            
+            for (let year = 1; year <= years; year++) {
+                const isFirstYear = year === 1;
+                const prevReturn = isFirstYear ? 0 : history.returns[year - 1];
+                const currentAge = startAge + year - 1;
+                
+                // Income (e.g., Social Security)
+                const annualIncome = currentAge >= incomeStartAge ? income : 0;
+                
+                // Debt/mortgage
+                const annualDebt = currentAge < debtEndAge ? debt : 0;
+                
+                // Step 1: Calculate withdrawal (in real dollars - constant over time unless strategy adjusts)
+                let withdrawalAmount = 0;
+                let meta = {};
+                
+                if (strategy === 'constant') {
+                    withdrawalAmount = withdrawal;
+                    meta.method = 'constant';
+                    
+                } else if (strategy === 'percent') {
+                    const rate = withdrawal / inputs.portfolio;
+                    withdrawalAmount = portfolioValue * rate;
+                    meta.method = 'percent';
+                    
+                } else if (strategy === 'guardrails') {
+                    const ratio = portfolioValue / inputs.portfolio;
+                    
+                    let multiplier = 1.0;
+                    if (ratio > 1 + inputs.portTrigger) {
+                        multiplier = 1 + inputs.spendAdjust;
+                        meta.triggered = 'raise';
+                    } else if (ratio < 1 - inputs.portTrigger) {
+                        multiplier = 1 - inputs.spendAdjust;
+                        meta.triggered = 'cut';
+                    }
+                    
+                    withdrawalAmount = withdrawal * multiplier;
+                    meta.method = 'guardrails';
+                    meta.ratio = ratio;
+                    
+                } else if (strategy === 'gk') {
+                    // GK operates on actual withdrawal amounts
+                    let baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
+                    
+                    const currentRate = baseAmount / portfolioValue;
+                    const initialRate = withdrawal / inputs.portfolio;
+                    
+                    // Capital preservation - cut if rate too high
+                    if (currentRate > initialRate * (1 + inputs.gkUpper)) {
+                        baseAmount *= 0.90;
+                        meta.rule = 'preservation';
+                    }
+                    // Prosperity - raise if rate too low
+                    else if (currentRate < initialRate * (1 - inputs.gkLower)) {
+                        baseAmount *= 1.10;
+                        meta.rule = 'prosperity';
+                    }
+                    // Portfolio management - freeze after negative return
+                    else if (!isFirstYear && prevReturn < 0) {
+                        // Keep same dollar amount (no adjustment)
+                        meta.rule = 'freeze';
+                    } else {
+                        meta.rule = 'normal';
+                    }
+                    
+                    withdrawalAmount = baseAmount;
+                    meta.method = 'gk';
+                    meta.currentRate = currentRate;
+                    meta.initialRate = initialRate;
+                }
+                
+                // Apply floor
+                if (floor > 0) {
+                    withdrawalAmount = Math.max(floor, withdrawalAmount);
+                }
+                
+                prevWithdrawal = withdrawalAmount;
+                
+                // Net withdrawal = spending + debt - income
+                const netWithdrawal = withdrawalAmount + annualDebt - annualIncome;
+                meta.income = annualIncome;
+                meta.debt = annualDebt;
+                meta.netWithdrawal = netWithdrawal;
+                
+                // Step 2: Subtract net withdrawal
+                portfolioValue = portfolioValue - netWithdrawal;
+                
+                if (portfolioValue <= 0) {
+                    history.portfolioValues.push(0);
+                    history.withdrawals.push(withdrawalAmount);
+                    history.rates.push(1);
+                    history.returns.push(0);
+                    history.meta.push(meta);
+                    
+                    return {
+                        pathId,
+                        success: false,
+                        depletionYear: year,
+                        history,
+                        finalValue: 0
+                    };
+                }
+                
+                // Step 3: Apply REAL market return
+                const realReturn = expReturn + volatility * randn();
+                portfolioValue = portfolioValue * (1 + realReturn);
+                portfolioValue = Math.max(0, portfolioValue);
+                
+                // Record
+                history.portfolioValues.push(portfolioValue);
+                history.withdrawals.push(withdrawalAmount);
+                history.rates.push(withdrawalAmount / portfolioValue);
+                history.returns.push(realReturn);
+                history.meta.push(meta);
+            }
+            
+            return {
+                pathId,
+                success: true,
+                depletionYear: null,
+                history,
+                finalValue: portfolioValue
+            };
+        }
+        
+        function runSimulation() {
+            const inputs = getInputs();
+            const paths = [];
+            
+            for (let i = 0; i < inputs.numPaths; i++) {
+                paths.push(simulatePath(inputs, i));
+            }
+            
+            simulationResults = { inputs, paths };
+            
+            // Analysis
+            const successes = paths.filter(p => p.success).length;
+            const successRate = successes / paths.length;
+            
+            const finalValues = paths.map(p => p.finalValue).sort((a, b) => a - b);
+            const median = finalValues[Math.floor(finalValues.length / 2)];
+            const worst = finalValues[0];
+            const best = finalValues[finalValues.length - 1];
+            
+            // Update stats
+            const successStat = document.getElementById('successStat');
+            successStat.className = 'stat ' + (successRate >= 0.9 ? 'success' : 'warn');
+            successStat.querySelector('.stat-value').textContent = (successRate * 100).toFixed(1) + '%';
+            
+            document.getElementById('medianFinal').textContent = fmtM(median);
+            document.getElementById('worstCase').textContent = fmtM(worst);
+            document.getElementById('bestCase').textContent = fmtM(best);
+            
+            // Populate path list
+            updatePathList();
+            
+            // Default: show all paths
+            showAll();
+        }
+        
+        function updatePathList() {
+            const list = document.getElementById('pathList');
+            const { paths } = simulationResults;
+            
+            list.innerHTML = '';
+            paths.forEach((path, i) => {
+                const div = document.createElement('div');
+                div.className = 'path-item ' + (path.success ? 'success' : 'failed');
+                div.onclick = () => togglePath(i);
+                
+                const status = path.success ? '✓' : '✗';
+                const info = path.success 
+                    ? `Final: ${fmtM(path.finalValue)}`
+                    : `Failed yr ${path.depletionYear}`;
+                
+                div.innerHTML = `<span>${status} Path ${i + 1}</span><span>${info}</span>`;
+                list.appendChild(div);
+            });
+        }
+        
+        function togglePath(pathId) {
+            if (selectedPaths.has(pathId)) {
+                selectedPaths.delete(pathId);
+            } else {
+                selectedPaths.add(pathId);
+            }
+            updatePathListSelection();
+            drawCharts();
+        }
+        
+        function updatePathListSelection() {
+            const items = document.querySelectorAll('.path-item');
+            items.forEach((item, i) => {
+                if (selectedPaths.has(i)) {
+                    item.classList.add('selected');
+                } else {
+                    item.classList.remove('selected');
+                }
+            });
+        }
+        
+        function showAll() {
+            selectedPaths.clear();
+            for (let i = 0; i < simulationResults.paths.length; i++) {
+                selectedPaths.add(i);
+            }
+            updatePathListSelection();
+            drawCharts();
+        }
+        
+        function showFailed() {
+            selectedPaths.clear();
+            simulationResults.paths.forEach((path, i) => {
+                if (!path.success) selectedPaths.add(i);
+            });
+            updatePathListSelection();
+            drawCharts();
+        }
+        
+        function showSuccess() {
+            selectedPaths.clear();
+            simulationResults.paths.forEach((path, i) => {
+                if (path.success) selectedPaths.add(i);
+            });
+            updatePathListSelection();
+            drawCharts();
+        }
+        
+        function showMedian() {
+            const { paths } = simulationResults;
+            const sorted = [...paths].sort((a, b) => a.finalValue - b.finalValue);
+            const medianPath = sorted[Math.floor(sorted.length / 2)];
+            const medianId = paths.indexOf(medianPath);
+            
+            selectedPaths.clear();
+            selectedPaths.add(medianId);
+            updatePathListSelection();
+            drawCharts();
+        }
+        
+        function drawCharts() {
+            if (!simulationResults || selectedPaths.size === 0) return;
+            
+            drawPortfolioChart();
+            drawWithdrawalChart();
+            drawRateChart();
+        }
+        
+        function drawPortfolioChart() {
+            const canvas = document.getElementById('portfolioChart');
+            const ctx = canvas.getContext('2d');
+            const { inputs, paths } = simulationResults;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const selectedPathData = Array.from(selectedPaths).map(id => paths[id]);
+            
+            let maxVal = inputs.portfolio;
+            selectedPathData.forEach(path => {
+                const max = Math.max(...path.history.portfolioValues);
+                if (max > maxVal) maxVal = max;
+            });
+            
+            const padding = 60;
+            const width = canvas.width - padding * 2;
+            const height = canvas.height - padding * 2;
+            
+            // Grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= 5; i++) {
+                const y = padding + (height / 5) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + width, y);
+                ctx.stroke();
+                
+                const val = maxVal * (1 - i / 5);
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Monaco';
+                ctx.textAlign = 'right';
+                ctx.fillText(fmtM(val), padding - 10, y + 4);
+            }
+            
+            for (let i = 0; i <= 8; i++) {
+                const x = padding + (width / 8) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, padding + height);
+                ctx.stroke();
+                
+                const year = inputs.startAge + (inputs.years / 8) * i;
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Monaco';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.round(year), x, padding + height + 20);
+            }
+            
+            // Initial value line
+            const initialY = padding + height - (inputs.portfolio / maxVal) * height;
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding, initialY);
+            ctx.lineTo(padding + width, initialY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw paths
+            selectedPathData.forEach((path, idx) => {
+                const color = path.success 
+                    ? `hsla(${120 + idx * 137}, 70%, 60%, 0.6)`
+                    : `hsla(${0 + idx * 137}, 70%, 60%, 0.8)`;
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = path.success ? 1.5 : 2;
+                
+                ctx.beginPath();
+                path.history.portfolioValues.forEach((val, i) => {
+                    const x = padding + (i / inputs.years) * width;
+                    const y = padding + height - (val / maxVal) * height;
+                    
+                    if (i === 0) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+                
+                // Mark depletion
+                if (!path.success) {
+                    const x = padding + (path.depletionYear / inputs.years) * width;
+                    const y = padding + height;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            
+            const legend = document.getElementById('portfolioLegend');
+            legend.innerHTML = `
+                <div class="legend-item">
+                    <div class="legend-box" style="background: #666;"></div>
+                    <span>Initial: ${fmtM(inputs.portfolio)}</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box" style="background: #51cf66;"></div>
+                    <span>Success paths</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-box" style="background: #ff6b6b;"></div>
+                    <span>Failed paths</span>
+                </div>
+            `;
+        }
+        
+        function drawWithdrawalChart() {
+            const canvas = document.getElementById('withdrawalChart');
+            const ctx = canvas.getContext('2d');
+            const { inputs, paths } = simulationResults;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const selectedPathData = Array.from(selectedPaths).map(id => paths[id]);
+            
+            let maxVal = inputs.withdrawal * 1.5;
+            selectedPathData.forEach(path => {
+                const max = Math.max(...path.history.withdrawals);
+                if (max > maxVal) maxVal = max;
+            });
+            
+            const padding = 60;
+            const width = canvas.width - padding * 2;
+            const height = canvas.height - padding * 2;
+            
+            // Grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= 4; i++) {
+                const y = padding + (height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + width, y);
+                ctx.stroke();
+                
+                const val = maxVal * (1 - i / 4);
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Monaco';
+                ctx.textAlign = 'right';
+                ctx.fillText(fmtK(val), padding - 10, y + 4);
+            }
+            
+            for (let i = 0; i <= 8; i++) {
+                const x = padding + (width / 8) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, padding + height);
+                ctx.stroke();
+            }
+            
+            // Base withdrawal line
+            const baseY = padding + height - (inputs.withdrawal / maxVal) * height;
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding, baseY);
+            ctx.lineTo(padding + width, baseY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw paths
+            selectedPathData.forEach((path, idx) => {
+                const color = path.success 
+                    ? `hsla(${120 + idx * 137}, 70%, 60%, 0.6)`
+                    : `hsla(${0 + idx * 137}, 70%, 60%, 0.8)`;
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                
+                ctx.beginPath();
+                path.history.withdrawals.forEach((val, i) => {
+                    if (i === 0) return;
+                    const x = padding + (i / inputs.years) * width;
+                    const y = padding + height - (val / maxVal) * height;
+                    
+                    if (i === 1) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+            });
+            
+            const legend = document.getElementById('withdrawalLegend');
+            legend.innerHTML = `
+                <div class="legend-item">
+                    <div class="legend-box" style="background: #666;"></div>
+                    <span>Base: ${fmtK(inputs.withdrawal)}/yr (real)</span>
+                </div>
+            `;
+        }
+        
+        function drawRateChart() {
+            const canvas = document.getElementById('rateChart');
+            const ctx = canvas.getContext('2d');
+            const { inputs, paths } = simulationResults;
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const selectedPathData = Array.from(selectedPaths).map(id => paths[id]);
+            
+            const maxVal = 0.20;
+            
+            const padding = 60;
+            const width = canvas.width - padding * 2;
+            const height = canvas.height - padding * 2;
+            
+            // Grid
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+            
+            for (let i = 0; i <= 4; i++) {
+                const y = padding + (height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(padding, y);
+                ctx.lineTo(padding + width, y);
+                ctx.stroke();
+                
+                const val = maxVal * (1 - i / 4);
+                ctx.fillStyle = '#666';
+                ctx.font = '11px Monaco';
+                ctx.textAlign = 'right';
+                ctx.fillText((val * 100).toFixed(0) + '%', padding - 10, y + 4);
+            }
+            
+            for (let i = 0; i <= 8; i++) {
+                const x = padding + (width / 8) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, padding);
+                ctx.lineTo(x, padding + height);
+                ctx.stroke();
+            }
+            
+            // Initial rate line
+            const initialRate = inputs.withdrawal / inputs.portfolio;
+            const initialY = padding + height - (initialRate / maxVal) * height;
+            ctx.strokeStyle = '#444';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.moveTo(padding, initialY);
+            ctx.lineTo(padding + width, initialY);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw paths
+            selectedPathData.forEach((path, idx) => {
+                const color = path.success 
+                    ? `hsla(${120 + idx * 137}, 70%, 60%, 0.6)`
+                    : `hsla(${0 + idx * 137}, 70%, 60%, 0.8)`;
+                
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 1.5;
+                
+                ctx.beginPath();
+                path.history.rates.forEach((val, i) => {
+                    if (i === 0) return;
+                    const x = padding + (i / inputs.years) * width;
+                    const rate = Math.min(val, maxVal);
+                    const y = padding + height - (rate / maxVal) * height;
+                    
+                    if (i === 1) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                });
+                ctx.stroke();
+            });
+        }
+        
+        // Initialize on page load
+        window.addEventListener('DOMContentLoaded', function() {
+            updateStrategyInputs();
+        });
+    </script>
+</body>
+</html>
