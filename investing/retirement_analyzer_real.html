@@ -194,6 +194,48 @@
                 grid-template-columns: repeat(2, 1fr);
             }
         }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 6px;
+            padding: 24px;
+            width: 400px;
+            max-width: 90%;
+        }
+        .modal h2 {
+            margin-top: 0;
+            margin-bottom: 16px;
+            border-bottom: none;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .modal-buttons button {
+            flex: 1;
+            margin-top: 0;
+        }
+        .setting-note {
+            font-size: 10px;
+            color: #666;
+            margin-top: 4px;
+        }
     </style>
 </head>
 <body>
@@ -203,7 +245,7 @@
             
             <div class="note">
                 All values in REAL (inflation-adjusted) terms <br>
-                Disclaimer: This is a simplified model for educational purposes only.
+                Disclaimer: This is a simplified model for educational purposes only, not investing advice DYOR.
             </div>
             
             <h2>Portfolio</h2>
@@ -296,12 +338,33 @@
             
             <h2>Market (Real Returns)</h2>
             <div class="input-group">
-                <label>Expected Real Return (%)</label>
-                <input type="number" id="expReturn" value="6.0" step="0.1">
+                <label>Return Model</label>
+                <select id="returnModel" onchange="updateReturnModelInputs()">
+                    <option value="montecarlo">Monte Carlo</option>
+                    <option value="bootstrap">Historical Bootstrap (1928-2023)</option>
+                </select>
             </div>
-            <div class="input-group">
-                <label>Volatility (%)</label>
-                <input type="number" id="volatility" value="10" step="1">
+            <div id="monteCarloInputs">
+                <div class="input-group">
+                    <label>Expected Real Return (%)</label>
+                    <input type="number" id="expReturn" value="5.0" step="0.1">
+                </div>
+                <div class="input-group">
+                    <label>Volatility (%)</label>
+                    <input type="number" id="volatility" value="10" step="1">
+                </div>
+                <div class="input-group">
+                    <label>Autocorrelation</label>
+                    <input type="number" id="autocorr" value="-0.05" step="0.05" min="-0.5" max="0.5">
+                    <div class="setting-note">0 = i.i.d., positive = momentum, negative = mean reversion</div>
+                </div>
+            </div>
+            <div id="bootstrapInputs" style="display: none;">
+                <div class="input-group">
+                    <label>Block Size (years)</label>
+                    <input type="number" id="blockSize" value="5" min="1" max="20">
+                    <div class="setting-note">Contiguous years sampled together to preserve correlations</div>
+                </div>
             </div>
             
             <h2>Simulation</h2>
@@ -314,8 +377,9 @@
                     <option value="500">500 (comprehensive)</option>
                 </select>
             </div>
-            
+
             <button onclick="runSimulation()">Run Simulation</button>
+            <button class="secondary" onclick="openSettings()">Advanced Settings</button>
             <button onclick="saveToURL()" style="background: #845ef7;">Save Config to URL</button>
             
             <h2>Path Selection</h2>
@@ -373,7 +437,139 @@
         </div>
     </div>
 
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <h2>Advanced Settings</h2>
+
+            <div class="input-group">
+                <label>Assumed Inflation Rate (%)</label>
+                <input type="number" id="inflationRate" value="3.0" step="0.1" min="0" max="10">
+                <div class="setting-note">Used to discount nominal (non-inflation-adjusted) income and debt over time</div>
+            </div>
+
+            <div class="input-group">
+                <label>Spending Ceiling ($/yr)</label>
+                <input type="number" id="spendingCeiling" value="500000" step="50000" min="0">
+                <div class="setting-note">Maximum annual withdrawal to prevent runaway spending. Set to 0 for no ceiling.</div>
+            </div>
+
+            <div class="input-group">
+                <label>Panic Cut Threshold (%)</label>
+                <input type="number" id="panicThreshold" value="10" step="0.5" min="5" max="15">
+                <div class="setting-note">Withdrawal rate that triggers a 15% spending cut (Guardrails+CommonSense only)</div>
+            </div>
+
+            <div class="modal-buttons">
+                <button class="secondary" onclick="closeSettings()">Cancel</button>
+                <button onclick="saveSettings()">Save</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // S&P 500 Real Total Returns (inflation-adjusted), 1928-2023
+        // Source: NYU Stern, Robert Shiller data
+        const HISTORICAL_RETURNS = [
+            0.3942,   // 1928
+            -0.1466,  // 1929
+            -0.2644,  // 1930
+            -0.4384,  // 1931
+            -0.0864,  // 1932
+            0.4998,   // 1933
+            -0.0544,  // 1934
+            0.4367,   // 1935
+            0.3192,   // 1936
+            -0.3534,  // 1937
+            0.2928,   // 1938
+            -0.0590,  // 1939
+            -0.1067,  // 1940
+            -0.1277,  // 1941
+            0.1317,   // 1942
+            0.2221,   // 1943
+            0.1653,   // 1944
+            0.3444,   // 1945
+            -0.1170,  // 1946
+            -0.0021,  // 1947
+            -0.0046,  // 1948
+            0.1030,   // 1949
+            0.2506,   // 1950
+            0.1678,   // 1951
+            0.1143,   // 1952
+            0.0144,   // 1953
+            0.5256,   // 1954
+            0.2584,   // 1955
+            0.0348,   // 1956
+            -0.1349,  // 1957
+            0.3968,   // 1958
+            0.0848,   // 1959
+            -0.0143,  // 1960
+            0.2361,   // 1961
+            -0.1081,  // 1962
+            0.2089,   // 1963
+            0.1448,   // 1964
+            0.0906,   // 1965
+            -0.1285,  // 1966
+            0.2009,   // 1967
+            0.0679,   // 1968
+            -0.1218,  // 1969
+            -0.0012,  // 1970
+            0.1080,   // 1971
+            0.1557,   // 1972
+            -0.2337,  // 1973
+            -0.3617,  // 1974
+            0.3149,   // 1975
+            0.1915,   // 1976
+            -0.1153,  // 1977
+            -0.0007,  // 1978
+            0.0586,   // 1979
+            0.2034,   // 1980
+            -0.0985,  // 1981
+            0.1476,   // 1982
+            0.1727,   // 1983
+            0.0144,   // 1984
+            0.2633,   // 1985
+            0.1462,   // 1986
+            0.0203,   // 1987
+            0.1240,   // 1988
+            0.2725,   // 1989
+            -0.0656,  // 1990
+            0.2631,   // 1991
+            0.0446,   // 1992
+            0.0706,   // 1993
+            -0.0154,  // 1994
+            0.3320,   // 1995
+            0.2026,   // 1996
+            0.3101,   // 1997
+            0.2667,   // 1998
+            0.1879,   // 1999
+            -0.1214,  // 2000
+            -0.1304,  // 2001
+            -0.2337,  // 2002
+            0.2618,   // 2003
+            0.0749,   // 2004
+            0.0161,   // 2005
+            0.1317,   // 2006
+            0.0140,   // 2007
+            -0.3849,  // 2008
+            0.2345,   // 2009
+            0.1278,   // 2010
+            -0.0003,  // 2011
+            0.1374,   // 2012
+            0.2997,   // 2013
+            0.1039,   // 2014
+            0.0073,   // 2015
+            0.0954,   // 2016
+            0.1942,   // 2017
+            -0.0623,  // 2018
+            0.2861,   // 2019
+            0.1588,   // 2020
+            0.2125,   // 2021
+            -0.2416,  // 2022
+            0.2226    // 2023
+        ];
+        const HISTORICAL_YEARS = { start: 1928, end: 2023 };
+
         let simulationResults = null;
         let selectedPaths = new Set();
         
@@ -381,6 +577,50 @@
             let u1 = Math.random();
             let u2 = Math.random();
             return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
+        }
+
+        // Generate return sequence based on selected model
+        function generateReturns(inputs) {
+            const { years, returnModel, expReturn, volatility, autocorr, blockSize } = inputs;
+            const returns = [];
+
+            if (returnModel === 'bootstrap') {
+                // Historical block bootstrap
+                let yearIndex = 0;
+                while (returns.length < years) {
+                    // Pick a random starting point (circular - can wrap around)
+                    const startIdx = Math.floor(Math.random() * HISTORICAL_RETURNS.length);
+
+                    // Sample a block of consecutive years
+                    for (let i = 0; i < blockSize && returns.length < years; i++) {
+                        const idx = (startIdx + i) % HISTORICAL_RETURNS.length;
+                        returns.push(HISTORICAL_RETURNS[idx]);
+                    }
+                }
+            } else {
+                // Monte Carlo with optional autocorrelation (AR(1) model)
+                let prevReturn = expReturn; // Start at expected return
+
+                for (let i = 0; i < years; i++) {
+                    const shock = volatility * randn();
+                    let realReturn;
+
+                    if (autocorr === 0) {
+                        // Standard i.i.d.
+                        realReturn = expReturn + shock;
+                    } else {
+                        // AR(1): return = (1-rho)*mean + rho*prev + shock
+                        // Adjusted volatility to maintain same unconditional variance
+                        const adjustedVol = volatility * Math.sqrt(1 - autocorr * autocorr);
+                        realReturn = expReturn * (1 - autocorr) + autocorr * prevReturn + adjustedVol * randn();
+                    }
+
+                    returns.push(realReturn);
+                    prevReturn = realReturn;
+                }
+            }
+
+            return returns;
         }
         
         function fmt(val, decimals = 0) {
@@ -404,6 +644,31 @@
             document.getElementById('guardrailsInputs').style.display = showGuardrails ? 'block' : 'none';
             document.getElementById('gkInputs').style.display = strategy === 'gk' ? 'block' : 'none';
         }
+
+        function updateReturnModelInputs() {
+            const model = document.getElementById('returnModel').value;
+            document.getElementById('monteCarloInputs').style.display = model === 'montecarlo' ? 'block' : 'none';
+            document.getElementById('bootstrapInputs').style.display = model === 'bootstrap' ? 'block' : 'none';
+        }
+
+        function openSettings() {
+            document.getElementById('settingsModal').classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function saveSettings() {
+            closeSettings();
+        }
+
+        // Close modal on overlay click
+        document.addEventListener('click', function(e) {
+            if (e.target.id === 'settingsModal') {
+                closeSettings();
+            }
+        });
         
         function saveToURL() {
             const inputs = getInputs();
@@ -420,15 +685,22 @@
             params.set('spendAdjust', inputs.spendAdjust * 100);
             params.set('gkUpper', inputs.gkUpper * 100);
             params.set('gkLower', inputs.gkLower * 100);
+            params.set('returnModel', inputs.returnModel);
             params.set('expReturn', inputs.expReturn * 100);
             params.set('volatility', inputs.volatility * 100);
+            params.set('autocorr', inputs.autocorr);
+            params.set('blockSize', inputs.blockSize);
             params.set('income', inputs.income);
             params.set('incomeStartAge', inputs.incomeStartAge);
             params.set('incomeInflAdj', inputs.incomeInflationAdjusted ? '1' : '0');
             params.set('debt', inputs.debt);
             params.set('debtEndAge', inputs.debtEndAge);
             params.set('debtInflAdj', inputs.debtInflationAdjusted ? '1' : '0');
-            
+            // Advanced settings
+            params.set('inflation', inputs.inflationRate * 100);
+            params.set('ceiling', inputs.spendingCeiling);
+            params.set('panicThresh', inputs.panicThreshold * 100);
+
             const url = window.location.pathname + '?' + params.toString();
             
             // Copy to clipboard
@@ -454,19 +726,39 @@
                 document.getElementById('spendAdjust').value = params.get('spendAdjust');
                 document.getElementById('gkUpper').value = params.get('gkUpper');
                 document.getElementById('gkLower').value = params.get('gkLower');
+                if (params.has('returnModel')) {
+                    document.getElementById('returnModel').value = params.get('returnModel');
+                }
                 document.getElementById('expReturn').value = params.get('expReturn');
                 document.getElementById('volatility').value = params.get('volatility');
+                if (params.has('autocorr')) {
+                    document.getElementById('autocorr').value = params.get('autocorr');
+                }
+                if (params.has('blockSize')) {
+                    document.getElementById('blockSize').value = params.get('blockSize');
+                }
                 document.getElementById('income').value = params.get('income');
                 document.getElementById('incomeStartAge').value = params.get('incomeStartAge');
                 document.getElementById('incomeInflationAdjusted').checked = params.get('incomeInflAdj') === '1';
                 document.getElementById('debt').value = params.get('debt');
                 document.getElementById('debtEndAge').value = params.get('debtEndAge');
                 document.getElementById('debtInflationAdjusted').checked = params.get('debtInflAdj') === '1';
-                
+                // Advanced settings
+                if (params.has('inflation')) {
+                    document.getElementById('inflationRate').value = params.get('inflation');
+                }
+                if (params.has('ceiling')) {
+                    document.getElementById('spendingCeiling').value = params.get('ceiling');
+                }
+                if (params.has('panicThresh')) {
+                    document.getElementById('panicThreshold').value = params.get('panicThresh');
+                }
+
                 updateStrategyInputs();
+                updateReturnModelInputs();
             }
         }
-        
+
         function getInputs() {
             return {
                 portfolio: parseFloat(document.getElementById('portfolio').value),
@@ -479,15 +771,23 @@
                 spendAdjust: parseFloat(document.getElementById('spendAdjust').value) / 100,
                 gkUpper: parseFloat(document.getElementById('gkUpper').value) / 100,
                 gkLower: parseFloat(document.getElementById('gkLower').value) / 100,
+                // Return model settings
+                returnModel: document.getElementById('returnModel').value,
                 expReturn: parseFloat(document.getElementById('expReturn').value) / 100,
                 volatility: parseFloat(document.getElementById('volatility').value) / 100,
+                autocorr: parseFloat(document.getElementById('autocorr').value),
+                blockSize: parseInt(document.getElementById('blockSize').value),
                 numPaths: parseInt(document.getElementById('numPaths').value),
                 income: parseFloat(document.getElementById('income').value),
                 incomeStartAge: parseInt(document.getElementById('incomeStartAge').value),
                 incomeInflationAdjusted: document.getElementById('incomeInflationAdjusted').checked,
                 debt: parseFloat(document.getElementById('debt').value),
                 debtEndAge: parseInt(document.getElementById('debtEndAge').value),
-                debtInflationAdjusted: document.getElementById('debtInflationAdjusted').checked
+                debtInflationAdjusted: document.getElementById('debtInflationAdjusted').checked,
+                // Advanced settings
+                inflationRate: parseFloat(document.getElementById('inflationRate').value) / 100,
+                spendingCeiling: parseFloat(document.getElementById('spendingCeiling').value),
+                panicThreshold: parseFloat(document.getElementById('panicThreshold').value) / 100
             };
         }
         
@@ -495,13 +795,17 @@
         // - Returns are REAL (already inflation-adjusted)
         // - Withdrawals are in REAL dollars (constant purchasing power)
         function simulatePath(inputs, pathId) {
-            const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge, 
+            const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge,
                     income, incomeStartAge, incomeInflationAdjusted,
-                    debt, debtEndAge, debtInflationAdjusted } = inputs;
-            
+                    debt, debtEndAge, debtInflationAdjusted,
+                    inflationRate, spendingCeiling, panicThreshold } = inputs;
+
+            // Pre-generate all returns for this path
+            const generatedReturns = generateReturns(inputs);
+
             let portfolioValue = portfolio;
             let prevWithdrawal = withdrawal;
-            
+
             const history = {
                 portfolioValues: [portfolioValue],
                 withdrawals: [0],
@@ -524,9 +828,9 @@
                         annualIncome = income; // Real dollars - constant purchasing power
                     } else {
                         // Nominal dollars - loses purchasing power over time
-                        // Discount by assumed 3% inflation compounded
+                        // Discount by inflation rate compounded
                         const yearsFromStart = currentAge - incomeStartAge;
-                        annualIncome = income / Math.pow(1.03, yearsFromStart);
+                        annualIncome = income / Math.pow(1 + inflationRate, yearsFromStart);
                     }
                 }
                 
@@ -539,9 +843,9 @@
                         annualDebt = debt; // Real dollars - constant purchasing power
                     } else {
                         // Nominal dollars - loses purchasing power over time (typical mortgage)
-                        // Discount by assumed 3% inflation compounded
+                        // Discount by inflation rate compounded
                         const yearsFromStart = year - 1;
-                        annualDebt = debt / Math.pow(1.03, yearsFromStart);
+                        annualDebt = debt / Math.pow(1 + inflationRate, yearsFromStart);
                     }
                 }
                 
@@ -620,13 +924,13 @@
                 }
                 
                 // GR+CommonSense: Check panic rule BEFORE floor
-                // Panic if WR >= 9% (not 10%) to trigger earlier
+                // Panic if WR >= threshold to trigger earlier
                 let panicCut = false;
                 if (strategy === 'gr_commonsense') {
                     const yearsRemaining = years - year;
                     const currentWR = withdrawalAmount / portfolioValue;
-                    
-                    if (currentWR >= 0.09 && yearsRemaining > 10) {
+
+                    if (currentWR >= panicThreshold && yearsRemaining > 10) {
                         const beforeCut = withdrawalAmount;
                         withdrawalAmount *= 0.85; // 15% cut (more severe than guardrails)
                         panicCut = true;
@@ -642,7 +946,7 @@
                             console.log(`PANIC ${window.panicLogCount + 1}: Year ${year}, Portfolio: ${(portfolioValue/1e3).toFixed(0)}K, Before: ${(beforeCut/1e3).toFixed(0)}K (${(currentWR*100).toFixed(1)}%), After: ${(withdrawalAmount/1e3).toFixed(0)}K (${(withdrawalAmount/portfolioValue*100).toFixed(1)}%), Floor: ${(floor/1e3).toFixed(0)}K, Below floor: ${withdrawalAmount < floor}`);
                             window.panicLogCount++;
                         }
-                    } else if (currentWR >= 0.09) {
+                    } else if (currentWR >= panicThreshold) {
                         meta.commonSense = 'high_wr_tolerated';
                         meta.wr = currentWR;
                     }
@@ -664,10 +968,9 @@
                 }
                 
                 // Apply ceiling for ALL strategies (prevent runaway spending)
-                const ceiling = 500000; // $500K max
-                if (withdrawalAmount > ceiling) {
+                if (spendingCeiling > 0 && withdrawalAmount > spendingCeiling) {
                     meta.ceilingApplied = true;
-                    withdrawalAmount = ceiling;
+                    withdrawalAmount = spendingCeiling;
                 }
                 
                 prevWithdrawal = withdrawalAmount;
@@ -697,8 +1000,8 @@
                     };
                 }
                 
-                // Step 3: Apply REAL market return
-                const realReturn = expReturn + volatility * randn();
+                // Step 3: Apply REAL market return (from pre-generated sequence)
+                const realReturn = generatedReturns[year - 1];
                 portfolioValue = portfolioValue * (1 + realReturn);
                 portfolioValue = Math.max(0, portfolioValue);
                 
@@ -1243,6 +1546,7 @@
         window.addEventListener('DOMContentLoaded', function() {
             loadFromURL();
             updateStrategyInputs();
+            updateReturnModelInputs();
         });
     </script>
 </body>
