@@ -316,6 +316,7 @@
             </div>
             
             <button onclick="runSimulation()">Run Simulation</button>
+            <button onclick="saveToURL()" style="background: #845ef7;">Save Config to URL</button>
             
             <h2>Path Selection</h2>
             <div class="controls">
@@ -402,6 +403,68 @@
             const showGuardrails = strategy === 'guardrails' || strategy === 'gr_commonsense';
             document.getElementById('guardrailsInputs').style.display = showGuardrails ? 'block' : 'none';
             document.getElementById('gkInputs').style.display = strategy === 'gk' ? 'block' : 'none';
+        }
+        
+        function saveToURL() {
+            const inputs = getInputs();
+            const params = new URLSearchParams();
+            
+            // Save all parameters
+            params.set('portfolio', inputs.portfolio);
+            params.set('startAge', inputs.startAge);
+            params.set('years', inputs.years);
+            params.set('strategy', inputs.strategy);
+            params.set('withdrawal', inputs.withdrawal);
+            params.set('floor', inputs.floor);
+            params.set('portTrigger', inputs.portTrigger * 100);
+            params.set('spendAdjust', inputs.spendAdjust * 100);
+            params.set('gkUpper', inputs.gkUpper * 100);
+            params.set('gkLower', inputs.gkLower * 100);
+            params.set('expReturn', inputs.expReturn * 100);
+            params.set('volatility', inputs.volatility * 100);
+            params.set('income', inputs.income);
+            params.set('incomeStartAge', inputs.incomeStartAge);
+            params.set('incomeInflAdj', inputs.incomeInflationAdjusted ? '1' : '0');
+            params.set('debt', inputs.debt);
+            params.set('debtEndAge', inputs.debtEndAge);
+            params.set('debtInflAdj', inputs.debtInflationAdjusted ? '1' : '0');
+            
+            const url = window.location.pathname + '?' + params.toString();
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(window.location.origin + url).then(() => {
+                alert('Configuration URL copied to clipboard!');
+            }).catch(() => {
+                // Fallback: show in prompt
+                prompt('Copy this URL:', window.location.origin + url);
+            });
+        }
+        
+        function loadFromURL() {
+            const params = new URLSearchParams(window.location.search);
+            
+            if (params.has('portfolio')) {
+                document.getElementById('portfolio').value = params.get('portfolio');
+                document.getElementById('startAge').value = params.get('startAge');
+                document.getElementById('years').value = params.get('years');
+                document.getElementById('strategy').value = params.get('strategy');
+                document.getElementById('withdrawal').value = params.get('withdrawal');
+                document.getElementById('floor').value = params.get('floor');
+                document.getElementById('portTrigger').value = params.get('portTrigger');
+                document.getElementById('spendAdjust').value = params.get('spendAdjust');
+                document.getElementById('gkUpper').value = params.get('gkUpper');
+                document.getElementById('gkLower').value = params.get('gkLower');
+                document.getElementById('expReturn').value = params.get('expReturn');
+                document.getElementById('volatility').value = params.get('volatility');
+                document.getElementById('income').value = params.get('income');
+                document.getElementById('incomeStartAge').value = params.get('incomeStartAge');
+                document.getElementById('incomeInflationAdjusted').checked = params.get('incomeInflAdj') === '1';
+                document.getElementById('debt').value = params.get('debt');
+                document.getElementById('debtEndAge').value = params.get('debtEndAge');
+                document.getElementById('debtInflationAdjusted').checked = params.get('debtInflAdj') === '1';
+                
+                updateStrategyInputs();
+            }
         }
         
         function getInputs() {
@@ -1178,6 +1241,7 @@
         
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', function() {
+            loadFromURL();
             updateStrategyInputs();
         });
     </script>
