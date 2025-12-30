@@ -199,10 +199,11 @@
 <body>
     <div class="container">
         <div class="panel">
-            <h1>Path Analyzer</h1>
+            <h1>Retirement Path Analyzer</h1>
             
             <div class="note">
-                All values in REAL (inflation-adjusted) terms, matching ficalc.app
+                All values in REAL (inflation-adjusted) terms
+                Disclaimer: This is a simplified model for educational purposes only.
             </div>
             
             <h2>Portfolio</h2>
@@ -264,16 +265,28 @@
             
             <h2>Additional Cash Flows</h2>
             <div class="input-group">
-                <label>Social Security / Pension ($/yr, real)</label>
+                <label>Social Security / Pension ($/yr)</label>
                 <input type="number" id="income" value="0" step="5000">
+            </div>
+            <div class="input-group">
+                <label>
+                    <input type="checkbox" id="incomeInflationAdjusted" checked style="width: auto; margin-right: 5px;">
+                    Adjust for inflation (real dollars)
+                </label>
             </div>
             <div class="input-group">
                 <label>Income Start Age</label>
                 <input type="number" id="incomeStartAge" value="65" min="50" max="75">
             </div>
             <div class="input-group">
-                <label>Mortgage / Debt ($/yr, real)</label>
+                <label>Mortgage / Debt ($/yr)</label>
                 <input type="number" id="debt" value="0" step="5000">
+            </div>
+            <div class="input-group">
+                <label>
+                    <input type="checkbox" id="debtInflationAdjusted" style="width: auto; margin-right: 5px;">
+                    Adjust for inflation (real dollars)
+                </label>
             </div>
             <div class="input-group">
                 <label>Debt End Age</label>
@@ -401,8 +414,10 @@
                 numPaths: parseInt(document.getElementById('numPaths').value),
                 income: parseFloat(document.getElementById('income').value),
                 incomeStartAge: parseInt(document.getElementById('incomeStartAge').value),
+                incomeInflationAdjusted: document.getElementById('incomeInflationAdjusted').checked,
                 debt: parseFloat(document.getElementById('debt').value),
-                debtEndAge: parseInt(document.getElementById('debtEndAge').value)
+                debtEndAge: parseInt(document.getElementById('debtEndAge').value),
+                debtInflationAdjusted: document.getElementById('debtInflationAdjusted').checked
             };
         }
         
@@ -410,7 +425,9 @@
         // - Returns are REAL (already inflation-adjusted)
         // - Withdrawals are in REAL dollars (constant purchasing power)
         function simulatePath(inputs, pathId) {
-            const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge, income, incomeStartAge, debt, debtEndAge } = inputs;
+            const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge, 
+                    income, incomeStartAge, incomeInflationAdjusted,
+                    debt, debtEndAge, debtInflationAdjusted } = inputs;
             
             let portfolioValue = portfolio;
             let prevWithdrawal = withdrawal;
@@ -429,10 +446,34 @@
                 const currentAge = startAge + year - 1;
                 
                 // Income (e.g., Social Security)
-                const annualIncome = currentAge >= incomeStartAge ? income : 0;
+                // If inflation-adjusted: stays constant in real terms
+                // If NOT inflation-adjusted: declines in real terms (fixed nominal amount)
+                let annualIncome = 0;
+                if (currentAge >= incomeStartAge && income > 0) {
+                    if (incomeInflationAdjusted) {
+                        annualIncome = income; // Real dollars - constant purchasing power
+                    } else {
+                        // Nominal dollars - loses purchasing power over time
+                        // Discount by assumed 3% inflation compounded
+                        const yearsFromStart = currentAge - incomeStartAge;
+                        annualIncome = income / Math.pow(1.03, yearsFromStart);
+                    }
+                }
                 
                 // Debt/mortgage
-                const annualDebt = currentAge < debtEndAge ? debt : 0;
+                // If inflation-adjusted: stays constant in real terms
+                // If NOT inflation-adjusted: declines in real terms (fixed nominal payment like typical mortgage)
+                let annualDebt = 0;
+                if (currentAge < debtEndAge && debt > 0) {
+                    if (debtInflationAdjusted) {
+                        annualDebt = debt; // Real dollars - constant purchasing power
+                    } else {
+                        // Nominal dollars - loses purchasing power over time (typical mortgage)
+                        // Discount by assumed 3% inflation compounded
+                        const yearsFromStart = year - 1;
+                        annualDebt = debt / Math.pow(1.03, yearsFromStart);
+                    }
+                }
                 
                 // Step 1: Calculate withdrawal (in real dollars - constant over time unless strategy adjusts)
                 let withdrawalAmount = 0;
@@ -464,25 +505,20 @@
                     meta.ratio = ratio;
                     
                 } else if (strategy === 'gk') {
-                    // GK operates on actual withdrawal amounts
                     let baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
                     
                     const currentRate = baseAmount / portfolioValue;
                     const initialRate = withdrawal / inputs.portfolio;
                     
-                    // Capital preservation - cut if rate too high
                     if (currentRate > initialRate * (1 + inputs.gkUpper)) {
                         baseAmount *= 0.90;
                         meta.rule = 'preservation';
                     }
-                    // Prosperity - raise if rate too low
                     else if (currentRate < initialRate * (1 - inputs.gkLower)) {
                         baseAmount *= 1.10;
                         meta.rule = 'prosperity';
                     }
-                    // Portfolio management - freeze after negative return
                     else if (!isFirstYear && prevReturn < 0) {
-                        // Keep same dollar amount (no adjustment)
                         meta.rule = 'freeze';
                     } else {
                         meta.rule = 'normal';
@@ -501,7 +537,7 @@
                 
                 prevWithdrawal = withdrawalAmount;
                 
-                // Net withdrawal = spending + debt - income
+                // Net withdrawal = spending + debt - income (all in real dollars)
                 const netWithdrawal = withdrawalAmount + annualDebt - annualIncome;
                 meta.income = annualIncome;
                 meta.debt = annualDebt;
