@@ -236,6 +236,60 @@
             color: #666;
             margin-top: 4px;
         }
+        .info-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #333;
+            color: #888;
+            font-size: 11px;
+            cursor: help;
+            margin-left: 6px;
+            position: relative;
+            vertical-align: middle;
+        }
+        .info-icon:hover {
+            background: #4a9eff;
+            color: #fff;
+        }
+        .info-icon .tooltip {
+            display: none;
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #222;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px 12px;
+            width: 280px;
+            font-size: 11px;
+            line-height: 1.5;
+            color: #ccc;
+            z-index: 100;
+            margin-bottom: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        .info-icon .tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 6px solid transparent;
+            border-top-color: #444;
+        }
+        .info-icon:hover .tooltip {
+            display: block;
+        }
+        .tooltip-title {
+            color: #4a9eff;
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
     </style>
 </head>
 <body>
@@ -264,12 +318,21 @@
             
             <h2>Strategy</h2>
             <div class="input-group">
-                <label>Withdrawal Method</label>
+                <label>
+                    Withdrawal Method
+                    <span class="info-icon" id="strategyInfo">?
+                        <span class="tooltip" id="strategyTooltip">
+                            <div class="tooltip-title">Guardrails + Common Sense</div>
+                            <div>Adjusts spending when portfolio crosses ±20% of initial value. Only triggers once per threshold crossing. Includes panic cut (15%) when withdrawal rate exceeds threshold.</div>
+                        </span>
+                    </span>
+                </label>
                 <select id="strategy" onchange="updateStrategyInputs()">
                     <option value="constant">Constant Dollar</option>
                     <option value="percent">Portfolio %</option>
                     <option value="guardrails">Guardrails</option>
                     <option value="gk">Guyton-Klinger</option>
+                    <option value="gk_panic">GK + Panic Threshold</option>
                     <option value="gr_commonsense" selected>Guardrails + Common Sense</option>
                 </select>
             </div>
@@ -355,15 +418,15 @@
                 </div>
                 <div class="input-group">
                     <label>Autocorrelation</label>
-                    <input type="number" id="autocorr" value="-0.05" step="0.05" min="-0.5" max="0.5">
+                    <input type="number" id="autocorr" value="-0.1" step="0.05" min="-0.5" max="0.5">
                     <div class="setting-note">0 = i.i.d., positive = momentum, negative = mean reversion</div>
                 </div>
             </div>
             <div id="bootstrapInputs" style="display: none;">
                 <div class="input-group">
                     <label>Block Size (years)</label>
-                    <input type="number" id="blockSize" value="5" min="1" max="20">
-                    <div class="setting-note">Contiguous years sampled together to preserve correlations</div>
+                    <input type="number" id="blockSize" value="7" min="1" max="20">
+                    <div class="setting-note">Contiguous years sampled together to preserve market cycles</div>
                 </div>
             </div>
             
@@ -638,11 +701,47 @@
             return '$' + (val / 1e3).toFixed(0) + 'K';
         }
         
+        const STRATEGY_INFO = {
+            constant: {
+                title: 'Constant Dollar',
+                desc: 'Withdraw a fixed amount (in real dollars) every year regardless of portfolio performance. Simple but inflexible - doesn\'t adapt to market conditions.'
+            },
+            percent: {
+                title: 'Portfolio Percentage',
+                desc: 'Withdraw a fixed percentage of current portfolio value each year. Spending varies with market - high in good years, low in bad years. Never depletes but can be volatile.'
+            },
+            guardrails: {
+                title: 'Guardrails',
+                desc: 'Starts with base withdrawal. If portfolio rises/falls beyond trigger % from initial, spending adjusts by ±X%. Adjusts every year the condition is met.'
+            },
+            gk: {
+                title: 'Guyton-Klinger',
+                desc: 'Rate-based rules: Preservation (cut 10% if WR too high), Prosperity (raise 10% if WR too low), Freeze (no raise after down year). Classic dynamic strategy from retirement research.'
+            },
+            gk_panic: {
+                title: 'GK + Panic Threshold',
+                desc: 'Guyton-Klinger rules plus emergency panic cut. If withdrawal rate exceeds threshold (default 10%) with >10 years remaining, triggers 15% cut that bypasses floor. Adds downside protection.'
+            },
+            gr_commonsense: {
+                title: 'Guardrails + Common Sense',
+                desc: 'Portfolio-based guardrails that only trigger once per threshold crossing (not every year). Includes panic cut (15%) when withdrawal rate gets dangerously high. Balanced approach.'
+            }
+        };
+
+        function updateStrategyTooltip() {
+            const strategy = document.getElementById('strategy').value;
+            const info = STRATEGY_INFO[strategy];
+            const tooltip = document.getElementById('strategyTooltip');
+            tooltip.innerHTML = `<div class="tooltip-title">${info.title}</div><div>${info.desc}</div>`;
+        }
+
         function updateStrategyInputs() {
             const strategy = document.getElementById('strategy').value;
             const showGuardrails = strategy === 'guardrails' || strategy === 'gr_commonsense';
+            const showGK = strategy === 'gk' || strategy === 'gk_panic';
             document.getElementById('guardrailsInputs').style.display = showGuardrails ? 'block' : 'none';
-            document.getElementById('gkInputs').style.display = strategy === 'gk' ? 'block' : 'none';
+            document.getElementById('gkInputs').style.display = showGK ? 'block' : 'none';
+            updateStrategyTooltip();
         }
 
         function updateReturnModelInputs() {
@@ -805,6 +904,7 @@
 
             let portfolioValue = portfolio;
             let prevWithdrawal = withdrawal;
+            let grZone = 'normal'; // Track guardrails zone: 'normal', 'high', 'low'
 
             const history = {
                 portfolioValues: [portfolioValue],
@@ -879,30 +979,46 @@
                     meta.ratio = ratio;
                     
                 } else if (strategy === 'gr_commonsense') {
-                    // Use ACTUAL previous withdrawal (so cuts compound)
+                    // Threshold-crossing guardrails: only adjust when ENTERING a new zone
                     const baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
                     const ratio = portfolioValue / inputs.portfolio;
-                    
-                    let multiplier = 1.0;
+
+                    // Determine current zone
+                    let newZone = 'normal';
                     if (ratio > 1 + inputs.portTrigger) {
-                        multiplier = 1 + inputs.spendAdjust;
-                        meta.triggered = 'raise';
+                        newZone = 'high';
                     } else if (ratio < 1 - inputs.portTrigger) {
-                        multiplier = 1 - inputs.spendAdjust;
-                        meta.triggered = 'cut';
+                        newZone = 'low';
                     }
-                    
+
+                    // Only adjust when crossing INTO a new zone
+                    let multiplier = 1.0;
+                    if (newZone !== grZone) {
+                        if (newZone === 'high' && grZone !== 'high') {
+                            multiplier = 1 + inputs.spendAdjust;
+                            meta.triggered = 'raise';
+                        } else if (newZone === 'low' && grZone !== 'low') {
+                            multiplier = 1 - inputs.spendAdjust;
+                            meta.triggered = 'cut';
+                        } else if (newZone === 'normal') {
+                            // Returning to normal - no adjustment, just maintain
+                            meta.triggered = 'return_normal';
+                        }
+                        grZone = newZone;
+                    }
+
                     withdrawalAmount = baseAmount * multiplier;
                     meta.method = 'gr_commonsense';
                     meta.ratio = ratio;
+                    meta.zone = newZone;
                     meta.baseAmount = baseAmount;
-                    
-                } else if (strategy === 'gk') {
+
+                } else if (strategy === 'gk' || strategy === 'gk_panic') {
                     let baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
-                    
+
                     const currentRate = baseAmount / portfolioValue;
                     const initialRate = withdrawal / inputs.portfolio;
-                    
+
                     if (currentRate > initialRate * (1 + inputs.gkUpper)) {
                         baseAmount *= 0.90;
                         meta.rule = 'preservation';
@@ -916,41 +1032,34 @@
                     } else {
                         meta.rule = 'normal';
                     }
-                    
+
                     withdrawalAmount = baseAmount;
-                    meta.method = 'gk';
+                    meta.method = strategy; // 'gk' or 'gk_panic'
                     meta.currentRate = currentRate;
                     meta.initialRate = initialRate;
                 }
                 
-                // GR+CommonSense: Check panic rule BEFORE floor
-                // Panic if WR >= threshold to trigger earlier
+                // Panic rule: Check WR threshold BEFORE floor (for strategies with panic feature)
+                // Triggers 15% cut when WR >= threshold and >10 years remaining
                 let panicCut = false;
-                if (strategy === 'gr_commonsense') {
+                const hasPanicFeature = strategy === 'gr_commonsense' || strategy === 'gk_panic';
+                if (hasPanicFeature) {
                     const yearsRemaining = years - year;
                     const currentWR = withdrawalAmount / portfolioValue;
 
                     if (currentWR >= panicThreshold && yearsRemaining > 10) {
                         const beforeCut = withdrawalAmount;
-                        withdrawalAmount *= 0.85; // 15% cut (more severe than guardrails)
+                        withdrawalAmount *= 0.85; // 15% cut (more severe than normal adjustments)
                         panicCut = true;
-                        meta.commonSense = 'panic_cut';
+                        meta.panicTriggered = true;
                         meta.wrBeforeCut = currentWR;
                         meta.amountBeforeCut = beforeCut;
                         meta.amountAfterCut = withdrawalAmount;
                         meta.floor = floor;
-                        
-                        // Debug logging
-                        if (!window.panicLogCount) window.panicLogCount = 0;
-                        if (window.panicLogCount < 5) {
-                            console.log(`PANIC ${window.panicLogCount + 1}: Year ${year}, Portfolio: ${(portfolioValue/1e3).toFixed(0)}K, Before: ${(beforeCut/1e3).toFixed(0)}K (${(currentWR*100).toFixed(1)}%), After: ${(withdrawalAmount/1e3).toFixed(0)}K (${(withdrawalAmount/portfolioValue*100).toFixed(1)}%), Floor: ${(floor/1e3).toFixed(0)}K, Below floor: ${withdrawalAmount < floor}`);
-                            window.panicLogCount++;
-                        }
                     } else if (currentWR >= panicThreshold) {
-                        meta.commonSense = 'high_wr_tolerated';
-                        meta.wr = currentWR;
+                        meta.highWrTolerated = true; // Near end of retirement, allow high WR
                     }
-                    
+
                     meta.wr = currentWR;
                     meta.yearsRemaining = yearsRemaining;
                 }
@@ -1072,7 +1181,7 @@
                 // Check if panic ever triggered
                 let panicCount = 0;
                 if (path.history.meta) {
-                    panicCount = path.history.meta.filter(m => m.commonSense === 'panic_cut').length;
+                    panicCount = path.history.meta.filter(m => m.panicTriggered).length;
                 }
                 
                 const info = path.success 
@@ -1547,6 +1656,7 @@
             loadFromURL();
             updateStrategyInputs();
             updateReturnModelInputs();
+            updateStrategyTooltip();
         });
     </script>
 </body>
