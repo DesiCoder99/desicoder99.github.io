@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">Blog Post - DesiCoder99</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked@11.1.1/marked.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #1a1a1a;
+            --accent-cyan: #9cdcfe;
+            --accent-green: #ce9178;
+            --accent-purple: #c586c0;
+            --text-primary: #d4d4d4;
+            --text-secondary: #858585;
+            --border-color: #3e3e42;
+            --hover-shadow: 0 0 20px rgba(156, 220, 254, 0.2);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background grid effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        nav {
+            background: rgba(10, 14, 39, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.2rem 2rem;
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 217, 255, 0.05);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent;
+            display: block;
+        }
+
+        nav a:hover {
+            color: var(--accent-cyan);
+            border-left-color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .container {
+            flex: 1;
+            max-width: 900px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        .post-header {
+            margin-bottom: 3rem;
+            padding-bottom: 2rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .post-title {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+
+        .post-meta {
+            display: flex;
+            gap: 2rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .post-date::before {
+            content: '📅 ';
+        }
+
+        .post-category {
+            color: var(--accent-purple);
+        }
+
+        .post-category::before {
+            content: '🏷️ ';
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 2rem;
+            color: var(--accent-cyan);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            color: var(--accent-green);
+        }
+
+        .back-link::before {
+            content: '← ';
+        }
+
+        /* Markdown content styling */
+        #content {
+            line-height: 1.8;
+        }
+
+        #content h1 {
+            font-size: 2rem;
+            color: var(--accent-cyan);
+            margin: 2.5rem 0 1rem 0;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        #content h2 {
+            font-size: 1.6rem;
+            color: var(--accent-cyan);
+            margin: 2rem 0 1rem 0;
+        }
+
+        #content h3 {
+            font-size: 1.3rem;
+            color: var(--accent-purple);
+            margin: 1.5rem 0 0.75rem 0;
+        }
+
+        #content p {
+            margin: 1rem 0;
+            color: var(--text-primary);
+        }
+
+        #content a {
+            color: var(--accent-cyan);
+            text-decoration: none;
+            border-bottom: 1px solid transparent;
+            transition: all 0.3s ease;
+        }
+
+        #content a:hover {
+            color: var(--accent-green);
+            border-bottom-color: var(--accent-green);
+        }
+
+        #content ul, #content ol {
+            margin: 1rem 0 1rem 2rem;
+            color: var(--text-primary);
+        }
+
+        #content li {
+            margin: 0.5rem 0;
+        }
+
+        #content blockquote {
+            background: rgba(30, 41, 70, 0.5);
+            border-left: 4px solid var(--accent-cyan);
+            padding: 1rem 1.5rem;
+            margin: 1.5rem 0;
+            border-radius: 4px;
+            color: var(--text-secondary);
+        }
+
+        #content code {
+            background: rgba(30, 41, 70, 0.6);
+            padding: 0.2rem 0.5rem;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.9em;
+            color: var(--accent-green);
+        }
+
+        #content pre {
+            background: rgba(30, 41, 70, 0.6);
+            padding: 1.5rem;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            border: 1px solid var(--border-color);
+        }
+
+        #content pre code {
+            background: none;
+            padding: 0;
+            color: var(--text-primary);
+        }
+
+        #content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+        }
+
+        #content th, #content td {
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        #content th {
+            background: rgba(30, 41, 70, 0.6);
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        #content tr:hover {
+            background: rgba(30, 41, 70, 0.3);
+        }
+
+        #content img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+
+        #content hr {
+            border: none;
+            border-top: 2px solid var(--border-color);
+            margin: 2rem 0;
+        }
+
+        #content strong {
+            color: var(--accent-cyan);
+            font-weight: 600;
+        }
+
+        #content em {
+            color: var(--accent-purple);
+        }
+
+        .loading {
+            text-align: center;
+            padding: 4rem 2rem;
+            color: var(--text-secondary);
+        }
+
+        .error {
+            background: rgba(200, 50, 50, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            color: #ff6b6b;
+            padding: 2rem;
+            border-radius: 8px;
+            margin: 2rem 0;
+        }
+
+        footer {
+            background: rgba(10, 14, 39, 0.95);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 -4px 30px rgba(0, 217, 255, 0.05);
+            backdrop-filter: blur(10px);
+            margin-top: auto;
+        }
+
+        footer ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        footer a {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        footer a:hover {
+            color: var(--accent-cyan);
+        }
+
+        @media (max-width: 768px) {
+            .post-title {
+                font-size: 1.8rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+
+            nav a {
+                padding: 0.3rem 0.7rem;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                padding: 2rem 1rem;
+            }
+
+            #content h1 {
+                font-size: 1.6rem;
+            }
+
+            #content h2 {
+                font-size: 1.3rem;
+            }
+
+            #content h3 {
+                font-size: 1.1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <a href="/blog" class="back-link">Back to Blog</a>
+
+        <div class="post-header">
+            <h1 class="post-title" id="post-title">Loading...</h1>
+            <div class="post-meta">
+                <span class="post-date" id="post-date"></span>
+                <span class="post-category" id="post-category"></span>
+            </div>
+        </div>
+
+        <div id="content" class="loading">Loading post...</div>
+    </div>
+
+    <footer>
+        <ul>
+            <li><a href="mailto:codemajdoor@gmail.com">email</a></li>
+            <li><a href="https://github.com/DesiCoder99">github.com/DesiCoder99</a></li>
+        </ul>
+    </footer>
+
+    <script>
+        // Get post ID from URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const postId = urlParams.get('id');
+
+        if (!postId) {
+            document.getElementById('content').innerHTML = '<div class="error">Error: No post ID specified</div>';
+        } else {
+            loadPost(postId);
+        }
+
+        async function loadPost(postId) {
+            try {
+                // Load posts metadata
+                const metaResponse = await fetch('/blog/posts.json');
+                const posts = await metaResponse.json();
+
+                // Find the post
+                const post = posts.find(p => p.id === postId);
+
+                if (!post) {
+                    throw new Error('Post not found');
+                }
+
+                // Update page title and metadata
+                document.getElementById('page-title').textContent = post.title + ' - DesiCoder99';
+                document.getElementById('post-title').textContent = post.title;
+                document.getElementById('post-date').textContent = formatDate(post.date);
+                document.getElementById('post-category').textContent = post.category;
+
+                // Fetch and render markdown
+                const mdResponse = await fetch('/blog/' + post.file);
+                const markdown = await mdResponse.text();
+
+                // Configure marked for better rendering
+                marked.setOptions({
+                    breaks: true,
+                    gfm: true
+                });
+
+                document.getElementById('content').innerHTML = marked.parse(markdown);
+            } catch (error) {
+                console.error('Error loading post:', error);
+                document.getElementById('content').innerHTML =
+                    `<div class="error">Error loading post: ${error.message}</div>`;
+            }
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+        }
+    </script>
+</body>
+</html>
