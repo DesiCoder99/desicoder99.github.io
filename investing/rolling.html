@@ -3,51 +3,299 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stock Returns Visualization</title>
+    <title>Stock Rolling Returns (CAGR) - DesiCoder99</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
-            padding: 20px;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #1a1a1a;
+            --accent-cyan: #9cdcfe;
+            --accent-green: #ce9178;
+            --accent-purple: #c586c0;
+            --text-primary: #d4d4d4;
+            --text-secondary: #858585;
+            --border-color: #3e3e42;
+            --hover-shadow: 0 0 20px rgba(156, 220, 254, 0.2);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            min-height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        /* Background grid effect */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        nav {
+            background: rgba(10, 14, 39, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.2rem 2rem;
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 217, 255, 0.05);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent;
+            display: block;
+        }
+
+        nav a:hover {
+            color: var(--accent-cyan);
+            border-left-color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .container {
+            flex: 1;
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 900;
+            letter-spacing: -1px;
+        }
+
+        .info-box {
+            margin: 1.5rem 0;
+            padding: 1rem 1.5rem;
+            background: rgba(30, 41, 70, 0.5);
+            border-left: 3px solid var(--accent-cyan);
+            border-radius: 4px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .info-box strong {
+            color: var(--accent-cyan);
+        }
+
+        #inputContainer {
+            margin: 2rem 0;
+            padding: 1.5rem;
+            background: rgba(30, 41, 70, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
             align-items: center;
         }
-        #chartContainer {
-            width: 80%;
-            max-width: 800px;
-        }
-        #inputContainer {
-            margin-bottom: 20px;
-        }
+
         input, button {
-            margin: 5px;
-            padding: 5px;
+            background: rgba(30, 30, 30, 0.8);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.7rem 1rem;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+        }
+
+        input {
+            min-width: 150px;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent-cyan);
+            box-shadow: 0 0 10px rgba(156, 220, 254, 0.2);
+        }
+
+        button {
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            color: var(--bg-dark);
+            font-weight: 600;
+            cursor: pointer;
+            border: none;
+            padding: 0.7rem 2rem;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--hover-shadow);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        #errorMessage {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+
+        #errorMessage:not(:empty) {
+            background: rgba(200, 50, 50, 0.2);
+            border: 1px solid rgba(255, 100, 100, 0.5);
+            color: #ff6b6b;
+        }
+
+        #chartContainer {
+            margin-top: 2rem;
+            padding: 2rem;
+            background: rgba(30, 41, 70, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+        }
+
+        footer {
+            background: rgba(10, 14, 39, 0.95);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 -4px 30px rgba(0, 217, 255, 0.05);
+            backdrop-filter: blur(10px);
+            margin-top: auto;
+        }
+
+        footer ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        footer a {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        footer a:hover {
+            color: var(--accent-cyan);
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 1.8rem;
+            }
+
+            nav ul {
+                gap: 1rem;
+            }
+
+            nav a {
+                padding: 0.3rem 0.7rem;
+                font-size: 0.85rem;
+            }
+
+            .container {
+                padding: 2rem 1rem;
+            }
+
+            #inputContainer {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            input {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <h1>Stock Returns Visualization</h1>
-    <div id="inputContainer">
-        <input type="text" id="tickerInput" placeholder="Ticker (e.g., AAPL)" value="AAPL">
-        <input type="number" id="startYearInput" placeholder="Start Year (e.g., 2000)" value="2000">
-        <input type="number" id="durationInput" placeholder="Duration (years, e.g., 10)" value="10">
-        <input type="password" id="apiKeyInput" placeholder="Polygon.io API Key (optional)" value="CDqyko6YCDEdr6x5tcHsN5CLowU9oxvM">
-        <button id="updateButton">Update Chart</button>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <h1>Stock Rolling Returns (CAGR)</h1>
+
+        <div class="info-box">
+            <strong>About:</strong> This tool calculates rolling Compound Annual Growth Rate (CAGR) for any stock ticker.
+            Uses <strong>adjusted close prices</strong> which include dividends and stock splits for accurate total return calculations.
+            <br><em style="color: var(--text-secondary); font-size: 0.85rem;">Powered by Yahoo Finance - completely free, no API key required.</em>
+        </div>
+
+        <div id="inputContainer">
+            <input type="text" id="tickerInput" placeholder="Ticker (e.g., AAPL)" value="SPY">
+            <input type="number" id="startYearInput" placeholder="Start Year" value="2000" min="1970" max="2025">
+            <input type="number" id="durationInput" placeholder="Duration (years)" value="5" min="1" max="30">
+            <button id="updateButton">Update Chart</button>
+        </div>
+
+        <div id="errorMessage"></div>
+
+        <div id="chartContainer">
+            <canvas id="scatterChart"></canvas>
+        </div>
     </div>
-    <div id="errorMessage" style="color: red; margin-top: 10px;"></div>
-    <div id="chartContainer">
-        <canvas id="scatterChart"></canvas>
-    </div>
+
+    <footer>
+        <ul>
+            <li><a href="mailto:codemajdoor@gmail.com">email</a></li>
+            <li><a href="https://github.com/DesiCoder99">github.com/DesiCoder99</a></li>
+        </ul>
+    </footer>
 
     <script>
         let chart;
 
-        function calculateCAGR10Y(data, durationYears) {
+        function calculateCAGR(data, durationYears) {
             // Calculate CAGR for all N-year windows starting at each week
             const results = [];
-            const weeksPerYear = 52;  // Weekly data
+            const weeksPerYear = 52;
             const weeksInWindow = durationYears * weeksPerYear;
 
             for (let i = 0; i < data.length - weeksInWindow; i++) {
@@ -72,7 +320,7 @@
             return results;
         }
 
-        function createChart(data, durationYears) {
+        function createChart(data, durationYears, ticker) {
             const ctx = document.getElementById('scatterChart').getContext('2d');
 
             if (chart) {
@@ -91,7 +339,7 @@
             const chartData = Object.entries(yearMap)
                 .map(([year, cagrs]) => ({
                     x: parseInt(year),
-                    y: cagrs.reduce((a, b) => a + b, 0) / cagrs.length  // average CAGR for the year
+                    y: cagrs.reduce((a, b) => a + b, 0) / cagrs.length
                 }))
                 .sort((a, b) => a.x - b.x);
 
@@ -99,147 +347,217 @@
                 type: 'line',
                 data: {
                     datasets: [{
-                        label: `${durationYears}-Year Rolling CAGR`,
+                        label: `${ticker} ${durationYears}-Year Rolling CAGR`,
                         data: chartData,
-                        borderColor: 'rgb(75, 192, 192)',
-                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        borderColor: '#9cdcfe',
+                        backgroundColor: 'rgba(156, 220, 254, 0.1)',
                         borderWidth: 2,
                         pointRadius: 5,
                         pointHoverRadius: 8,
+                        pointBackgroundColor: '#9cdcfe',
+                        pointBorderColor: '#c586c0',
                         fill: true,
                         tension: 0.3
                     }]
                 },
                 options: {
                     responsive: true,
-                    scales: {
-                        x: {
-                            type: 'linear',
-                            position: 'bottom',
-                            title: {
-                                display: true,
-                                text: 'Start Year'
-                            }
-                        },
-                        y: {
-                            type: 'linear',
-                            title: {
-                                display: true,
-                                text: 'CAGR (%)'
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return (value * 100).toFixed(1) + '%';
-                                }
-                            }
-                        }
-                    },
+                    maintainAspectRatio: true,
                     plugins: {
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
                                     return `Start Year: ${Math.floor(context.raw.x)}, CAGR: ${(context.raw.y * 100).toFixed(2)}%`;
                                 }
-                            }
+                            },
+                            backgroundColor: 'rgba(30, 41, 70, 0.95)',
+                            borderColor: '#9cdcfe',
+                            borderWidth: 1
                         },
                         legend: {
-                            display: true
+                            display: true,
+                            labels: {
+                                color: '#d4d4d4',
+                                font: {
+                                    family: 'Monaco, monospace'
+                                }
+                            }
                         },
                         title: {
                             display: true,
-                            text: `${durationYears}-Year Rolling CAGR`
+                            text: `${ticker} ${durationYears}-Year Rolling CAGR`,
+                            color: '#9cdcfe',
+                            font: {
+                                size: 16,
+                                family: 'Monaco, monospace',
+                                weight: 'bold'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Start Year',
+                                color: '#d4d4d4',
+                                font: {
+                                    family: 'Monaco, monospace'
+                                }
+                            },
+                            ticks: {
+                                color: '#858585',
+                                font: {
+                                    family: 'Monaco, monospace'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(62, 62, 66, 0.3)'
+                            }
+                        },
+                        y: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'CAGR (%)',
+                                color: '#d4d4d4',
+                                font: {
+                                    family: 'Monaco, monospace'
+                                }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return (value * 100).toFixed(1) + '%';
+                                },
+                                color: '#858585',
+                                font: {
+                                    family: 'Monaco, monospace'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(62, 62, 66, 0.3)'
+                            }
                         }
                     }
                 }
             });
         }
 
+        async function fetchYahooFinanceData(ticker, startDate, endDate) {
+            // Convert dates to Unix timestamps
+            const period1 = Math.floor(new Date(startDate).getTime() / 1000);
+            const period2 = Math.floor(new Date(endDate).getTime() / 1000);
+
+            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1wk`;
+            // Use CORS proxy to bypass browser restrictions
+            const url = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
+
+            console.log(`Fetching: ${yahooUrl}`);
+
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Response Error:', response.status, errorText);
+                throw new Error(`HTTP ${response.status}: Failed to fetch data from Yahoo Finance`);
+            }
+
+            const data = await response.json();
+            console.log('API Response:', data);
+
+            if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
+                throw new Error(`No data available for ${ticker}. Check if the ticker is valid.`);
+            }
+
+            const result = data.chart.result[0];
+
+            if (data.chart.error) {
+                throw new Error(`API Error: ${data.chart.error.description}`);
+            }
+
+            // Use adjusted close for accurate total return (includes dividends & splits)
+            const timestamps = result.timestamp;
+            let closes;
+
+            // Prefer adjusted close if available, fallback to regular close
+            if (result.indicators.adjclose && result.indicators.adjclose[0] && result.indicators.adjclose[0].adjclose) {
+                closes = result.indicators.adjclose[0].adjclose;
+                console.log('Using adjusted close prices (includes dividends & splits)');
+            } else if (result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) {
+                closes = result.indicators.quote[0].close;
+                console.warn('Using raw close prices (dividends NOT included)');
+            } else {
+                throw new Error(`No price data returned for ${ticker}`);
+            }
+
+            // Convert to our format, filtering out null values
+            return timestamps
+                .map((timestamp, i) => ({
+                    date: new Date(timestamp * 1000).toISOString().split('T')[0],
+                    close: closes[i]
+                }))
+                .filter(item => item.close !== null)
+                .sort((a, b) => new Date(a.date) - new Date(b.date));
+        }
+
         async function updateChart() {
             const ticker = document.getElementById('tickerInput').value.toUpperCase();
+            const startYear = parseInt(document.getElementById('startYearInput').value);
             const durationYears = parseInt(document.getElementById('durationInput').value);
-            const apiKey = document.getElementById('apiKeyInput').value;
             const errorMessageElement = document.getElementById('errorMessage');
 
             errorMessageElement.textContent = 'Fetching data...';
 
             try {
+                if (!ticker || ticker.trim() === '') {
+                    throw new Error('Please enter a valid ticker symbol');
+                }
+
                 if (!durationYears || durationYears < 1) {
                     throw new Error('Duration must be at least 1 year');
                 }
 
-                // Single large range query with retry logic
-                const startDateStr = '2000-01-01';
+                if (!startYear || startYear < 1990 || startYear > new Date().getFullYear()) {
+                    throw new Error('Please enter a valid start year (1990-present)');
+                }
+
+                // Yahoo Finance can fetch all data in one call
                 const endDate = new Date();
-                const endDateStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
+                const startDate = new Date(`${startYear}-01-01`);
 
-                let data = null;
-                let retries = 0;
-                const maxRetries = 5;
+                errorMessageElement.textContent = `Fetching data from ${startYear} to ${endDate.getFullYear()}...`;
 
-                while (!data && retries < maxRetries) {
-                    const url = `https://api.polygon.io/v2/aggs/ticker/${ticker}/range/1/week/${startDateStr}/${endDateStr}?adjusted=true&sort=asc&limit=50000&apikey=${apiKey}`;
+                const stockData = await fetchYahooFinanceData(
+                    ticker,
+                    startDate.toISOString().split('T')[0],
+                    endDate.toISOString().split('T')[0]
+                );
 
-                    console.log(`Attempt ${retries + 1}: Fetching weekly data...`);
-                    errorMessageElement.textContent = `Fetching data (attempt ${retries + 1}/${maxRetries})...`;
-
-                    try {
-                        const response = await fetch(url);
-                        
-                        if (response.status === 429) {
-                            // Rate limited - wait and retry
-                            const waitTime = Math.pow(2, retries) * 2000;  // 2s, 4s, 8s, 16s, 32s
-                            console.warn(`Rate limited (429). Waiting ${waitTime}ms before retry...`);
-                            errorMessageElement.textContent = `Rate limited. Waiting ${waitTime / 1000}s before retry...`;
-                            await new Promise(r => setTimeout(r, waitTime));
-                            retries++;
-                            continue;
-                        }
-
-                        if (!response.ok) {
-                            const errData = await response.json().catch(() => ({}));
-                            throw new Error(`HTTP ${response.status}: ${errData.status || 'API error'}`);
-                        }
-
-                        data = await response.json();
-                    } catch (err) {
-                        if (err.message.includes('429')) {
-                            // Already handled above
-                            continue;
-                        }
-                        throw err;
-                    }
+                if (stockData.length === 0) {
+                    throw new Error(`No data retrieved for ${ticker}. Check if the ticker is valid.`);
                 }
 
-                if (!data) {
-                    throw new Error('Failed to fetch data after retries. API rate limit exceeded.');
-                }
-
-                console.log('Response:', data);
-
-                if (!data.results || data.results.length === 0) {
-                    throw new Error(`No data for ticker ${ticker}. Try a different symbol.`);
-                }
-
-                // Convert Polygon aggregates to stock format
-                const stockData = data.results
-                    .map(d => ({
-                        date: new Date(d.t).toISOString().split('T')[0],
-                        close: d.c
-                    }))
-                    .sort((a, b) => new Date(a.date) - new Date(b.date));
+                const firstDate = stockData[0].date;
+                const lastDate = stockData[stockData.length - 1].date;
+                const yearsOfData = stockData.length / 52;
 
                 console.log(`✓ Fetched ${stockData.length} weekly records for ${ticker}`);
+                console.log(`  Date range: ${firstDate} to ${lastDate} (${yearsOfData.toFixed(1)} years)`);
 
-                // Calculate rolling CAGR for specified duration
-                const cagrData = calculateCAGR10Y(stockData, durationYears);
+                // Calculate rolling CAGR
+                const cagrData = calculateCAGR(stockData, durationYears);
                 console.log(`Calculated CAGR for ${cagrData.length} windows (${durationYears} year duration)`);
 
                 if (cagrData.length === 0) {
-                    errorMessageElement.textContent = `Not enough data for ${durationYears}-year rolling CAGR. Have ${stockData.length} weeks (~${(stockData.length / 52).toFixed(1)} years).`;
-                    return;
+                    throw new Error(
+                        `Not enough data for ${durationYears}-year rolling CAGR. ` +
+                        `Have ${stockData.length} weeks (~${yearsOfData.toFixed(1)} years) from ${firstDate} to ${lastDate}. ` +
+                        `Try reducing the duration or adjusting the start year.`
+                    );
                 }
 
-                createChart(cagrData, durationYears);
+                createChart(cagrData, durationYears, ticker);
                 errorMessageElement.textContent = '';
             } catch (error) {
                 console.error('Error:', error);
@@ -249,7 +567,15 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('updateButton').addEventListener('click', updateChart);
-            updateChart();
+
+            // Allow Enter key to trigger update
+            document.querySelectorAll('input').forEach(input => {
+                input.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        updateChart();
+                    }
+                });
+            });
         });
     </script>
 </body>
