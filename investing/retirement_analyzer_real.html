@@ -444,6 +444,7 @@
             <button onclick="runSimulation()">Run Simulation</button>
             <button class="secondary" onclick="openSettings()">Advanced Settings</button>
             <button onclick="saveToURL()" style="background: #845ef7;">Save Config to URL</button>
+            <button class="secondary" onclick="exportToCSV()">Export Selected to CSV</button>
             
             <h2>Path Selection</h2>
             <div class="controls">
@@ -1651,6 +1652,63 @@
             ctx.fillText(`n=${allWithdrawals.length} observations`, padding, padding - 10);
         }
         
+        function exportToCSV() {
+            if (!simulationResults || selectedPaths.size === 0) {
+                alert('Please run a simulation and select paths to export.');
+                return;
+            }
+
+            const { inputs, paths } = simulationResults;
+            const selectedPathData = Array.from(selectedPaths).map(id => ({ id, path: paths[id] }));
+
+            // Build CSV header
+            let csv = 'Year,Age';
+            selectedPathData.forEach(({ id }, index) => {
+                if (index > 0) csv += ','; // Separator column between paths
+                csv += `,Path${id + 1}_Portfolio,Path${id + 1}_Withdrawal,Path${id + 1}_Income,Path${id + 1}_Debt,Path${id + 1}_NetWithdrawal,Path${id + 1}_Rate,Path${id + 1}_Return`;
+            });
+            csv += '\n';
+
+            // Build CSV rows
+            for (let year = 0; year <= inputs.years; year++) {
+                const age = inputs.startAge + year;
+                let row = `${year},${age}`;
+
+                selectedPathData.forEach(({ path }, index) => {
+                    if (index > 0) row += ','; // Separator column between paths
+
+                    const portfolio = path.history.portfolioValues[year] || 0;
+                    const withdrawal = path.history.withdrawals[year] || 0;
+                    const rate = path.history.rates[year] || 0;
+                    const returnVal = path.history.returns[year] || 0;
+
+                    // Get metadata for this year (contains income, debt, netWithdrawal)
+                    const meta = path.history.meta[year - 1] || {};
+                    const income = meta.income || 0;
+                    const debt = meta.debt || 0;
+                    const netWithdrawal = meta.netWithdrawal || 0;
+
+                    row += `,${portfolio.toFixed(2)},${withdrawal.toFixed(2)},${income.toFixed(2)},${debt.toFixed(2)},${netWithdrawal.toFixed(2)},${(rate * 100).toFixed(4)},${(returnVal * 100).toFixed(4)}`;
+                });
+
+                csv += row + '\n';
+            }
+
+            // Download CSV file
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            link.setAttribute('href', url);
+            link.setAttribute('download', `retirement_sim_${timestamp}.csv`);
+            link.style.visibility = 'hidden';
+
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', function() {
             loadFromURL();
