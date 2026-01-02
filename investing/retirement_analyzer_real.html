@@ -305,7 +305,7 @@
             <h2>Portfolio</h2>
             <div class="input-group">
                 <label>Starting Value ($)</label>
-                <input type="number" id="portfolio" value="1000000" step="100000">
+                <input type="number" id="portfolio" value="1000000" step="100000" oninput="updateStrategyInputs()">
             </div>
             <div class="input-group">
                 <label>Start Age</label>
@@ -337,8 +337,8 @@
                 </select>
             </div>
             <div class="input-group">
-                <label>Annual Spending ($/yr, real)</label>
-                <input type="number" id="withdrawal" value="60000" step="5000">
+                <label id="withdrawalLabel">Annual Spending ($/yr, real)</label>
+                <input type="number" id="withdrawal" value="60000" step="5000" oninput="updateStrategyInputs()">
             </div>
             <div class="input-group">
                 <label>Floor ($/yr, real)</label>
@@ -742,6 +742,25 @@
             const showGK = strategy === 'gk' || strategy === 'gk_panic';
             document.getElementById('guardrailsInputs').style.display = showGuardrails ? 'block' : 'none';
             document.getElementById('gkInputs').style.display = showGK ? 'block' : 'none';
+
+            // Update withdrawal label based on strategy
+            const withdrawalLabel = document.getElementById('withdrawalLabel');
+            const withdrawalInput = document.getElementById('withdrawal');
+            const portfolioInput = document.getElementById('portfolio');
+
+            if (withdrawalLabel && withdrawalInput && portfolioInput) {
+                const portfolio = parseFloat(portfolioInput.value) || 1000000;
+                const withdrawal = parseFloat(withdrawalInput.value) || 60000;
+
+                if (strategy === 'percent') {
+                    const rate = (withdrawal / portfolio * 100).toFixed(2);
+                    const annualAmount = (withdrawal / 1000).toFixed(0);
+                    withdrawalLabel.innerHTML = `Withdrawal Rate (% of portfolio)<br><span style="font-size: 10px; color: #666;">Current: ${rate}% = $${annualAmount}K/yr from initial portfolio</span>`;
+                } else {
+                    withdrawalLabel.textContent = 'Annual Spending ($/yr, real)';
+                }
+            }
+
             updateStrategyTooltip();
         }
 
