@@ -323,7 +323,7 @@
                     <span class="info-icon" id="strategyInfo">?
                         <span class="tooltip" id="strategyTooltip">
                             <div class="tooltip-title">Guardrails + Common Sense</div>
-                            <div>Adjusts spending when portfolio crosses ±20% of initial value. Only triggers once per threshold crossing. Includes panic cut (15%) when withdrawal rate exceeds threshold.</div>
+                            <div>Uses 5-year moving average as baseline. Adjusts when portfolio crosses ±20% of baseline. Health score raises spending when portfolio can sustain 1.5x years remaining. Panic cut when WR too high.</div>
                         </span>
                     </span>
                 </label>
@@ -452,6 +452,10 @@
                 <button class="secondary" onclick="showFailed()">Failed</button>
                 <button class="secondary" onclick="showSuccess()">Success</button>
                 <button class="secondary" onclick="showMedian()">Median</button>
+            </div>
+            <div class="controls">
+                <button class="secondary" onclick="showQoLFailed()">QoL Failed</button>
+                <button class="secondary" onclick="showDepleted()">Depleted</button>
             </div>
             
             <div class="path-list" id="pathList"></div>
@@ -725,7 +729,7 @@
             },
             gr_commonsense: {
                 title: 'Guardrails + Common Sense',
-                desc: 'Portfolio-based guardrails that only trigger once per threshold crossing (not every year). Includes panic cut (15%) when withdrawal rate gets dangerously high. Balanced approach.'
+                desc: 'Guardrails using 5-year moving average baseline. Health score allows raises when portfolio can sustain 1.5x years remaining. Panic cut (15%) when WR too high. Adaptive and responsive.'
             }
         };
 
@@ -925,6 +929,8 @@
             let portfolioValue = portfolio;
             let prevWithdrawal = withdrawal;
             let grZone = 'normal'; // Track guardrails zone: 'normal', 'high', 'low'
+            let currentFloor = floor; // Dynamic floor that can be raised by panic cuts
+            let qolFailureYear = null; // Track when QoL failure occurred
 
             const history = {
                 portfolioValues: [portfolioValue],
@@ -999,11 +1005,22 @@
                     meta.ratio = ratio;
                     
                 } else if (strategy === 'gr_commonsense') {
-                    // Threshold-crossing guardrails: only adjust when ENTERING a new zone
+                    // Threshold-crossing guardrails with moving baseline + health score
                     const baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
-                    const ratio = portfolioValue / inputs.portfolio;
 
-                    // Determine current zone
+                    // Calculate 5-year moving average baseline
+                    const lookbackYears = 5;
+                    const startIdx = Math.max(0, year - lookbackYears);
+                    let baselineSum = 0;
+                    let baselineCount = 0;
+                    for (let i = startIdx; i < year; i++) {
+                        baselineSum += history.portfolioValues[i];
+                        baselineCount++;
+                    }
+                    const baseline = baselineCount > 0 ? baselineSum / baselineCount : inputs.portfolio;
+                    const ratio = portfolioValue / baseline;
+
+                    // Guardrail check: threshold-crossing zones
                     let newZone = 'normal';
                     if (ratio > 1 + inputs.portTrigger) {
                         newZone = 'high';
@@ -1011,27 +1028,44 @@
                         newZone = 'low';
                     }
 
-                    // Only adjust when crossing INTO a new zone
-                    let multiplier = 1.0;
+                    let guardrailMultiplier = 1.0;
                     if (newZone !== grZone) {
                         if (newZone === 'high' && grZone !== 'high') {
-                            multiplier = 1 + inputs.spendAdjust;
-                            meta.triggered = 'raise';
+                            guardrailMultiplier = 1 + inputs.spendAdjust;
+                            meta.guardrailTriggered = 'raise';
                         } else if (newZone === 'low' && grZone !== 'low') {
-                            multiplier = 1 - inputs.spendAdjust;
-                            meta.triggered = 'cut';
+                            guardrailMultiplier = 1 - inputs.spendAdjust;
+                            meta.guardrailTriggered = 'cut';
                         } else if (newZone === 'normal') {
-                            // Returning to normal - no adjustment, just maintain
-                            meta.triggered = 'return_normal';
+                            meta.guardrailTriggered = 'return_normal';
                         }
                         grZone = newZone;
                     }
 
+                    // Health score check: can portfolio sustain 1.5x retirement years remaining?
+                    const yearsLeftInRetirement = inputs.years - (year - 1);
+                    const yearsRemainingAtCurrentRate = portfolioValue / baseAmount;
+                    const healthRatio = yearsRemainingAtCurrentRate / yearsLeftInRetirement;
+
+                    let healthMultiplier = 1.0;
+                    if (healthRatio > 1.5) {
+                        healthMultiplier = 1 + inputs.spendAdjust; // Same as guardrail raise
+                        meta.healthTriggered = true;
+                        meta.healthRatio = healthRatio;
+                    }
+
+                    // Take MAX of guardrail and health adjustments
+                    const multiplier = Math.max(guardrailMultiplier, healthMultiplier);
+
                     withdrawalAmount = baseAmount * multiplier;
                     meta.method = 'gr_commonsense';
                     meta.ratio = ratio;
+                    meta.baseline = baseline;
                     meta.zone = newZone;
                     meta.baseAmount = baseAmount;
+                    meta.guardrailMultiplier = guardrailMultiplier;
+                    meta.healthMultiplier = healthMultiplier;
+                    meta.finalMultiplier = multiplier;
 
                 } else if (strategy === 'gk' || strategy === 'gk_panic') {
                     let baseAmount = isFirstYear ? withdrawal : prevWithdrawal;
@@ -1071,11 +1105,19 @@
                         const beforeCut = withdrawalAmount;
                         withdrawalAmount *= 0.85; // 15% cut (more severe than normal adjustments)
                         panicCut = true;
+
+                        // Raise the floor to post-panic level to prevent further cuts
+                        // Recovery happens naturally via guardrails when portfolio improves
+                        // IMPORTANT: Always set floor to panic cut amount, even if below original floor
+                        currentFloor = withdrawalAmount;
+                        meta.floorRaised = true;
+                        meta.newFloor = currentFloor;
+
                         meta.panicTriggered = true;
                         meta.wrBeforeCut = currentWR;
                         meta.amountBeforeCut = beforeCut;
                         meta.amountAfterCut = withdrawalAmount;
-                        meta.floor = floor;
+                        meta.currentFloor = currentFloor;
                     } else if (currentWR >= panicThreshold) {
                         meta.highWrTolerated = true; // Near end of retirement, allow high WR
                     }
@@ -1085,15 +1127,15 @@
                 }
                 
                 // Apply floor ONLY if NOT a panic cut
-                if (floor > 0 && !panicCut) {
+                if (currentFloor > 0 && !panicCut) {
                     const beforeFloor = withdrawalAmount;
-                    withdrawalAmount = Math.max(floor, withdrawalAmount);
+                    withdrawalAmount = Math.max(currentFloor, withdrawalAmount);
                     if (strategy === 'gr_commonsense' && withdrawalAmount > beforeFloor) {
                         meta.floorApplied = true;
                     }
-                } else if (panicCut && floor > 0) {
+                } else if (panicCut && currentFloor > 0) {
                     meta.floorBypassed = true;
-                    meta.belowFloor = withdrawalAmount < floor;
+                    meta.belowFloor = withdrawalAmount < currentFloor;
                 }
                 
                 // Apply ceiling for ALL strategies (prevent runaway spending)
@@ -1101,7 +1143,15 @@
                     meta.ceilingApplied = true;
                     withdrawalAmount = spendingCeiling;
                 }
-                
+
+                // Quality of life check: if spending drops below half of floor, mark as failure
+                // But continue simulation to see full trajectory
+                if (floor > 0 && withdrawalAmount < floor * 0.5 && qolFailureYear === null) {
+                    qolFailureYear = year;
+                    meta.qualityOfLifeFailure = true;
+                    meta.spendingBelowHalfFloor = true;
+                }
+
                 prevWithdrawal = withdrawalAmount;
                 
                 // Net withdrawal = spending + debt - income (all in real dollars)
@@ -1142,6 +1192,18 @@
                 history.meta.push(meta);
             }
             
+            // Check if this path had QoL failure (even if portfolio didn't deplete)
+            if (qolFailureYear !== null) {
+                return {
+                    pathId,
+                    success: false,
+                    depletionYear: qolFailureYear,
+                    failureReason: 'quality_of_life',
+                    history,
+                    finalValue: portfolioValue
+                };
+            }
+
             return {
                 pathId,
                 success: true,
@@ -1164,16 +1226,22 @@
             // Analysis
             const successes = paths.filter(p => p.success).length;
             const successRate = successes / paths.length;
-            
+            const qolFailures = paths.filter(p => !p.success && p.failureReason === 'quality_of_life').length;
+            const depletions = paths.filter(p => !p.success && p.failureReason !== 'quality_of_life').length;
+
             const finalValues = paths.map(p => p.finalValue).sort((a, b) => a - b);
             const median = finalValues[Math.floor(finalValues.length / 2)];
             const worst = finalValues[0];
             const best = finalValues[finalValues.length - 1];
-            
+
             // Update stats
             const successStat = document.getElementById('successStat');
             successStat.className = 'stat ' + (successRate >= 0.9 ? 'success' : 'warn');
-            successStat.querySelector('.stat-value').textContent = (successRate * 100).toFixed(1) + '%';
+            let successText = (successRate * 100).toFixed(1) + '%';
+            if (qolFailures > 0 || depletions > 0) {
+                successText += `<br><span style="font-size: 10px; color: #888;">${qolFailures} QoL, ${depletions} depleted</span>`;
+            }
+            successStat.querySelector('.stat-value').innerHTML = successText;
             
             document.getElementById('medianFinal').textContent = fmtM(median);
             document.getElementById('worstCase').textContent = fmtM(worst);
@@ -1204,9 +1272,13 @@
                     panicCount = path.history.meta.filter(m => m.panicTriggered).length;
                 }
                 
-                const info = path.success 
-                    ? `Final: ${fmtM(path.finalValue)}${panicCount > 0 ? ` [${panicCount} panic]` : ''}`
-                    : `Failed yr ${path.depletionYear}${panicCount > 0 ? ` [${panicCount} panic]` : ''}`;
+                let info;
+                if (path.success) {
+                    info = `Final: ${fmtM(path.finalValue)}${panicCount > 0 ? ` [${panicCount} panic]` : ''}`;
+                } else {
+                    const reason = path.failureReason === 'quality_of_life' ? 'QoL' : 'depleted';
+                    info = `Failed yr ${path.depletionYear} (${reason})${panicCount > 0 ? ` [${panicCount} panic]` : ''}`;
+                }
                 
                 div.innerHTML = `<span>${status} Path ${i + 1}</span><span>${info}</span>`;
                 list.appendChild(div);
@@ -1266,9 +1338,31 @@
             const sorted = [...paths].sort((a, b) => a.finalValue - b.finalValue);
             const medianPath = sorted[Math.floor(sorted.length / 2)];
             const medianId = paths.indexOf(medianPath);
-            
+
             selectedPaths.clear();
             selectedPaths.add(medianId);
+            updatePathListSelection();
+            drawCharts();
+        }
+
+        function showQoLFailed() {
+            selectedPaths.clear();
+            simulationResults.paths.forEach((path, i) => {
+                if (!path.success && path.failureReason === 'quality_of_life') {
+                    selectedPaths.add(i);
+                }
+            });
+            updatePathListSelection();
+            drawCharts();
+        }
+
+        function showDepleted() {
+            selectedPaths.clear();
+            simulationResults.paths.forEach((path, i) => {
+                if (!path.success && path.failureReason !== 'quality_of_life') {
+                    selectedPaths.add(i);
+                }
+            });
             updatePathListSelection();
             drawCharts();
         }
