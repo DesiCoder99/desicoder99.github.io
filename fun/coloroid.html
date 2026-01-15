@@ -384,12 +384,12 @@
     // ===========================================
 
     const COLORS = [
-        { name: 'blue',   hex: '#247BA0', rgb: [36, 123, 160] },
-        { name: 'teal',   hex: '#70C1B3', rgb: [112, 193, 179] },
-        { name: 'yellow', hex: '#F3FFBD', rgb: [243, 255, 189] },
-        { name: 'pink',   hex: '#FF1654', rgb: [255, 22, 84] },
-        { name: 'green',  hex: '#5C7457', rgb: [92, 116, 87] },
-        { name: 'brown',  hex: '#8B5D33', rgb: [139, 93, 51] }
+        { name: 'blue',   hex: '#00D4FF', rgb: [0, 212, 255] },
+        { name: 'green',  hex: '#00FF88', rgb: [0, 255, 136] },
+        { name: 'yellow', hex: '#FFEE00', rgb: [255, 238, 0] },
+        { name: 'pink',   hex: '#FF3366', rgb: [255, 51, 102] },
+        { name: 'purple', hex: '#AA55FF', rgb: [170, 85, 255] },
+        { name: 'orange', hex: '#FF8800', rgb: [255, 136, 0] }
     ];
 
     class ColoroidGame {
@@ -690,7 +690,6 @@
                     @builtin(position) position: vec4<f32>,
                     @location(0) color: vec4<f32>,
                     @location(1) normal: vec3<f32>,
-                    @location(2) worldPos: vec3<f32>,
                 }
 
                 @group(0) @binding(0) var<uniform> uniforms: Uniforms;
@@ -698,23 +697,18 @@
                 @vertex
                 fn vertexMain(vert: VertexInput, inst: InstanceInput) -> VertexOutput {
                     var out: VertexOutput;
-                    let worldPos = vert.position * 0.95 + inst.instancePos;
+                    // Scale cubes to 1.02 to slightly overlap and hide seams
+                    let worldPos = vert.position * 1.02 + inst.instancePos;
                     out.position = uniforms.viewProj * vec4<f32>(worldPos, 1.0);
                     out.color = inst.instanceColor;
                     out.normal = vert.normal;
-                    out.worldPos = worldPos;
                     return out;
                 }
 
                 @fragment
                 fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
-                    let lightDir = normalize(vec3<f32>(0.5, 1.0, 0.3));
-                    let ambient = 0.4;
-                    let diffuse = max(dot(in.normal, lightDir), 0.0) * 0.6;
-                    let lighting = ambient + diffuse;
-
-                    var color = in.color.rgb * lighting;
-                    return vec4<f32>(color, in.color.a);
+                    // Flat color - no lighting to ensure same colors blend seamlessly
+                    return vec4<f32>(in.color.rgb, in.color.a);
                 }
             `;
 
@@ -752,21 +746,21 @@
                     module: shaderModule,
                     entryPoint: 'vertexMain',
                     buffers: [
-                        // Vertex buffer
+                        // Vertex buffer - cube vertices
                         {
-                            arrayStride: 24,
+                            arrayStride: 24,  // 6 floats: pos(3) + normal(3)
                             attributes: [
                                 { shaderLocation: 0, offset: 0, format: 'float32x3' },
                                 { shaderLocation: 1, offset: 12, format: 'float32x3' }
                             ]
                         },
-                        // Instance buffer
+                        // Instance buffer - per cube data
                         {
-                            arrayStride: 28,
+                            arrayStride: 28,  // 7 floats: pos(3) + color(4)
                             stepMode: 'instance',
                             attributes: [
-                                { shaderLocation: 2, offset: 0, format: 'float32x3' },
-                                { shaderLocation: 3, offset: 12, format: 'float32x4' }
+                                { shaderLocation: 2, offset: 0, format: 'float32x3' },   // position
+                                { shaderLocation: 3, offset: 12, format: 'float32x4' }  // color
                             ]
                         }
                     ]
@@ -803,7 +797,7 @@
         }
 
         createCubeGeometry() {
-            // Cube vertices with normals
+            // Full cube with normals
             const vertices = new Float32Array([
                 // Front face
                 -0.5, -0.5,  0.5,  0, 0, 1,
@@ -867,44 +861,33 @@
             if (!this.device || this.layers.length === 0) return;
 
             const instances = [];
-            const layerSpacing = 1.0;  // Tighter vertical stacking
+            const layerSpacing = 1.0;
             const gridOffset = (this.level - 1) / 2;
 
-            // Render layers back-to-front for proper alpha blending
+            // Build cube instances
             for (let layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
                 const snapshot = this.layers[layerIndex];
-                const prevSnapshot = layerIndex > 0 ? this.layers[layerIndex - 1] : null;
                 const y = layerIndex * layerSpacing;
 
                 for (let i = 0; i < snapshot.board.length; i++) {
                     const cell = snapshot.board[i];
-                    if (!cell.captured) continue; // Only render captured cells
+                    if (!cell.captured) continue;
 
                     const row = Math.floor(i / this.level);
                     const col = i % this.level;
 
-                    // Check if this cell was newly captured this step
-                    const wasNewlyCaptured = prevSnapshot &&
-                        !prevSnapshot.board[i].captured &&
-                        cell.captured;
-
-                    // Use original color for newly captured cells (frontier)
-                    let color;
-                    if (wasNewlyCaptured) {
-                        // Show the color it HAD before being flood-filled
-                        color = COLORS[prevSnapshot.board[i].colorIndex];
-                    } else {
-                        color = COLORS[cell.colorIndex];
-                    }
+                    // Always use original color from layer 0
+                    const colorIndex = this.layers[0].board[i].colorIndex;
+                    const color = COLORS[colorIndex];
 
                     instances.push(
                         col - gridOffset,           // x
-                        y,                          // y (layer height)
+                        y,                          // y
                         row - gridOffset,           // z
                         color.rgb[0] / 255,         // r
                         color.rgb[1] / 255,         // g
                         color.rgb[2] / 255,         // b
-                        0.65                        // alpha
+                        0.85                        // alpha
                     );
                 }
             }
