@@ -1,0 +1,1205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coloroid - 3D Flood Fill</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #1a1a1a;
+            --accent-cyan: #9cdcfe;
+            --accent-green: #ce9178;
+            --accent-purple: #c586c0;
+            --text-primary: #d4d4d4;
+            --text-secondary: #858585;
+            --border-color: #3e3e42;
+            --hover-shadow: 0 0 20px rgba(156, 220, 254, 0.2);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        nav {
+            background: rgba(10, 14, 39, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.2rem 2rem;
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 217, 255, 0.05);
+        }
+
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        nav a {
+            color: var(--text-primary);
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.95rem;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent;
+            display: block;
+        }
+
+        nav a:hover {
+            color: var(--accent-cyan);
+            border-left-color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .container {
+            flex: 1;
+            max-width: 1400px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status {
+            display: flex;
+            gap: 2rem;
+            font-size: 1rem;
+        }
+
+        .status span {
+            color: var(--accent-green);
+        }
+
+        .game-area {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 2rem;
+            min-height: 500px;
+        }
+
+        .game-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        #gameCanvas {
+            background: rgba(30, 41, 70, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        .color-palette {
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .color-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .color-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px currentColor;
+        }
+
+        .color-btn.active {
+            border-color: white;
+            box-shadow: 0 0 20px currentColor;
+        }
+
+        .viz-panel {
+            background: rgba(30, 41, 70, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            position: relative;
+            min-height: 500px;
+        }
+
+        #vizCanvas {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            border-radius: 8px;
+            display: block;
+        }
+
+        .viz-hint {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(30, 41, 70, 0.5);
+            border-radius: 8px;
+        }
+
+        .controls button {
+            background: rgba(156, 220, 254, 0.1);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 0.6rem 1.2rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        .controls button:hover {
+            background: rgba(156, 220, 254, 0.2);
+            box-shadow: 0 0 10px rgba(156, 220, 254, 0.3);
+        }
+
+        .level-select {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .level-select label {
+            color: var(--text-secondary);
+        }
+
+        .level-select button {
+            width: 35px;
+            height: 35px;
+            padding: 0;
+        }
+
+        .level-select button.active {
+            background: var(--accent-cyan);
+            color: var(--bg-dark);
+        }
+
+        .win-message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(10, 14, 39, 0.95);
+            border: 2px solid var(--accent-green);
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            text-align: center;
+            z-index: 200;
+            display: none;
+        }
+
+        .win-message h2 {
+            color: var(--accent-green);
+            margin-bottom: 1rem;
+        }
+
+        .win-message.show {
+            display: block;
+            animation: pop 0.3s ease-out;
+        }
+
+        @keyframes pop {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        .webgpu-error {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            padding: 2rem;
+        }
+
+        footer {
+            background: rgba(10, 14, 39, 0.95);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 -4px 30px rgba(0, 217, 255, 0.05);
+            backdrop-filter: blur(10px);
+            margin-top: auto;
+        }
+
+        footer ul {
+            list-style: none;
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+        }
+
+        footer a {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            color: var(--accent-cyan);
+        }
+
+        @media (max-width: 900px) {
+            .game-area {
+                grid-template-columns: 1fr;
+            }
+            .viz-panel {
+                min-height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>Coloroid</h1>
+            <div class="status">
+                <div>Level: <span id="levelDisplay">4</span></div>
+                <div>Moves: <span id="moveDisplay">0</span> / <span id="parDisplay">8</span></div>
+            </div>
+        </div>
+
+        <div class="game-area">
+            <div class="game-panel">
+                <canvas id="gameCanvas" width="320" height="320"></canvas>
+                <div class="color-palette" id="colorPalette"></div>
+            </div>
+            <div class="viz-panel">
+                <canvas id="vizCanvas"></canvas>
+                <div class="viz-hint">Drag to orbit | Scroll to zoom</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <div>
+                <button id="newGameBtn">New Game</button>
+                <button id="resetBtn">Reset</button>
+            </div>
+            <div class="level-select">
+                <label>Level:</label>
+                <button data-level="4">4</button>
+                <button data-level="5">5</button>
+                <button data-level="6">6</button>
+                <button data-level="7">7</button>
+                <button data-level="8">8</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="win-message" id="winMessage">
+        <h2>You Won!</h2>
+        <p>Completed in <span id="winMoves">0</span> moves</p>
+        <div style="margin-top: 1rem; display: flex; gap: 1rem; justify-content: center;">
+            <button id="keepViewingBtn">Keep Viewing</button>
+            <button id="nextLevelBtn">Next Level</button>
+        </div>
+    </div>
+
+    <footer>
+        <ul>
+            <li><a href="mailto:codemajdoor@gmail.com">email</a></li>
+            <li><a href="https://github.com/DesiCoder99">github.com/DesiCoder99</a></li>
+        </ul>
+    </footer>
+
+    <script>
+    // ===========================================
+    // COLOROID GAME LOGIC
+    // ===========================================
+
+    const COLORS = [
+        { name: 'blue',   hex: '#247BA0', rgb: [36, 123, 160] },
+        { name: 'teal',   hex: '#70C1B3', rgb: [112, 193, 179] },
+        { name: 'yellow', hex: '#F3FFBD', rgb: [243, 255, 189] },
+        { name: 'pink',   hex: '#FF1654', rgb: [255, 22, 84] },
+        { name: 'green',  hex: '#5C7457', rgb: [92, 116, 87] },
+        { name: 'brown',  hex: '#8B5D33', rgb: [139, 93, 51] }
+    ];
+
+    class ColoroidGame {
+        constructor(level = 4) {
+            this.level = level;
+            this.history = [];
+            this.reset();
+        }
+
+        reset() {
+            this.board = [];
+            this.moves = 0;
+            this.history = [];
+
+            // Initialize board with random colors
+            const totalCells = this.level * this.level;
+            for (let i = 0; i < totalCells; i++) {
+                this.board.push({
+                    colorIndex: Math.floor(Math.random() * COLORS.length),
+                    captured: false
+                });
+            }
+
+            // Capture top-left cell
+            this.board[0].captured = true;
+
+            // Initial flood fill from origin
+            this.expandCapture(this.board[0].colorIndex);
+
+            // Record initial state
+            this.recordSnapshot(null);
+        }
+
+        recordSnapshot(selectedColorIndex) {
+            this.history.push({
+                step: this.history.length,
+                board: this.board.map(cell => ({
+                    colorIndex: cell.colorIndex,
+                    captured: cell.captured
+                })),
+                selectedColorIndex: selectedColorIndex,
+                capturedCount: this.board.filter(c => c.captured).length
+            });
+        }
+
+        getNeighbors(index) {
+            const neighbors = [];
+            const row = Math.floor(index / this.level);
+            const col = index % this.level;
+
+            if (col > 0) neighbors.push(index - 1);                    // left
+            if (col < this.level - 1) neighbors.push(index + 1);       // right
+            if (row > 0) neighbors.push(index - this.level);           // up
+            if (row < this.level - 1) neighbors.push(index + this.level); // down
+
+            return neighbors;
+        }
+
+        expandCapture(targetColorIndex) {
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (let i = 0; i < this.board.length; i++) {
+                    if (this.board[i].captured) {
+                        for (const neighbor of this.getNeighbors(i)) {
+                            if (!this.board[neighbor].captured &&
+                                this.board[neighbor].colorIndex === targetColorIndex) {
+                                this.board[neighbor].captured = true;
+                                changed = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        makeMove(colorIndex) {
+            // Change all captured cells to selected color
+            for (const cell of this.board) {
+                if (cell.captured) {
+                    cell.colorIndex = colorIndex;
+                }
+            }
+
+            // Expand to capture adjacent cells of same color
+            this.expandCapture(colorIndex);
+
+            this.moves++;
+            this.recordSnapshot(colorIndex);
+
+            return this.isWon();
+        }
+
+        isWon() {
+            return this.board.every(cell => cell.captured);
+        }
+
+        getPar() {
+            return this.level * 2;
+        }
+
+        getHistory() {
+            return this.history;
+        }
+
+        getCurrentState() {
+            return {
+                board: this.board,
+                moves: this.moves,
+                level: this.level,
+                won: this.isWon()
+            };
+        }
+    }
+
+    // ===========================================
+    // 2D CANVAS RENDERER
+    // ===========================================
+
+    class GameRenderer {
+        constructor(canvas, game) {
+            this.canvas = canvas;
+            this.ctx = canvas.getContext('2d');
+            this.game = game;
+            this.cellSize = 0;
+            this.padding = 10;
+        }
+
+        render() {
+            const state = this.game.getCurrentState();
+            const availableSize = Math.min(this.canvas.width, this.canvas.height) - this.padding * 2;
+            this.cellSize = availableSize / state.level;
+
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            for (let i = 0; i < state.board.length; i++) {
+                const cell = state.board[i];
+                const row = Math.floor(i / state.level);
+                const col = i % state.level;
+                const x = this.padding + col * this.cellSize;
+                const y = this.padding + row * this.cellSize;
+
+                // Fill cell
+                this.ctx.fillStyle = COLORS[cell.colorIndex].hex;
+                this.ctx.fillRect(x, y, this.cellSize - 2, this.cellSize - 2);
+
+                // Highlight captured cells
+                if (cell.captured) {
+                    this.ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+                    this.ctx.lineWidth = 2;
+                    this.ctx.strokeRect(x + 1, y + 1, this.cellSize - 4, this.cellSize - 4);
+                }
+            }
+        }
+    }
+
+    // ===========================================
+    // WEBGPU 3D RENDERER
+    // ===========================================
+
+    class WebGPURenderer {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.device = null;
+            this.context = null;
+            this.pipeline = null;
+            this.initialized = false;
+
+            // Camera
+            this.cameraDistance = 20;
+            this.cameraTheta = Math.PI / 4;
+            this.cameraPhi = Math.PI / 3;
+            this.isDragging = false;
+            this.lastMouseX = 0;
+            this.lastMouseY = 0;
+
+            // Layer data
+            this.layers = [];
+            this.instanceBuffer = null;
+            this.instanceCount = 0;
+
+            this.setupMouseControls();
+        }
+
+        async init() {
+            if (!navigator.gpu) {
+                this.showError('WebGPU not supported in this browser');
+                return false;
+            }
+
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) {
+                    this.showError('No WebGPU adapter found');
+                    return false;
+                }
+
+                this.device = await adapter.requestDevice();
+                this.context = this.canvas.getContext('webgpu');
+
+                if (!this.context) {
+                    this.showError('Could not get WebGPU context');
+                    return false;
+                }
+
+                this.resizeCanvas();
+
+                const format = navigator.gpu.getPreferredCanvasFormat();
+                this.context.configure({
+                    device: this.device,
+                    format: format,
+                    alphaMode: 'premultiplied'
+                });
+
+                await this.createPipeline(format);
+                this.createCubeGeometry();
+                this.initialized = true;
+
+                window.addEventListener('resize', () => this.resizeCanvas());
+
+                return true;
+            } catch (e) {
+                console.error('WebGPU error:', e);
+                this.showError('WebGPU initialization failed: ' + e.message);
+                return false;
+            }
+        }
+
+        showError(message) {
+            this.canvas.style.display = 'none';
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'webgpu-error';
+            errorDiv.innerHTML = `<div><p>${message}</p><p>Try Chrome 113+ or Edge 113+</p></div>`;
+            this.canvas.parentElement.appendChild(errorDiv);
+        }
+
+        resizeCanvas() {
+            const rect = this.canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            this.canvas.width = rect.width * dpr;
+            this.canvas.height = rect.height * dpr;
+
+            // Reconfigure context after resize
+            if (this.context && this.device) {
+                this.context.configure({
+                    device: this.device,
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    alphaMode: 'premultiplied'
+                });
+            }
+        }
+
+        setupMouseControls() {
+            this.canvas.addEventListener('mousedown', (e) => {
+                this.isDragging = true;
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            });
+
+            window.addEventListener('mouseup', () => {
+                this.isDragging = false;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!this.isDragging) return;
+                const dx = e.clientX - this.lastMouseX;
+                const dy = e.clientY - this.lastMouseY;
+                this.cameraTheta -= dx * 0.01;
+                this.cameraPhi = Math.max(0.1, Math.min(Math.PI - 0.1, this.cameraPhi - dy * 0.01));
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            });
+
+            this.canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                this.cameraDistance = Math.max(5, Math.min(100, this.cameraDistance + e.deltaY * 0.05));
+            });
+        }
+
+        async createPipeline(format) {
+            const shaderCode = `
+                struct Uniforms {
+                    viewProj: mat4x4<f32>,
+                    cameraPos: vec3<f32>,
+                }
+
+                struct VertexInput {
+                    @location(0) position: vec3<f32>,
+                    @location(1) normal: vec3<f32>,
+                }
+
+                struct InstanceInput {
+                    @location(2) instancePos: vec3<f32>,
+                    @location(3) instanceColor: vec4<f32>,
+                }
+
+                struct VertexOutput {
+                    @builtin(position) position: vec4<f32>,
+                    @location(0) color: vec4<f32>,
+                    @location(1) normal: vec3<f32>,
+                    @location(2) worldPos: vec3<f32>,
+                }
+
+                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+                @vertex
+                fn vertexMain(vert: VertexInput, inst: InstanceInput) -> VertexOutput {
+                    var out: VertexOutput;
+                    let worldPos = vert.position * 0.95 + inst.instancePos;
+                    out.position = uniforms.viewProj * vec4<f32>(worldPos, 1.0);
+                    out.color = inst.instanceColor;
+                    out.normal = vert.normal;
+                    out.worldPos = worldPos;
+                    return out;
+                }
+
+                @fragment
+                fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
+                    let lightDir = normalize(vec3<f32>(0.5, 1.0, 0.3));
+                    let ambient = 0.4;
+                    let diffuse = max(dot(in.normal, lightDir), 0.0) * 0.6;
+                    let lighting = ambient + diffuse;
+
+                    var color = in.color.rgb * lighting;
+                    return vec4<f32>(color, in.color.a);
+                }
+            `;
+
+            const shaderModule = this.device.createShaderModule({ code: shaderCode });
+
+            // Uniform buffer for camera matrices
+            this.uniformBuffer = this.device.createBuffer({
+                size: 80, // mat4x4 (64) + vec3 padded (16)
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            });
+
+            const bindGroupLayout = this.device.createBindGroupLayout({
+                entries: [{
+                    binding: 0,
+                    visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
+                    buffer: { type: 'uniform' }
+                }]
+            });
+
+            this.bindGroup = this.device.createBindGroup({
+                layout: bindGroupLayout,
+                entries: [{
+                    binding: 0,
+                    resource: { buffer: this.uniformBuffer }
+                }]
+            });
+
+            const pipelineLayout = this.device.createPipelineLayout({
+                bindGroupLayouts: [bindGroupLayout]
+            });
+
+            this.pipeline = this.device.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: {
+                    module: shaderModule,
+                    entryPoint: 'vertexMain',
+                    buffers: [
+                        // Vertex buffer
+                        {
+                            arrayStride: 24,
+                            attributes: [
+                                { shaderLocation: 0, offset: 0, format: 'float32x3' },
+                                { shaderLocation: 1, offset: 12, format: 'float32x3' }
+                            ]
+                        },
+                        // Instance buffer
+                        {
+                            arrayStride: 28,
+                            stepMode: 'instance',
+                            attributes: [
+                                { shaderLocation: 2, offset: 0, format: 'float32x3' },
+                                { shaderLocation: 3, offset: 12, format: 'float32x4' }
+                            ]
+                        }
+                    ]
+                },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
+                        format: format,
+                        blend: {
+                            color: {
+                                srcFactor: 'src-alpha',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            },
+                            alpha: {
+                                srcFactor: 'one',
+                                dstFactor: 'one-minus-src-alpha',
+                                operation: 'add'
+                            }
+                        }
+                    }]
+                },
+                primitive: {
+                    topology: 'triangle-list',
+                    cullMode: 'back'
+                },
+                depthStencil: {
+                    format: 'depth24plus',
+                    depthWriteEnabled: false,
+                    depthCompare: 'less'
+                }
+            });
+        }
+
+        createCubeGeometry() {
+            // Cube vertices with normals
+            const vertices = new Float32Array([
+                // Front face
+                -0.5, -0.5,  0.5,  0, 0, 1,
+                 0.5, -0.5,  0.5,  0, 0, 1,
+                 0.5,  0.5,  0.5,  0, 0, 1,
+                -0.5, -0.5,  0.5,  0, 0, 1,
+                 0.5,  0.5,  0.5,  0, 0, 1,
+                -0.5,  0.5,  0.5,  0, 0, 1,
+                // Back face
+                 0.5, -0.5, -0.5,  0, 0, -1,
+                -0.5, -0.5, -0.5,  0, 0, -1,
+                -0.5,  0.5, -0.5,  0, 0, -1,
+                 0.5, -0.5, -0.5,  0, 0, -1,
+                -0.5,  0.5, -0.5,  0, 0, -1,
+                 0.5,  0.5, -0.5,  0, 0, -1,
+                // Top face
+                -0.5,  0.5,  0.5,  0, 1, 0,
+                 0.5,  0.5,  0.5,  0, 1, 0,
+                 0.5,  0.5, -0.5,  0, 1, 0,
+                -0.5,  0.5,  0.5,  0, 1, 0,
+                 0.5,  0.5, -0.5,  0, 1, 0,
+                -0.5,  0.5, -0.5,  0, 1, 0,
+                // Bottom face
+                -0.5, -0.5, -0.5,  0, -1, 0,
+                 0.5, -0.5, -0.5,  0, -1, 0,
+                 0.5, -0.5,  0.5,  0, -1, 0,
+                -0.5, -0.5, -0.5,  0, -1, 0,
+                 0.5, -0.5,  0.5,  0, -1, 0,
+                -0.5, -0.5,  0.5,  0, -1, 0,
+                // Right face
+                 0.5, -0.5,  0.5,  1, 0, 0,
+                 0.5, -0.5, -0.5,  1, 0, 0,
+                 0.5,  0.5, -0.5,  1, 0, 0,
+                 0.5, -0.5,  0.5,  1, 0, 0,
+                 0.5,  0.5, -0.5,  1, 0, 0,
+                 0.5,  0.5,  0.5,  1, 0, 0,
+                // Left face
+                -0.5, -0.5, -0.5,  -1, 0, 0,
+                -0.5, -0.5,  0.5,  -1, 0, 0,
+                -0.5,  0.5,  0.5,  -1, 0, 0,
+                -0.5, -0.5, -0.5,  -1, 0, 0,
+                -0.5,  0.5,  0.5,  -1, 0, 0,
+                -0.5,  0.5, -0.5,  -1, 0, 0,
+            ]);
+
+            this.vertexBuffer = this.device.createBuffer({
+                size: vertices.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+            });
+            this.device.queue.writeBuffer(this.vertexBuffer, 0, vertices);
+            this.vertexCount = 36;
+        }
+
+        updateLayers(history, level) {
+            this.layers = history;
+            this.level = level;
+            this.rebuildInstanceBuffer();
+        }
+
+        rebuildInstanceBuffer() {
+            if (!this.device || this.layers.length === 0) return;
+
+            const instances = [];
+            const layerSpacing = 1.0;  // Tighter vertical stacking
+            const gridOffset = (this.level - 1) / 2;
+
+            // Render layers back-to-front for proper alpha blending
+            for (let layerIndex = 0; layerIndex < this.layers.length; layerIndex++) {
+                const snapshot = this.layers[layerIndex];
+                const prevSnapshot = layerIndex > 0 ? this.layers[layerIndex - 1] : null;
+                const y = layerIndex * layerSpacing;
+
+                for (let i = 0; i < snapshot.board.length; i++) {
+                    const cell = snapshot.board[i];
+                    if (!cell.captured) continue; // Only render captured cells
+
+                    const row = Math.floor(i / this.level);
+                    const col = i % this.level;
+
+                    // Check if this cell was newly captured this step
+                    const wasNewlyCaptured = prevSnapshot &&
+                        !prevSnapshot.board[i].captured &&
+                        cell.captured;
+
+                    // Use original color for newly captured cells (frontier)
+                    let color;
+                    if (wasNewlyCaptured) {
+                        // Show the color it HAD before being flood-filled
+                        color = COLORS[prevSnapshot.board[i].colorIndex];
+                    } else {
+                        color = COLORS[cell.colorIndex];
+                    }
+
+                    instances.push(
+                        col - gridOffset,           // x
+                        y,                          // y (layer height)
+                        row - gridOffset,           // z
+                        color.rgb[0] / 255,         // r
+                        color.rgb[1] / 255,         // g
+                        color.rgb[2] / 255,         // b
+                        0.65                        // alpha
+                    );
+                }
+            }
+
+            if (instances.length === 0) return;
+
+            const instanceData = new Float32Array(instances);
+            this.instanceCount = instances.length / 7;
+
+            if (this.instanceBuffer) {
+                this.instanceBuffer.destroy();
+            }
+
+            this.instanceBuffer = this.device.createBuffer({
+                size: instanceData.byteLength,
+                usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST
+            });
+            this.device.queue.writeBuffer(this.instanceBuffer, 0, instanceData);
+        }
+
+        render() {
+            if (!this.initialized || !this.instanceBuffer || this.instanceCount === 0) {
+                return;
+            }
+
+            try {
+                // Update camera uniforms
+                const aspect = this.canvas.width / this.canvas.height;
+                const viewProj = this.getViewProjMatrix(aspect);
+                const cameraPos = this.getCameraPosition();
+
+                const uniformData = new Float32Array(20);
+                uniformData.set(viewProj, 0);
+                uniformData.set(cameraPos, 16);
+                this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
+
+                // Create depth texture matching current canvas size
+                const depthTexture = this.device.createTexture({
+                    size: [this.canvas.width, this.canvas.height],
+                    format: 'depth24plus',
+                    usage: GPUTextureUsage.RENDER_ATTACHMENT
+                });
+
+                const commandEncoder = this.device.createCommandEncoder();
+
+                const currentTexture = this.context.getCurrentTexture();
+
+                const passEncoder = commandEncoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: currentTexture.createView(),
+                        clearValue: { r: 0.02, g: 0.02, b: 0.04, a: 1.0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }],
+                    depthStencilAttachment: {
+                        view: depthTexture.createView(),
+                        depthClearValue: 1.0,
+                        depthLoadOp: 'clear',
+                        depthStoreOp: 'store'
+                    }
+                });
+
+                passEncoder.setPipeline(this.pipeline);
+                passEncoder.setBindGroup(0, this.bindGroup);
+                passEncoder.setVertexBuffer(0, this.vertexBuffer);
+                passEncoder.setVertexBuffer(1, this.instanceBuffer);
+                passEncoder.draw(this.vertexCount, this.instanceCount);
+                passEncoder.end();
+
+                this.device.queue.submit([commandEncoder.finish()]);
+                depthTexture.destroy();
+
+            } catch (e) {
+                console.error('Render error:', e);
+            }
+        }
+
+        getCameraPosition() {
+            const x = this.cameraDistance * Math.sin(this.cameraPhi) * Math.cos(this.cameraTheta);
+            const y = this.cameraDistance * Math.cos(this.cameraPhi);
+            const z = this.cameraDistance * Math.sin(this.cameraPhi) * Math.sin(this.cameraTheta);
+            return [x, y, z];
+        }
+
+        getViewProjMatrix(aspect) {
+            const [camX, camY, camZ] = this.getCameraPosition();
+
+            // Calculate center based on layers
+            const numLayers = this.layers ? this.layers.length : 1;
+            const centerY = (numLayers - 1) * 1.0 / 2;
+
+            // View matrix (lookAt)
+            const target = [0, centerY, 0];
+            const up = [0, 1, 0];
+
+            const zAxis = normalize([camX - target[0], camY - target[1], camZ - target[2]]);
+            const xAxis = normalize(cross(up, zAxis));
+            const yAxis = cross(zAxis, xAxis);
+
+            const eye = [camX, camY, camZ];
+
+            // Column-major view matrix
+            const viewMatrix = [
+                xAxis[0], xAxis[1], xAxis[2], 0,  // column 0
+                yAxis[0], yAxis[1], yAxis[2], 0,  // column 1
+                zAxis[0], zAxis[1], zAxis[2], 0,  // column 2
+                -dot(xAxis, eye), -dot(yAxis, eye), -dot(zAxis, eye), 1  // column 3
+            ];
+
+            // Projection matrix (perspective) - column-major
+            const fov = Math.PI / 4;
+            const near = 0.1;
+            const far = 200;
+            const f = 1 / Math.tan(fov / 2);
+
+            const projMatrix = [
+                f / aspect, 0, 0, 0,  // column 0
+                0, f, 0, 0,           // column 1
+                0, 0, (far + near) / (near - far), -1,  // column 2
+                0, 0, (2 * far * near) / (near - far), 0  // column 3
+            ];
+
+            // Multiply projection * view
+            return multiplyMat4(projMatrix, viewMatrix);
+        }
+    }
+
+    // Matrix math helpers
+    function normalize(v) {
+        const len = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+        return [v[0]/len, v[1]/len, v[2]/len];
+    }
+
+    function cross(a, b) {
+        return [
+            a[1]*b[2] - a[2]*b[1],
+            a[2]*b[0] - a[0]*b[2],
+            a[0]*b[1] - a[1]*b[0]
+        ];
+    }
+
+    function dot(a, b) {
+        return a[0]*b[0] + a[1]*b[1] + a[2]*b[2];
+    }
+
+    // Column-major matrix multiplication: result = a * b
+    function multiplyMat4(a, b) {
+        const result = new Array(16).fill(0);
+        for (let col = 0; col < 4; col++) {
+            for (let row = 0; row < 4; row++) {
+                let sum = 0;
+                for (let k = 0; k < 4; k++) {
+                    // a[row, k] * b[k, col]
+                    // In column-major: a[k*4 + row] * b[col*4 + k]
+                    sum += a[k * 4 + row] * b[col * 4 + k];
+                }
+                result[col * 4 + row] = sum;
+            }
+        }
+        return result;
+    }
+
+    // ===========================================
+    // MAIN APPLICATION
+    // ===========================================
+
+    let game, gameRenderer, webgpuRenderer;
+    let currentLevel = 4;
+    let animationId = null;
+
+    async function init() {
+        // Initialize game
+        game = new ColoroidGame(currentLevel);
+
+        // Initialize 2D renderer
+        const gameCanvas = document.getElementById('gameCanvas');
+        gameRenderer = new GameRenderer(gameCanvas, game);
+        gameRenderer.render();
+
+        // Initialize WebGPU renderer
+        const vizCanvas = document.getElementById('vizCanvas');
+        webgpuRenderer = new WebGPURenderer(vizCanvas);
+        const webgpuOk = await webgpuRenderer.init();
+
+        if (webgpuOk) {
+            webgpuRenderer.updateLayers(game.getHistory(), currentLevel);
+            startRenderLoop();
+        }
+
+        // Setup color palette
+        setupColorPalette();
+
+        // Setup controls
+        setupControls();
+
+        // Update UI
+        updateUI();
+    }
+
+    function setupColorPalette() {
+        const palette = document.getElementById('colorPalette');
+        palette.innerHTML = '';
+
+        COLORS.forEach((color, index) => {
+            const btn = document.createElement('button');
+            btn.className = 'color-btn';
+            btn.style.backgroundColor = color.hex;
+            btn.onclick = () => makeMove(index);
+            palette.appendChild(btn);
+        });
+    }
+
+    function setupControls() {
+        document.getElementById('newGameBtn').onclick = newGame;
+        document.getElementById('resetBtn').onclick = resetGame;
+        document.getElementById('nextLevelBtn').onclick = nextLevel;
+        document.getElementById('keepViewingBtn').onclick = hideWinMessage;
+
+        document.querySelectorAll('.level-select button').forEach(btn => {
+            btn.onclick = () => setLevel(parseInt(btn.dataset.level));
+        });
+    }
+
+    function makeMove(colorIndex) {
+        if (game.isWon()) return;
+
+        const won = game.makeMove(colorIndex);
+        gameRenderer.render();
+        webgpuRenderer.updateLayers(game.getHistory(), currentLevel);
+        updateUI();
+
+        if (won) {
+            showWinMessage();
+        }
+    }
+
+    function newGame() {
+        hideWinMessage();
+        game = new ColoroidGame(currentLevel);
+        gameRenderer.game = game;
+        gameRenderer.render();
+        webgpuRenderer.updateLayers(game.getHistory(), currentLevel);
+        updateUI();
+    }
+
+    function resetGame() {
+        hideWinMessage();
+        game.reset();
+        gameRenderer.render();
+        webgpuRenderer.updateLayers(game.getHistory(), currentLevel);
+        updateUI();
+    }
+
+    function setLevel(level) {
+        currentLevel = level;
+        newGame();
+    }
+
+    function nextLevel() {
+        if (currentLevel < 8) {
+            currentLevel++;
+        }
+        newGame();
+    }
+
+    function updateUI() {
+        document.getElementById('levelDisplay').textContent = currentLevel;
+        document.getElementById('moveDisplay').textContent = game.moves;
+        document.getElementById('parDisplay').textContent = game.getPar();
+
+        // Update level buttons
+        document.querySelectorAll('.level-select button').forEach(btn => {
+            btn.classList.toggle('active', parseInt(btn.dataset.level) === currentLevel);
+        });
+    }
+
+    function showWinMessage() {
+        document.getElementById('winMoves').textContent = game.moves;
+        document.getElementById('winMessage').classList.add('show');
+    }
+
+    function hideWinMessage() {
+        document.getElementById('winMessage').classList.remove('show');
+    }
+
+    function startRenderLoop() {
+        function loop() {
+            webgpuRenderer.render();
+            animationId = requestAnimationFrame(loop);
+        }
+        loop();
+    }
+
+    // Start the app
+    init();
+    </script>
+</body>
+</html>
