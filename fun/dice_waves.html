@@ -141,6 +141,35 @@ function flipDot(f, wx, wy, ez, rollAngle) {
 	return [sx, sy, sz];
 }
 
+// Screen-space AABB of a cube for occlusion testing
+function cubeAABB(f) {
+	const N = f.size;
+	let popFrac, rollAngle, settleFrac;
+	if (f.prog < 0.2) { popFrac = easeIO(f.prog/0.2); rollAngle = 0; settleFrac = 0; }
+	else if (f.prog < 0.75) { popFrac = 1; rollAngle = (Math.PI/2)*easeIO((f.prog-0.2)/0.55); settleFrac = 0; }
+	else { popFrac = 1; rollAngle = Math.PI/2; settleFrac = easeIO((f.prog-0.75)/0.25); }
+	const popZ = popFrac * (N-1), settZ = -settleFrac * (N-1);
+	// 8 corner dots of the cube
+	const corners = [
+		[f.col, f.row, 0], [f.col+N-1, f.row, 0],
+		[f.col, f.row+N-1, 0], [f.col+N-1, f.row+N-1, 0],
+		[f.col, f.row, -(N-1)], [f.col+N-1, f.row, -(N-1)],
+		[f.col, f.row+N-1, -(N-1)], [f.col+N-1, f.row+N-1, -(N-1)],
+	];
+	let x0=1e9, x1=-1e9, y0=1e9, y1=-1e9;
+	for (const [wx, wy, wz] of corners) {
+		const ez = wz + popZ;
+		let sx, sy, sz;
+		if (rollAngle > 0.001) [sx, sy, sz] = flipDot(f, wx, wy, ez, rollAngle);
+		else { sx = wx; sy = wy; sz = ez; }
+		sz += settZ;
+		const [px, py] = project(sx, sy, sz);
+		if (px < x0) x0 = px; if (px > x1) x1 = px;
+		if (py < y0) y0 = py; if (py > y1) y1 = py;
+	}
+	return [x0, y0, x1, y1];
+}
+
 // ---- Dot buffer ----
 const MAX_DOTS = 10000;
 const dotData = new Float32Array(MAX_DOTS * 4);
@@ -154,12 +183,21 @@ function pushDot(px, py, r, b) {
 
 function buildDots() {
 	dotCount = 0;
-	// Static grid dots (skip suppressed cells)
+	// Compute cube screen AABBs for occlusion
+	const aabbs = [];
+	for (const f of flips) {
+		if (f.prog > 0.03 && f.prog < 0.97) aabbs.push(cubeAABB(f));
+	}
+	// Static grid dots - occlude those behind opaque cubes
 	for (let r = 0; r < GRID; r++)
 		for (let c = 0; c < GRID; c++) {
-			if (flipGrid[r * GRID + c]) continue;
 			const [px, py] = project(c, r, 0);
-			pushDot(px, py, dotR, 1.0);
+			let occ = false;
+			for (let i = 0; i < aabbs.length; i++) {
+				const b = aabbs[i];
+				if (px >= b[0] && px <= b[2] && py >= b[1] && py <= b[3]) { occ = true; break; }
+			}
+			if (!occ) pushDot(px, py, dotR, 1.0);
 		}
 	// Animated cube dots
 	for (const f of flips) {
