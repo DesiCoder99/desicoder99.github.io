@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dice Waves</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; display: flex; justify-content: center; align-items: center; min-height: 100vh; overflow: hidden; }
+canvas { display: block; width: 100vmin; height: 100vmin; }
+#hud { position: fixed; bottom: 12px; left: 12px; color: #555; font: 13px monospace; pointer-events: none; }
+#fallback { color: #888; font-family: monospace; display: none; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div>
+<div id="fallback">WebGPU not available.</div>
+<script>
+const GRID = 40;
+const PX = 960;
+const DOT_FRAC = 0.15;
+
+// ---- Camera ----
+let camElev = 50, camAzim = 18;
+let sinE, cosE, sinA, cosA, vScale, dotR;
+// Camera direction (scene → camera) for face culling
+let camDx, camDy, camDz;
+
+function updateCam() {
+	const e = camElev * Math.PI / 180, a = camAzim * Math.PI / 180;
+	sinE = Math.sin(e); cosE = Math.cos(e);
+	sinA = Math.sin(a); cosA = Math.cos(a);
+	camDx = -sinA * cosE; camDy = -cosA * cosE; camDz = sinE;
+	const hw = GRID * 0.5 * (Math.abs(cosA) + Math.abs(sinA));
+	const hh = GRID * 0.5 * (Math.abs(sinA) + Math.abs(cosA)) * sinE + 6 * cosE;
+	vScale = PX * 0.49 / Math.max(hw, hh);
+	dotR = DOT_FRAC * vScale;
+	document.getElementById('hud').textContent = `elev: ${camElev.toFixed(0)}°  azim: ${camAzim.toFixed(0)}°  (drag to orbit, scroll to tilt)`;
+}
+updateCam();
+
+// Scroll: zoom/elevation
+document.getElementById('c').addEventListener('wheel', e => {
+	camElev = Math.max(15, Math.min(88, camElev - e.deltaY * 0.15));
+	updateCam(); e.preventDefault();
+}, { passive: false });
+
+// Click-drag: orbit camera (azimuth + elevation)
+let dragging = false, dragX = 0, dragY = 0;
+document.getElementById('c').addEventListener('mousedown', e => {
+	dragging = true; dragX = e.clientX; dragY = e.clientY;
+	e.preventDefault();
+});
+window.addEventListener('mousemove', e => {
+	if (!dragging) return;
+	const dx = e.clientX - dragX, dy = e.clientY - dragY;
+	dragX = e.clientX; dragY = e.clientY;
+	camAzim = ((camAzim + dx * 0.3) % 360 + 360) % 360;
+	camElev = Math.max(15, Math.min(88, camElev + dy * 0.3));
+	updateCam();
+});
+window.addEventListener('mouseup', () => { dragging = false; });
+
+function project(wx, wy, wz) {
+	const x = wx - (GRID - 1) * 0.5, y = wy - (GRID - 1) * 0.5;
+	const x1 = x * cosA - y * sinA;
+	const y1 = x * sinA + y * cosA;
+	return [PX * 0.5 + x1 * vScale, PX * 0.5 - (y1 * sinE + wz * cosE) * vScale];
+}
+
+// ---- Dynamic flips ----
+const flips = [];
+const flipGrid = new Uint8Array(GRID * GRID);
+
+// Face normals: top, bottom, right(+x), left(-x), front(+y), back(-y)
+const FACE_N = [[0,0,1],[0,0,-1],[1,0,0],[-1,0,0],[0,1,0],[0,-1,0]];
+
+function rotateNormal(nx, ny, nz, dir, angle) {
+	const ca = Math.cos(angle), sa = Math.sin(angle);
+	if (dir === 0) return [nx*ca + nz*sa, ny, -nx*sa + nz*ca];       // right CW xz
+	if (dir === 2) return [nx*ca - nz*sa, ny, nx*sa + nz*ca];        // left CCW xz
+	if (dir === 1) return [nx, ny*ca + nz*sa, -ny*sa + nz*ca];       // down CW yz
+	return [nx, ny*ca - nz*sa, ny*sa + nz*ca];                        // up CCW yz
+}
+
+function faceVisible(dir, angle, faceIdx) {
+	const [nx, ny, nz] = FACE_N[faceIdx];
+	const [rx, ry, rz] = rotateNormal(nx, ny, nz, dir, angle);
+	return rx * camDx + ry * camDy + rz * camDz > 0.01;
+}
+
+function tryFlip(col, row, size, dir) {
+	// Compute full footprint (source + roll destination)
+	let sc = col, sr = row, sw = size, sh = size;
+	if (dir === 0) sw = 2 * size;
+	else if (dir === 1) sh = 2 * size;
+	else if (dir === 2) { sc -= size; sw = 2 * size; }
+	else { sr -= size; sh = 2 * size; }
+	if (sc < 0 || sc + sw > GRID || sr < 0 || sr + sh > GRID) return false;
+	for (let dr = 0; dr < sh; dr++)
+		for (let dc = 0; dc < sw; dc++)
+			if (flipGrid[(sr + dr) * GRID + (sc + dc)]) return false;
+	for (let dr = 0; dr < sh; dr++)
+		for (let dc = 0; dc < sw; dc++)
+			flipGrid[(sr + dr) * GRID + (sc + dc)] = 1;
+	flips.push({ col, row, size, dir, prog: 0, dur: 1.2 + Math.random() * 0.6,
+		sc, sr, sw, sh });
+	return true;
+}
+
+function removeFlip(idx) {
+	const f = flips[idx];
+	for (let dr = 0; dr < f.sh; dr++)
+		for (let dc = 0; dc < f.sw; dc++)
+			flipGrid[(f.sr + dr) * GRID + (f.sc + dc)] = 0;
+	flips.splice(idx, 1);
+}
+
+function easeIO(t) { return t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t+2, 2)/2; }
+
+// Rotate dot in flip plane (CW for right/down, CCW for left/up)
+// Pivot at bottom edge of popped cube
+function flipDot(f, wx, wy, ez, rollAngle) {
+	const N = f.size, ca = Math.cos(rollAngle), sa = Math.sin(rollAngle);
+	const pz = -0.5; // physical bottom of cube on ground
+	let sx, sy, sz;
+	if (f.dir === 0) {
+		const px = f.col + N - 0.5, rx = wx - px, rz = ez - pz;
+		sx = px + rx*ca + rz*sa; sy = wy; sz = pz - rx*sa + rz*ca;
+	} else if (f.dir === 2) {
+		const px = f.col - 0.5, rx = wx - px, rz = ez - pz;
+		sx = px + rx*ca - rz*sa; sy = wy; sz = pz + rx*sa + rz*ca;
+	} else if (f.dir === 1) {
+		const py = f.row + N - 0.5, ry = wy - py, rz = ez - pz;
+		sx = wx; sy = py + ry*ca + rz*sa; sz = pz - ry*sa + rz*ca;
+	} else {
+		const py = f.row - 0.5, ry = wy - py, rz = ez - pz;
+		sx = wx; sy = py + ry*ca - rz*sa; sz = pz + ry*sa + rz*ca;
+	}
+	return [sx, sy, sz];
+}
+
+// ---- Dot buffer ----
+const MAX_DOTS = 10000;
+const dotData = new Float32Array(MAX_DOTS * 4);
+let dotCount = 0;
+function pushDot(px, py, r, b) {
+	if (dotCount >= MAX_DOTS) return;
+	const i = dotCount * 4;
+	dotData[i] = px; dotData[i+1] = py; dotData[i+2] = r; dotData[i+3] = b;
+	dotCount++;
+}
+
+function buildDots() {
+	dotCount = 0;
+	// Static grid dots (skip suppressed cells)
+	for (let r = 0; r < GRID; r++)
+		for (let c = 0; c < GRID; c++) {
+			if (flipGrid[r * GRID + c]) continue;
+			const [px, py] = project(c, r, 0);
+			pushDot(px, py, dotR, 1.0);
+		}
+	// Animated cube dots
+	for (const f of flips) {
+		const N = f.size;
+		// Animation phases
+		let popFrac, rollAngle, settleFrac;
+		if (f.prog < 0.2) {
+			popFrac = easeIO(f.prog / 0.2);
+			rollAngle = 0; settleFrac = 0;
+		} else if (f.prog < 0.75) {
+			popFrac = 1;
+			rollAngle = (Math.PI / 2) * easeIO((f.prog - 0.2) / 0.55);
+			settleFrac = 0;
+		} else {
+			popFrac = 1; rollAngle = Math.PI / 2;
+			settleFrac = easeIO((f.prog - 0.75) / 0.25);
+		}
+		const popZ = popFrac * (N - 1);
+		const settleZ = -settleFrac * (N - 1);
+
+		for (let face = 0; face < 6; face++) {
+			if (!faceVisible(f.dir, rollAngle, face)) continue;
+			for (let a = 0; a < N; a++) {
+				for (let b = 0; b < N; b++) {
+					let wx, wy, wz;
+					switch (face) {
+						case 0: wx = f.col+a; wy = f.row+b; wz = 0; break;
+						case 1: wx = f.col+a; wy = f.row+b; wz = -(N-1); break;
+						case 2: wx = f.col+N-1; wy = f.row+b; wz = -a; break;
+						case 3: wx = f.col;   wy = f.row+b; wz = -a; break;
+						case 4: wx = f.col+a; wy = f.row+N-1; wz = -b; break;
+						case 5: wx = f.col+a; wy = f.row;   wz = -b; break;
+					}
+					// Elevate (pop up)
+					const ez = wz + popZ;
+					// Roll rotation
+					let sx, sy, sz;
+					if (rollAngle > 0.001) {
+						[sx, sy, sz] = flipDot(f, wx, wy, ez, rollAngle);
+					} else {
+						sx = wx; sy = wy; sz = ez;
+					}
+					// Settle down
+					sz += settleZ;
+					if (sz < -0.1) continue;
+					const [px, py] = project(sx, sy, sz);
+					const hf = 1 + Math.max(0, sz) * 0.03;
+					pushDot(px, py, dotR * hf, Math.min(1.0, 0.85 + Math.max(0, sz) * 0.02));
+				}
+			}
+		}
+	}
+}
+
+// ---- WebGPU ----
+async function main() {
+	if (!navigator.gpu) { document.getElementById('c').style.display='none'; document.getElementById('fallback').style.display='block'; return; }
+	const adapter = await navigator.gpu.requestAdapter();
+	const device = await adapter.requestDevice();
+	const canvas = document.getElementById('c');
+	canvas.width = PX; canvas.height = PX;
+	const ctx = canvas.getContext('webgpu');
+	const fmt = navigator.gpu.getPreferredCanvasFormat();
+	ctx.configure({ device, format: fmt, alphaMode: 'opaque' });
+
+	const instBuf = device.createBuffer({ size: MAX_DOTS*16, usage: GPUBufferUsage.VERTEX|GPUBufferUsage.COPY_DST });
+	const qv = new Float32Array([-1,-1,1,-1,1,1,-1,-1,1,1,-1,1]);
+	const quadBuf = device.createBuffer({ size: qv.byteLength, usage: GPUBufferUsage.VERTEX, mappedAtCreation: true });
+	new Float32Array(quadBuf.getMappedRange()).set(qv); quadBuf.unmap();
+
+	const shader = device.createShaderModule({ code: `
+const px = ${PX}.0;
+struct V { @builtin(position) p: vec4f, @location(0) uv: vec2f, @location(1) br: f32 };
+@vertex fn vs(@location(0) q: vec2f, @location(1) c: vec2f, @location(2) r: f32, @location(3) b: f32) -> V {
+	var o: V; let p = c + q * r;
+	o.p = vec4f(p.x/px*2.0-1.0, -(p.y/px*2.0-1.0), 0, 1);
+	o.uv = q; o.br = b; return o;
+}
+@fragment fn fs(v: V) -> @location(0) vec4f {
+	let d = length(v.uv);
+	let a = smoothstep(1.0, 0.3, d) * v.br;
+	return vec4f(a, a, a, 1.0);
+}
+`});
+
+	const pipeline = device.createRenderPipeline({
+		layout: 'auto',
+		vertex: { module: shader, entryPoint: 'vs', buffers: [
+			{ arrayStride: 8, stepMode: 'vertex', attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x2' }] },
+			{ arrayStride: 16, stepMode: 'instance', attributes: [
+				{ shaderLocation: 1, offset: 0, format: 'float32x2' },
+				{ shaderLocation: 2, offset: 8, format: 'float32' },
+				{ shaderLocation: 3, offset: 12, format: 'float32' },
+			]},
+		]},
+		fragment: { module: shader, entryPoint: 'fs', targets: [{ format: fmt, blend: {
+			color: { srcFactor: 'src-alpha', dstFactor: 'one', operation: 'add' },
+			alpha: { srcFactor: 'one', dstFactor: 'one', operation: 'add' },
+		}}]},
+		primitive: { topology: 'triangle-list' },
+	});
+
+	let lt = 0;
+	function frame(ts) {
+		const t = ts / 1000, dt = lt ? Math.min(t - lt, 0.05) : 0.016; lt = t;
+
+		// Random flip spawning (no waves)
+		if (flips.length < 10 && Math.random() < 0.12) {
+			const size = 3 + (Math.random() * 4 | 0);
+			const col = Math.random() * (GRID - size) | 0;
+			const row = Math.random() * (GRID - size) | 0;
+			const dir = Math.random() * 4 | 0;
+			tryFlip(col, row, size, dir);
+		}
+
+		// Update flips
+		for (let i = flips.length - 1; i >= 0; i--) {
+			flips[i].prog += dt / flips[i].dur;
+			if (flips[i].prog >= 1) removeFlip(i);
+		}
+
+		buildDots();
+		device.queue.writeBuffer(instBuf, 0, dotData, 0, dotCount * 4);
+
+		const enc = device.createCommandEncoder();
+		const pass = enc.beginRenderPass({ colorAttachments: [{ view: ctx.getCurrentTexture().createView(), clearValue: {r:0,g:0,b:0,a:1}, loadOp: 'clear', storeOp: 'store' }] });
+		pass.setPipeline(pipeline);
+		pass.setVertexBuffer(0, quadBuf);
+		pass.setVertexBuffer(1, instBuf);
+		pass.draw(6, dotCount);
+		pass.end();
+		device.queue.submit([enc.finish()]);
+		requestAnimationFrame(frame);
+	}
+	requestAnimationFrame(frame);
+}
+main();
+</script>
+</body>
+</html>
