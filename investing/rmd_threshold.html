@@ -202,7 +202,7 @@
             <div class="note">
                 All values in today's dollars (real). The "threshold" is the pre-tax balance
                 at which the forced RMD exactly equals the income you'd voluntarily withdraw
-                anyway. Above it: unwanted taxable income + IRMAA risk.
+                anyway. Above it: unwanted taxable income at higher marginal rates.
             </div>
 
             <h2>Today</h2>
@@ -241,11 +241,37 @@
                 <div style="font-size:10px;color:#666;margin-top:3px;">SS + pension + annuities</div>
             </div>
             <div class="input-group">
-                <label>Filing Status (IRMAA)</label>
+                <label>Filing Status</label>
                 <select id="filing">
                     <option value="single">Single</option>
                     <option value="joint" selected>Married Joint</option>
                 </select>
+            </div>
+
+            <h2>Roth Conversions</h2>
+            <div class="input-group">
+                <label>Conversion Start Age</label>
+                <input type="number" id="convStart" value="60" min="30" max="90">
+            </div>
+            <div class="input-group">
+                <label>Conversion End Age</label>
+                <input type="number" id="convEnd" value="74" min="30" max="90">
+            </div>
+            <div class="input-group">
+                <label>Fill to Top of Tax Bracket</label>
+                <select id="targetBracket">
+                    <option value="0.12">12%</option>
+                    <option value="0.22">22%</option>
+                    <option value="0.24" selected>24%</option>
+                    <option value="0.32">32%</option>
+                    <option value="0.35">35%</option>
+                </select>
+                <div id="bracketCeiling" style="font-size:10px;color:#666;margin-top:3px;"></div>
+            </div>
+            <div class="input-group">
+                <label>Other Taxable Income in Window ($/yr, today)</label>
+                <input type="number" id="otherTaxableWindow" value="20000" step="5000">
+                <div style="font-size:10px;color:#666;margin-top:3px;">SS + divs + part-time during conversion years</div>
             </div>
         </div>
 
@@ -274,6 +300,29 @@
                 </div>
             </div>
 
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Total Converted</div>
+                    <div class="stat-value" id="totConv" style="color:#c586c0;"></div>
+                    <div class="stat-sub" id="totConvSub"></div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Total Conversion Tax</div>
+                    <div class="stat-value" id="totConvTax" style="color:#ffd166;"></div>
+                    <div class="stat-sub" id="totConvTaxSub"></div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Roth at RMD Age</div>
+                    <div class="stat-value" id="rothAtRmd" style="color:#c586c0;"></div>
+                    <div class="stat-sub">tax-free, no RMD</div>
+                </div>
+                <div class="stat">
+                    <div class="stat-label">Pre-Tax at RMD (No Conv)</div>
+                    <div class="stat-value" id="projNoConv" style="color:#888;"></div>
+                    <div class="stat-sub">counterfactual baseline</div>
+                </div>
+            </div>
+
             <div class="formula">
                 <strong>RPI</strong> = Spending - Other Income = <code id="fRpi"></code><br>
                 <strong>Threshold</strong> = RPI x <code id="fDiv"></code> (divisor at age <span id="fAge"></span>) = <code id="fThr"></code><br>
@@ -283,8 +332,10 @@
             <div class="chart-container">
                 <canvas id="chart" height="320"></canvas>
                 <div class="legend">
-                    <div class="legend-item"><div class="legend-box" style="background:#4a9eff;"></div>Projected Pre-Tax Balance</div>
-                    <div class="legend-item"><div class="legend-box" style="background:#51cf66;"></div>Threshold (Balance s.t. RMD = RPI)</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#4a9eff;"></div>Pre-Tax Balance (with conv)</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#888;"></div>Pre-Tax Balance (no conv)</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#c586c0;"></div>Roth Balance</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#51cf66;"></div>Threshold</div>
                     <div class="legend-item"><div class="legend-box" style="background:#ff6b6b;"></div>Over Threshold</div>
                 </div>
             </div>
@@ -296,12 +347,13 @@
                         <thead>
                             <tr>
                                 <th>Age</th>
-                                <th>Pre-Tax Balance</th>
+                                <th>Pre-Tax</th>
+                                <th>Roth</th>
+                                <th>Convert</th>
+                                <th>Conv Tax</th>
                                 <th>RMD</th>
                                 <th>RPI Need</th>
                                 <th>Excess</th>
-                                <th>Taxable Income</th>
-                                <th>IRMAA Tier</th>
                             </tr>
                         </thead>
                         <tbody id="yearBody"></tbody>
@@ -320,11 +372,31 @@ const UNIFORM_LIFETIME = {
     97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4
 };
 
-// 2025 IRMAA MAGI thresholds (Medicare Part B/D surcharge tiers)
-const IRMAA = {
-    single: [106000, 133000, 167000, 200000, 500000],
-    joint:  [212000, 266000, 334000, 400000, 750000]
+// 2025 federal brackets (taxable income after std deduction)
+const BRACKETS_2025 = {
+    single: [[11925,0.10],[48475,0.12],[103350,0.22],[197300,0.24],[250525,0.32],[626350,0.35],[Infinity,0.37]],
+    joint:  [[23850,0.10],[96950,0.12],[206700,0.22],[394600,0.24],[501050,0.32],[751600,0.35],[Infinity,0.37]]
 };
+const STD_DED_2025 = { single: 15000, joint: 30000 };
+
+function taxOn(grossIncome, filing) {
+    const ti = Math.max(0, grossIncome - STD_DED_2025[filing]);
+    let tax = 0, prev = 0;
+    for (const [cap, rate] of BRACKETS_2025[filing]) {
+        if (ti <= cap) { tax += (ti - prev) * rate; return tax; }
+        tax += (cap - prev) * rate;
+        prev = cap;
+    }
+    return tax;
+}
+
+function bracketTopGross(targetRate, filing) {
+    // Find cap where bracket rate == targetRate, then add std ded to get gross income ceiling
+    for (const [cap, rate] of BRACKETS_2025[filing]) {
+        if (Math.abs(rate - targetRate) < 1e-9) return cap + STD_DED_2025[filing];
+    }
+    return Infinity;
+}
 
 function fmt(n) {
     if (!isFinite(n)) return '-';
@@ -340,27 +412,76 @@ function fmtFull(n) {
     return (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString();
 }
 
-function irmaaTier(magi, filing) {
-    const t = IRMAA[filing];
-    for (let i = 0; i < t.length; i++) if (magi <= t[i]) return i;
-    return t.length;
-}
-
 function compute() {
     const currentAge = +document.getElementById('currentAge').value;
-    const preTax = +document.getElementById('preTax').value;
+    const preTaxStart = +document.getElementById('preTax').value;
     const realGrowth = +document.getElementById('realGrowth').value / 100;
     const rmdAge = +document.getElementById('rmdAge').value;
     const spending = +document.getElementById('spending').value;
     const otherIncome = +document.getElementById('otherIncome').value;
     const filing = document.getElementById('filing').value;
+    const convStart = +document.getElementById('convStart').value;
+    const convEnd = +document.getElementById('convEnd').value;
+    const targetRate = +document.getElementById('targetBracket').value;
+    const otherTaxWin = +document.getElementById('otherTaxableWindow').value;
 
     const divisor = UNIFORM_LIFETIME[rmdAge];
     const rpi = Math.max(0, spending - otherIncome);
     const threshold = rpi * divisor;
+    const grossCeiling = bracketTopGross(targetRate, filing);
+    document.getElementById('bracketCeiling').textContent =
+        `top of bracket = ${fmtFull(grossCeiling)} gross income`;
 
+    // Simulate year-by-year with conversions
+    const rows = [];
+    let bal = preTaxStart;
+    let roth = 0;
+    let totalConverted = 0;
+    let totalConvTax = 0;
+
+    for (let age = currentAge; age <= 95; age++) {
+        const isRmdYear = age >= rmdAge;
+        const inConvWindow = age >= convStart && age <= convEnd && !isRmdYear;
+        const div = UNIFORM_LIFETIME[age] || null;
+
+        let convert = 0, convTax = 0;
+        if (inConvWindow) {
+            const headroom = Math.max(0, grossCeiling - otherTaxWin);
+            let grossConv = Math.min(headroom, Math.max(0, bal));
+            let tax = taxOn(otherTaxWin + grossConv, filing) - taxOn(otherTaxWin, filing);
+            // ensure pre-tax covers conversion + tax
+            for (let i = 0; i < 20 && grossConv + tax > bal && grossConv > 1; i++) {
+                grossConv *= 0.92;
+                tax = taxOn(otherTaxWin + grossConv, filing) - taxOn(otherTaxWin, filing);
+            }
+            convert = grossConv;
+            convTax = tax;
+            bal -= (convert + convTax);
+            roth += convert;
+            totalConverted += convert;
+            totalConvTax += convTax;
+        }
+
+        const rmd = isRmdYear && div ? bal / div : 0;
+        const drawn = isRmdYear ? Math.max(rmd, rpi) : 0;
+        const excess = isRmdYear ? rmd - rpi : 0;
+        const thr = rpi * (div || divisor);
+
+        rows.push({ age, bal, roth, convert, convTax, rmd, rpi: isRmdYear ? rpi : 0, excess, threshold: thr, isRmdYear, inConvWindow });
+
+        if (isRmdYear) bal = Math.max(0, bal - drawn);
+        bal *= (1 + realGrowth);
+        roth *= (1 + realGrowth);
+    }
+
+    // Counterfactual: no conversions
     const yearsToRmd = Math.max(0, rmdAge - currentAge);
-    const projAtRmd = preTax * Math.pow(1 + realGrowth, yearsToRmd);
+    const projNoConv = preTaxStart * Math.pow(1 + realGrowth, yearsToRmd);
+
+    // Find row at RMD age for headline stats
+    const rmdRow = rows.find(r => r.age === rmdAge);
+    const projAtRmd = rmdRow ? rmdRow.bal : projNoConv;
+    const rothAtRmd = rmdRow ? rmdRow.roth : 0;
     const projRmd = projAtRmd / divisor;
     const gap = projAtRmd - threshold;
     const gapPct = threshold > 0 ? (gap / threshold) * 100 : 0;
@@ -369,12 +490,20 @@ function compute() {
     document.getElementById('threshold').textContent = fmt(threshold);
     document.getElementById('proj').textContent = fmt(projAtRmd);
     document.getElementById('projSub').textContent =
-        yearsToRmd > 0 ? `${yearsToRmd}yr @ ${(realGrowth*100).toFixed(1)}% real` : 'already at RMD age';
+        yearsToRmd > 0 ? `${yearsToRmd}yr @ ${(realGrowth*100).toFixed(1)}% real, after conv` : 'already at RMD age';
     document.getElementById('gap').textContent = (gap >= 0 ? '+' : '') + fmt(gap);
     document.getElementById('gapSub').textContent = (gap >= 0 ? '+' : '') + gapPct.toFixed(0) + '% vs threshold';
+    document.getElementById('gapStat').className = 'stat ' +
+        (gap > threshold * 0.1 ? 'warn' : gap < -threshold * 0.1 ? 'success' : 'amber');
 
-    const gapStat = document.getElementById('gapStat');
-    gapStat.className = 'stat ' + (gap > threshold * 0.1 ? 'warn' : gap < -threshold * 0.1 ? 'success' : 'amber');
+    const convYears = Math.max(0, Math.min(convEnd, rmdAge - 1) - convStart + 1);
+    const effRate = totalConverted > 0 ? totalConvTax / totalConverted : 0;
+    document.getElementById('totConv').textContent = fmt(totalConverted);
+    document.getElementById('totConvSub').textContent = `over ${convYears}yr (age ${convStart}-${Math.min(convEnd, rmdAge - 1)})`;
+    document.getElementById('totConvTax').textContent = fmt(totalConvTax);
+    document.getElementById('totConvTaxSub').textContent = `eff rate ${(effRate * 100).toFixed(1)}%`;
+    document.getElementById('rothAtRmd').textContent = fmt(rothAtRmd);
+    document.getElementById('projNoConv').textContent = fmt(projNoConv);
 
     document.getElementById('fRpi').textContent = fmtFull(rpi);
     document.getElementById('fDiv').textContent = divisor;
@@ -384,53 +513,40 @@ function compute() {
     document.getElementById('fRmd').textContent = fmtFull(projRmd);
 
     const verdict = document.getElementById('verdict');
+    const reductionPct = projNoConv > 0 ? ((projNoConv - projAtRmd) / projNoConv * 100) : 0;
+    const convNote = totalConverted > 0
+        ? ` Conversions reduce pre-tax at RMD by ${fmt(projNoConv - projAtRmd)} (${reductionPct.toFixed(0)}%) at ${(effRate * 100).toFixed(1)}% effective rate.`
+        : '';
     if (gap < -threshold * 0.1) {
         verdict.className = 'verdict below';
-        verdict.innerHTML = `<strong>Below threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is less than what you'd withdraw anyway (${fmt(rpi)}/yr). The IRS isn't forcing excess income out. No action needed - stop worrying about RMDs.`;
+        verdict.innerHTML = `<strong>Below threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is less than what you'd withdraw anyway (${fmt(rpi)}/yr).${convNote}`;
     } else if (gap > threshold * 0.1) {
         verdict.className = 'verdict above';
-        verdict.innerHTML = `<strong>Above threshold by ${fmt(gap)}.</strong> Projected RMD (${fmt(projRmd)}/yr) exceeds spending need (${fmt(rpi)}/yr) by ${fmt(projRmd - rpi)}/yr. Consider: pre-RMD pro-rata withdrawals, sized Roth conversions (avoid ACA cliff if pre-65), or QCDs after 70.5. Don't panic-convert.`;
+        verdict.innerHTML = `<strong>Above threshold by ${fmt(gap)}.</strong> Projected RMD (${fmt(projRmd)}/yr) exceeds spending need (${fmt(rpi)}/yr) by ${fmt(projRmd - rpi)}/yr.${convNote} Try a higher target bracket or wider conversion window.`;
     } else {
         verdict.className = 'verdict near';
-        verdict.innerHTML = `<strong>Near threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is close to spending need (${fmt(rpi)}/yr). Within margin of error - no urgent action.`;
-    }
-
-    // Year-by-year projection
-    const rows = [];
-    let bal = preTax;
-    for (let age = currentAge; age <= 95; age++) {
-        const isRmdYear = age >= rmdAge;
-        const div = UNIFORM_LIFETIME[age] || null;
-        const rmd = isRmdYear && div ? bal / div : 0;
-        const excess = rmd - rpi;
-        const taxableIncome = isRmdYear ? Math.max(rmd, rpi) + otherIncome : otherIncome;
-        const tier = isRmdYear ? irmaaTier(taxableIncome, filing) : -1;
-        const thr = rpi * (div || divisor);
-        rows.push({ age, bal, rmd, rpi: isRmdYear ? rpi : 0, excess: isRmdYear ? excess : 0, taxableIncome: isRmdYear ? taxableIncome : 0, tier, threshold: thr, isRmdYear });
-
-        if (isRmdYear) bal = Math.max(0, (bal - Math.max(rmd, rpi)) * (1 + realGrowth));
-        else bal = bal * (1 + realGrowth);
+        verdict.innerHTML = `<strong>Near threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is close to spending need (${fmt(rpi)}/yr).${convNote}`;
     }
 
     const tbody = document.getElementById('yearBody');
-    tbody.innerHTML = rows.filter(r => r.age >= Math.max(currentAge, rmdAge - 2)).map(r => {
-        const tierLabel = r.tier < 0 ? '-' : r.tier === 0 ? 'none' : `T${r.tier}`;
+    tbody.innerHTML = rows.filter(r => r.age >= Math.max(currentAge, Math.min(convStart, rmdAge - 2))).map(r => {
         const cls = (r.age === rmdAge ? 'rmd-start ' : '') + (r.isRmdYear && r.excess > 0 ? 'over' : '');
         return `<tr class="${cls}">
             <td>${r.age}</td>
             <td>${fmtFull(r.bal)}</td>
+            <td>${fmtFull(r.roth)}</td>
+            <td>${r.convert > 0 ? fmtFull(r.convert) : '-'}</td>
+            <td>${r.convTax > 0 ? fmtFull(r.convTax) : '-'}</td>
             <td>${r.isRmdYear ? fmtFull(r.rmd) : '-'}</td>
             <td>${r.isRmdYear ? fmtFull(r.rpi) : '-'}</td>
             <td>${r.isRmdYear ? (r.excess > 0 ? '+' : '') + fmtFull(r.excess) : '-'}</td>
-            <td>${r.isRmdYear ? fmtFull(r.taxableIncome) : '-'}</td>
-            <td>${tierLabel}</td>
         </tr>`;
     }).join('');
 
-    drawChart(rows);
+    drawChart(rows, currentAge, realGrowth, preTaxStart);
 }
 
-function drawChart(rows) {
+function drawChart(rows, currentAge, realGrowth, preTaxStart) {
     const canvas = document.getElementById('chart');
     const dpr = window.devicePixelRatio || 1;
     const w = canvas.clientWidth;
@@ -445,7 +561,13 @@ function drawChart(rows) {
     const cw = w - pad.l - pad.r;
     const ch = h - pad.t - pad.b;
 
-    const maxY = Math.max(...rows.map(r => Math.max(r.bal, r.threshold))) * 1.05;
+    // No-conv baseline (compound preTax forward)
+    const noConvBal = rows.map(r => preTaxStart * Math.pow(1 + realGrowth, r.age - currentAge));
+
+    const maxY = Math.max(
+        ...rows.map(r => Math.max(r.bal, r.threshold, r.roth)),
+        ...noConvBal
+    ) * 1.05;
     const minAge = rows[0].age;
     const maxAge = rows[rows.length - 1].age;
 
@@ -514,7 +636,29 @@ function drawChart(rows) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Balance line
+    // No-conv baseline (faded)
+    ctx.strokeStyle = '#888';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    rows.forEach((r, i) => {
+        const px = x(r.age), py = y(noConvBal[i]);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Roth line
+    ctx.strokeStyle = '#c586c0';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    rows.forEach((r, i) => {
+        const px = x(r.age), py = y(r.roth);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // Pre-tax balance line (with conversions)
     ctx.strokeStyle = '#4a9eff';
     ctx.lineWidth = 2.5;
     ctx.beginPath();
