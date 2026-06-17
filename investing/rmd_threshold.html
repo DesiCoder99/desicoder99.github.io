@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RMD Threshold of Indifference</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Monaco', 'Menlo', monospace;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            padding: 20px;
+            line-height: 1.4;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            gap: 20px;
+        }
+        .panel {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 20px;
+        }
+        h1 {
+            color: #4a9eff;
+            margin-bottom: 12px;
+            font-size: 20px;
+        }
+        h2 {
+            color: #4a9eff;
+            margin: 16px 0 12px 0;
+            font-size: 13px;
+            border-bottom: 1px solid #333;
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .input-group { margin-bottom: 10px; }
+        label {
+            display: block;
+            margin-bottom: 3px;
+            color: #a0a0a0;
+            font-size: 11px;
+        }
+        input, select {
+            width: 100%;
+            padding: 6px 10px;
+            background: #0a0a0a;
+            border: 1px solid #333;
+            border-radius: 3px;
+            color: #e0e0e0;
+            font-size: 12px;
+            font-family: inherit;
+        }
+        input:focus, select:focus { outline: none; border-color: #4a9eff; }
+        .note {
+            background: #1a2a1a;
+            padding: 10px;
+            border-left: 3px solid #51cf66;
+            margin-bottom: 12px;
+            font-size: 11px;
+            line-height: 1.5;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stat {
+            background: #1a1a1a;
+            padding: 12px;
+            border-radius: 3px;
+            border-left: 2px solid #4a9eff;
+            border-right: 1px solid #333;
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+        }
+        .stat-label {
+            color: #808080;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .stat-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #4a9eff;
+            margin-top: 4px;
+        }
+        .stat-sub {
+            font-size: 10px;
+            color: #888;
+            margin-top: 2px;
+        }
+        .warn { border-left-color: #ff6b6b; }
+        .warn .stat-value { color: #ff6b6b; }
+        .success { border-left-color: #51cf66; }
+        .success .stat-value { color: #51cf66; }
+        .amber { border-left-color: #ffd166; }
+        .amber .stat-value { color: #ffd166; }
+        .chart-container {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 4px;
+            padding: 16px;
+            margin-bottom: 20px;
+        }
+        canvas { display: block; width: 100%; }
+        .verdict {
+            padding: 14px 16px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .verdict.below {
+            background: #0f2a14;
+            border-left: 3px solid #51cf66;
+            color: #b6e6c4;
+        }
+        .verdict.above {
+            background: #2a0f0f;
+            border-left: 3px solid #ff6b6b;
+            color: #f4c2c2;
+        }
+        .verdict.near {
+            background: #2a230f;
+            border-left: 3px solid #ffd166;
+            color: #f4dfa3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 11px;
+        }
+        th, td {
+            text-align: right;
+            padding: 6px 10px;
+            border-bottom: 1px solid #222;
+        }
+        th {
+            color: #4a9eff;
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid #333;
+        }
+        td:first-child, th:first-child { text-align: left; }
+        tr.rmd-start td { border-top: 1px dashed #4a9eff; }
+        tr.over td { background: #2a0f0f33; }
+        .legend {
+            display: flex;
+            gap: 16px;
+            margin-top: 8px;
+            font-size: 11px;
+            flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 6px; }
+        .legend-box { width: 16px; height: 3px; border-radius: 1px; }
+        .formula {
+            background: #0f1520;
+            border: 1px solid #2a3a4a;
+            padding: 10px 12px;
+            border-radius: 3px;
+            font-size: 11px;
+            color: #9ec5e8;
+            margin-bottom: 12px;
+            line-height: 1.7;
+        }
+        .formula code {
+            color: #ffd166;
+            background: #1a2533;
+            padding: 1px 5px;
+            border-radius: 2px;
+        }
+        .back {
+            display: inline-block;
+            color: #888;
+            font-size: 11px;
+            text-decoration: none;
+            margin-bottom: 10px;
+        }
+        .back:hover { color: #4a9eff; }
+        @media (max-width: 1100px) {
+            .container { grid-template-columns: 1fr; }
+            .stats { grid-template-columns: repeat(2, 1fr); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="panel">
+            <a href="/" class="back">&larr; home</a>
+            <h1>RMD Threshold of Indifference</h1>
+            <div class="note">
+                All values in today's dollars (real). The "threshold" is the pre-tax balance
+                at which the forced RMD exactly equals the income you'd voluntarily withdraw
+                anyway. Above it: unwanted taxable income + IRMAA risk.
+            </div>
+
+            <h2>Today</h2>
+            <div class="input-group">
+                <label>Current Age</label>
+                <input type="number" id="currentAge" value="60" min="30" max="80">
+            </div>
+            <div class="input-group">
+                <label>Pre-Tax Balance ($, today)</label>
+                <input type="number" id="preTax" value="1500000" step="50000">
+            </div>
+            <div class="input-group">
+                <label>Post-Tax Balance ($, today)</label>
+                <input type="number" id="postTax" value="500000" step="50000">
+            </div>
+            <div class="input-group">
+                <label>Real Growth Rate on Pre-Tax (%/yr)</label>
+                <input type="number" id="realGrowth" value="4" step="0.5">
+            </div>
+
+            <h2>At RMD Age</h2>
+            <div class="input-group">
+                <label>RMD Start Age</label>
+                <select id="rmdAge">
+                    <option value="73">73</option>
+                    <option value="75" selected>75</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>Annual Spending Need ($, today)</label>
+                <input type="number" id="spending" value="100000" step="5000">
+            </div>
+            <div class="input-group">
+                <label>Other Income at RMD Age ($, today)</label>
+                <input type="number" id="otherIncome" value="40000" step="5000">
+                <div style="font-size:10px;color:#666;margin-top:3px;">SS + pension + annuities</div>
+            </div>
+            <div class="input-group">
+                <label>Filing Status (IRMAA)</label>
+                <select id="filing">
+                    <option value="single">Single</option>
+                    <option value="joint" selected>Married Joint</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <div id="verdict" class="verdict below"></div>
+            <div class="stats">
+                <div class="stat">
+                    <div class="stat-label">Required Portfolio Income</div>
+                    <div class="stat-value" id="rpi"></div>
+                    <div class="stat-sub">spending - other income</div>
+                </div>
+                <div class="stat" id="thresholdStat">
+                    <div class="stat-label">Threshold Balance</div>
+                    <div class="stat-value" id="threshold"></div>
+                    <div class="stat-sub">RPI x divisor at RMD age</div>
+                </div>
+                <div class="stat" id="projStat">
+                    <div class="stat-label">Projected Pre-Tax at RMD Age</div>
+                    <div class="stat-value" id="proj"></div>
+                    <div class="stat-sub" id="projSub"></div>
+                </div>
+                <div class="stat" id="gapStat">
+                    <div class="stat-label">Gap vs Threshold</div>
+                    <div class="stat-value" id="gap"></div>
+                    <div class="stat-sub" id="gapSub"></div>
+                </div>
+            </div>
+
+            <div class="formula">
+                <strong>RPI</strong> = Spending - Other Income = <code id="fRpi"></code><br>
+                <strong>Threshold</strong> = RPI x <code id="fDiv"></code> (divisor at age <span id="fAge"></span>) = <code id="fThr"></code><br>
+                <strong>Projected RMD at start</strong> = Pre-Tax(<span id="fAge2"></span>) / divisor = <code id="fRmd"></code>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="chart" height="320"></canvas>
+                <div class="legend">
+                    <div class="legend-item"><div class="legend-box" style="background:#4a9eff;"></div>Projected Pre-Tax Balance</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#51cf66;"></div>Threshold (Balance s.t. RMD = RPI)</div>
+                    <div class="legend-item"><div class="legend-box" style="background:#ff6b6b;"></div>Over Threshold</div>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <h2 style="margin-top:0;">Year-by-Year (real $)</h2>
+                <div style="max-height:360px;overflow-y:auto;">
+                    <table id="yearTable">
+                        <thead>
+                            <tr>
+                                <th>Age</th>
+                                <th>Pre-Tax Balance</th>
+                                <th>RMD</th>
+                                <th>RPI Need</th>
+                                <th>Excess</th>
+                                <th>Taxable Income</th>
+                                <th>IRMAA Tier</th>
+                            </tr>
+                        </thead>
+                        <tbody id="yearBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+const UNIFORM_LIFETIME = {
+    73: 26.5, 74: 25.5, 75: 24.6, 76: 23.7, 77: 22.9, 78: 22.0,
+    79: 21.1, 80: 20.2, 81: 19.4, 82: 18.5, 83: 17.7, 84: 16.8,
+    85: 16.0, 86: 15.2, 87: 14.4, 88: 13.7, 89: 12.9, 90: 12.2,
+    91: 11.5, 92: 10.8, 93: 10.1, 94: 9.5, 95: 8.9, 96: 8.4,
+    97: 7.8, 98: 7.3, 99: 6.8, 100: 6.4
+};
+
+// 2025 IRMAA MAGI thresholds (Medicare Part B/D surcharge tiers)
+const IRMAA = {
+    single: [106000, 133000, 167000, 200000, 500000],
+    joint:  [212000, 266000, 334000, 400000, 750000]
+};
+
+function fmt(n) {
+    if (!isFinite(n)) return '-';
+    const sign = n < 0 ? '-' : '';
+    const a = Math.abs(n);
+    if (a >= 1e6) return sign + '$' + (a/1e6).toFixed(2) + 'M';
+    if (a >= 1e3) return sign + '$' + (a/1e3).toFixed(0) + 'k';
+    return sign + '$' + Math.round(a);
+}
+
+function fmtFull(n) {
+    if (!isFinite(n)) return '-';
+    return (n < 0 ? '-' : '') + '$' + Math.abs(Math.round(n)).toLocaleString();
+}
+
+function irmaaTier(magi, filing) {
+    const t = IRMAA[filing];
+    for (let i = 0; i < t.length; i++) if (magi <= t[i]) return i;
+    return t.length;
+}
+
+function compute() {
+    const currentAge = +document.getElementById('currentAge').value;
+    const preTax = +document.getElementById('preTax').value;
+    const realGrowth = +document.getElementById('realGrowth').value / 100;
+    const rmdAge = +document.getElementById('rmdAge').value;
+    const spending = +document.getElementById('spending').value;
+    const otherIncome = +document.getElementById('otherIncome').value;
+    const filing = document.getElementById('filing').value;
+
+    const divisor = UNIFORM_LIFETIME[rmdAge];
+    const rpi = Math.max(0, spending - otherIncome);
+    const threshold = rpi * divisor;
+
+    const yearsToRmd = Math.max(0, rmdAge - currentAge);
+    const projAtRmd = preTax * Math.pow(1 + realGrowth, yearsToRmd);
+    const projRmd = projAtRmd / divisor;
+    const gap = projAtRmd - threshold;
+    const gapPct = threshold > 0 ? (gap / threshold) * 100 : 0;
+
+    document.getElementById('rpi').textContent = fmt(rpi);
+    document.getElementById('threshold').textContent = fmt(threshold);
+    document.getElementById('proj').textContent = fmt(projAtRmd);
+    document.getElementById('projSub').textContent =
+        yearsToRmd > 0 ? `${yearsToRmd}yr @ ${(realGrowth*100).toFixed(1)}% real` : 'already at RMD age';
+    document.getElementById('gap').textContent = (gap >= 0 ? '+' : '') + fmt(gap);
+    document.getElementById('gapSub').textContent = (gap >= 0 ? '+' : '') + gapPct.toFixed(0) + '% vs threshold';
+
+    const gapStat = document.getElementById('gapStat');
+    gapStat.className = 'stat ' + (gap > threshold * 0.1 ? 'warn' : gap < -threshold * 0.1 ? 'success' : 'amber');
+
+    document.getElementById('fRpi').textContent = fmtFull(rpi);
+    document.getElementById('fDiv').textContent = divisor;
+    document.getElementById('fAge').textContent = rmdAge;
+    document.getElementById('fAge2').textContent = rmdAge;
+    document.getElementById('fThr').textContent = fmtFull(threshold);
+    document.getElementById('fRmd').textContent = fmtFull(projRmd);
+
+    const verdict = document.getElementById('verdict');
+    if (gap < -threshold * 0.1) {
+        verdict.className = 'verdict below';
+        verdict.innerHTML = `<strong>Below threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is less than what you'd withdraw anyway (${fmt(rpi)}/yr). The IRS isn't forcing excess income out. No action needed - stop worrying about RMDs.`;
+    } else if (gap > threshold * 0.1) {
+        verdict.className = 'verdict above';
+        verdict.innerHTML = `<strong>Above threshold by ${fmt(gap)}.</strong> Projected RMD (${fmt(projRmd)}/yr) exceeds spending need (${fmt(rpi)}/yr) by ${fmt(projRmd - rpi)}/yr. Consider: pre-RMD pro-rata withdrawals, sized Roth conversions (avoid ACA cliff if pre-65), or QCDs after 70.5. Don't panic-convert.`;
+    } else {
+        verdict.className = 'verdict near';
+        verdict.innerHTML = `<strong>Near threshold.</strong> Projected RMD (${fmt(projRmd)}/yr) is close to spending need (${fmt(rpi)}/yr). Within margin of error - no urgent action.`;
+    }
+
+    // Year-by-year projection
+    const rows = [];
+    let bal = preTax;
+    for (let age = currentAge; age <= 95; age++) {
+        const isRmdYear = age >= rmdAge;
+        const div = UNIFORM_LIFETIME[age] || null;
+        const rmd = isRmdYear && div ? bal / div : 0;
+        const excess = rmd - rpi;
+        const taxableIncome = isRmdYear ? Math.max(rmd, rpi) + otherIncome : otherIncome;
+        const tier = isRmdYear ? irmaaTier(taxableIncome, filing) : -1;
+        const thr = rpi * (div || divisor);
+        rows.push({ age, bal, rmd, rpi: isRmdYear ? rpi : 0, excess: isRmdYear ? excess : 0, taxableIncome: isRmdYear ? taxableIncome : 0, tier, threshold: thr, isRmdYear });
+
+        if (isRmdYear) bal = Math.max(0, (bal - Math.max(rmd, rpi)) * (1 + realGrowth));
+        else bal = bal * (1 + realGrowth);
+    }
+
+    const tbody = document.getElementById('yearBody');
+    tbody.innerHTML = rows.filter(r => r.age >= Math.max(currentAge, rmdAge - 2)).map(r => {
+        const tierLabel = r.tier < 0 ? '-' : r.tier === 0 ? 'none' : `T${r.tier}`;
+        const cls = (r.age === rmdAge ? 'rmd-start ' : '') + (r.isRmdYear && r.excess > 0 ? 'over' : '');
+        return `<tr class="${cls}">
+            <td>${r.age}</td>
+            <td>${fmtFull(r.bal)}</td>
+            <td>${r.isRmdYear ? fmtFull(r.rmd) : '-'}</td>
+            <td>${r.isRmdYear ? fmtFull(r.rpi) : '-'}</td>
+            <td>${r.isRmdYear ? (r.excess > 0 ? '+' : '') + fmtFull(r.excess) : '-'}</td>
+            <td>${r.isRmdYear ? fmtFull(r.taxableIncome) : '-'}</td>
+            <td>${tierLabel}</td>
+        </tr>`;
+    }).join('');
+
+    drawChart(rows);
+}
+
+function drawChart(rows) {
+    const canvas = document.getElementById('chart');
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = 320;
+    canvas.width = w * dpr;
+    canvas.height = h * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, w, h);
+
+    const pad = { l: 70, r: 20, t: 20, b: 36 };
+    const cw = w - pad.l - pad.r;
+    const ch = h - pad.t - pad.b;
+
+    const maxY = Math.max(...rows.map(r => Math.max(r.bal, r.threshold))) * 1.05;
+    const minAge = rows[0].age;
+    const maxAge = rows[rows.length - 1].age;
+
+    const x = a => pad.l + (a - minAge) / (maxAge - minAge) * cw;
+    const y = v => pad.t + ch - (v / maxY) * ch;
+
+    // Grid
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.fillStyle = '#666';
+    ctx.font = '10px Monaco, monospace';
+    for (let i = 0; i <= 5; i++) {
+        const v = (maxY / 5) * i;
+        const yy = y(v);
+        ctx.beginPath();
+        ctx.moveTo(pad.l, yy);
+        ctx.lineTo(w - pad.r, yy);
+        ctx.stroke();
+        ctx.textAlign = 'right';
+        ctx.fillText(fmt(v), pad.l - 6, yy + 3);
+    }
+    for (let a = Math.ceil(minAge/5)*5; a <= maxAge; a += 5) {
+        const xx = x(a);
+        ctx.beginPath();
+        ctx.moveTo(xx, pad.t);
+        ctx.lineTo(xx, pad.t + ch);
+        ctx.strokeStyle = '#1f1f1f';
+        ctx.stroke();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#666';
+        ctx.fillText(a, xx, h - 18);
+    }
+
+    // Fill: red where balance > threshold
+    ctx.fillStyle = 'rgba(255, 107, 107, 0.15)';
+    ctx.beginPath();
+    let started = false;
+    for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r.isRmdYear) continue;
+        if (r.bal <= r.threshold) {
+            if (started) { ctx.lineTo(x(r.age), y(r.threshold)); started = false; }
+            continue;
+        }
+        if (!started) { ctx.moveTo(x(r.age), y(r.threshold)); started = true; }
+        ctx.lineTo(x(r.age), y(r.bal));
+    }
+    if (started) {
+        const last = rows[rows.length - 1];
+        ctx.lineTo(x(last.age), y(last.threshold));
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Threshold line (only from RMD age onward)
+    ctx.strokeStyle = '#51cf66';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    let first = true;
+    rows.forEach(r => {
+        if (!r.isRmdYear) return;
+        const px = x(r.age), py = y(r.threshold);
+        if (first) { ctx.moveTo(px, py); first = false; } else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Balance line
+    ctx.strokeStyle = '#4a9eff';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    rows.forEach((r, i) => {
+        const px = x(r.age), py = y(r.bal);
+        if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+    });
+    ctx.stroke();
+
+    // RMD start marker
+    const rmdAge = +document.getElementById('rmdAge').value;
+    if (rmdAge >= minAge && rmdAge <= maxAge) {
+        const rx = x(rmdAge);
+        ctx.strokeStyle = '#888';
+        ctx.setLineDash([2, 3]);
+        ctx.beginPath();
+        ctx.moveTo(rx, pad.t);
+        ctx.lineTo(rx, pad.t + ch);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#888';
+        ctx.textAlign = 'left';
+        ctx.fillText(`RMD start (${rmdAge})`, rx + 4, pad.t + 12);
+    }
+}
+
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', compute));
+window.addEventListener('resize', compute);
+compute();
+</script>
+</body>
+</html>
