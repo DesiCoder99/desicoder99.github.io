@@ -299,8 +299,8 @@ footer a{color:var(--ink-2)}
       <h2>Places</h2>
       <label class="eyebrow" for="state-sel">State</label>
       <select class="search" id="state-sel"></select>
-      <label class="eyebrow" for="county-sel">County</label>
-      <select class="search" id="county-sel"></select>
+      <label class="eyebrow" for="city-sel">City</label>
+      <select class="search" id="city-sel"></select>
       <input class="search" id="search" type="search" placeholder="Filter" aria-label="Filter list">
       <div class="eyebrow" id="rail-count"></div>
     </div>
@@ -314,7 +314,7 @@ footer a{color:var(--ink-2)}
         <div class="txt">
           <div class="eyebrow">Map</div>
           <h2 style="font-size:16.5px" id="map-title"></h2>
-          <div class="universe">Click a state to open its ZIP codes; click a ZIP to load it below.
+          <div class="universe">Click a state to open it, then pick a city or click any ZIP.
             Scroll to zoom, drag to pan.</div>
           <div class="universe" id="metric-hint" style="margin-top:6px"></div>
         </div>
@@ -386,16 +386,16 @@ const compact = n => n == null ? '\u2014'
 const stateRows = G.map((g, i) => i).filter(i => G[i].sl === '040')
   .sort((a, b) => G[a].name.localeCompare(G[b].name));
 const loadedGeo = new Map();   // fips -> {w,h,outline,counties,zctas}
-const state = { mode: 'us', fips: null, sel: US, cmp: null, county: '', metric: 'mean', q: '' };
+const state = { mode: 'us', fips: null, sel: US, cmp: null, city: '', metric: 'median', q: '' };
 
 const METRICS = {
+  median: { label: 'Median household income',
+    hint: 'The Census Bureau censors this at $250,001; areas at the cap share one class.',
+    get: g => val(g, 'B19013_001'), fmt: capped },
   mean: { label: 'Mean household income',
     hint: 'Aggregate household income divided by households. Not topcoded, so it separates the top of the range.',
     get: g => { const a = val(g, 'B19025_001'), h = val(g, 'B19001_001'); return a && h ? a / h : null; },
     fmt: money },
-  median: { label: 'Median household income',
-    hint: 'The Census Bureau censors this at $250,001; areas at the cap share one class.',
-    get: g => val(g, 'B19013_001'), fmt: capped },
   top5: { label: 'Mean income, top 5%',
     hint: 'Average income of the richest 5% of households. Not topcoded.',
     get: g => val(g, 'B19081_006'), fmt: money }
@@ -585,11 +585,13 @@ function peers(g) {
   const sl = G[g].sl;
   if (sl === '860') return G.map((x, i) => i).filter(i => G[i].sl === '860' && G[i].cty === G[g].cty);
   if (sl === '050') return G.map((x, i) => i).filter(i => G[i].sl === '050' && G[i].st === G[g].st);
+  if (sl === '160') return G.map((x, i) => i).filter(i => G[i].sl === '160' && G[i].st === G[g].st);
   if (sl === '040') return stateRows;
   return [];
 }
 function peerNoun(g) {
-  return { '860': 'ZIPs in the county', '050': 'counties in the state', '040': 'states' }[G[g].sl] || 'peers';
+  return { '860': 'ZIPs in the county', '160': 'cities in the state',
+    '050': 'counties in the state', '040': 'states' }[G[g].sl] || 'peers';
 }
 function rankOf(g, varname) {
   const v = varname ? val(g, varname) : mval(g);
@@ -600,8 +602,11 @@ function rankOf(g, varname) {
 function refGeos() {
   const g = G[state.sel], out = [];
   if (g.sl === '860') {
+    const pl = g.plid ? idIndex.get(g.plid) : null; if (pl != null) out.push(pl);
     const c = idIndex.get(g.cty); if (c != null) out.push(c);
     if (c != null) { const st = idIndex.get(G[c].st); if (st != null) out.push(st); }
+  } else if (g.sl === '160') {
+    const st = idIndex.get(g.st); if (st != null) out.push(st);
   } else if (g.sl === '050') {
     const st = idIndex.get(g.st); if (st != null) out.push(st);
   }
@@ -620,6 +625,11 @@ function renderHead() {
     if (g.spans > 1) bits.push('spans ' + g.spans + ' counties');
     const r = rankOf(s, 'B19013_001');
     if (r != null) bits.push('higher median than ' + r + '% of ZIPs in the county');
+  } else if (g.sl === '160') {
+    const st = idIndex.get(g.st);
+    if (st != null) bits.push('City in ' + G[st].name);
+    const r = rankOf(s, 'B19013_001');
+    if (r != null) bits.push('higher median than ' + r + '% of cities in the state');
   } else if (g.sl === '050') {
     const st = idIndex.get(g.st);
     if (st != null) bits.push('County in ' + G[st].name);
@@ -656,41 +666,53 @@ function renderCompare() {
 }
 
 /* ---------------- scoping & rail ---------------- */
-function scopedUnits() {
-  if (state.mode === 'us') return stateRows;
-  const stId = '0400000US' + state.fips;
-  let list = G.map((g, i) => i).filter(i => G[i].sl === '860' &&
+const zipCount = new Map();  // plid -> number of ZIPs primarily in that city
+function recountZips() {
+  zipCount.clear();
+  G.forEach(g => { if (g.sl === '860' && g.plid) zipCount.set(g.plid, (zipCount.get(g.plid) || 0) + 1); });
+}
+function stateZips() {
+  return G.map((g, i) => i).filter(i => G[i].sl === '860' &&
     G[i].cty && G[i].cty.slice(9, 11) === state.fips);
-  if (state.county) list = list.filter(i => G[i].cty === state.county);
-  return list;
+}
+function stateCities() {
+  return G.map((g, i) => i).filter(i => G[i].sl === '160' &&
+    G[i].st === '0400000US' + state.fips);
+}
+function scopedUnits() {           // what the map paints and bins over
+  return state.mode === 'us' ? stateRows : stateZips();
+}
+function railUnits() {             // what the rail lists
+  if (state.mode === 'us') return stateRows;
+  if (!state.city) return stateCities();
+  return stateZips().filter(i => G[i].plid === state.city);
 }
 function renderSelectors() {
   const ss = document.getElementById('state-sel');
   ss.innerHTML = '<option value="">United States</option>' + stateRows.map(i =>
     `<option value="${G[i].fips}" ${G[i].fips === state.fips ? 'selected' : ''}>${G[i].name}</option>`).join('');
-  const cs = document.getElementById('county-sel');
+  const cs = document.getElementById('city-sel');
   if (state.mode === 'us') {
-    cs.innerHTML = '<option value="">All counties</option>'; cs.disabled = true;
+    cs.innerHTML = '<option value="">All cities</option>'; cs.disabled = true;
   } else {
     cs.disabled = false;
-    const counties = G.map((g, i) => i)
-      .filter(i => G[i].sl === '050' && G[i].st === '0400000US' + state.fips)
-      .sort((a, b) => G[a].name.localeCompare(G[b].name));
-    cs.innerHTML = '<option value="">All counties</option>' + counties.map(i =>
-      `<option value="${G[i].id}" ${G[i].id === state.county ? 'selected' : ''}>${G[i].name}</option>`).join('');
+    const cities = stateCities().sort((a, b) => G[a].name.localeCompare(G[b].name));
+    cs.innerHTML = '<option value="">All cities</option>' + cities.map(i =>
+      `<option value="${G[i].id}" ${G[i].id === state.city ? 'selected' : ''}>${G[i].name}</option>`).join('');
   }
   const search = document.getElementById('search');
-  search.placeholder = state.mode === 'us' ? 'Filter states' : 'Filter ZIP codes';
+  search.placeholder = state.mode === 'us' ? 'Filter states'
+    : state.city ? 'Filter ZIP codes' : 'Filter cities';
 }
 function renderRail() {
   const q = state.q.trim().toLowerCase();
-  let list = scopedUnits();
+  let list = railUnits();
   if (q) list = list.filter(i => (G[i].name + ' ' + (G[i].pl || '')).toLowerCase().includes(q));
   list = list.slice().sort((a, b) => (mval(b) ?? -1) - (mval(a) ?? -1));
   const max = Math.max(...list.map(i => mval(i) ?? 0), 1);
-  const noun = state.mode === 'us' ? 'states' : 'ZIP codes';
+  const noun = state.mode === 'us' ? 'states' : state.city ? 'ZIP codes' : 'cities';
   const where = state.mode === 'us' ? ''
-    : state.county && idIndex.get(state.county) != null ? ' in ' + G[idIndex.get(state.county)].name
+    : state.city && idIndex.get(state.city) != null ? ' in ' + G[idIndex.get(state.city)].name
     : ' in ' + (idIndex.get('0400000US' + state.fips) != null ? G[idIndex.get('0400000US' + state.fips)].name : '');
   document.getElementById('rail-count').textContent =
     list.length + ' ' + noun + where + ' \u00b7 ranked by ' + metric().label.toLowerCase();
@@ -698,7 +720,9 @@ function renderRail() {
     const v = mval(i);
     const sub = G[i].sl === '860'
       ? [G[i].pl || '', G[i].spans > 1 ? G[i].spans + ' counties' : ''].filter(Boolean)
-      : [];
+      : G[i].sl === '160'
+        ? [(zipCount.get(G[i].id) || 0) ? (zipCount.get(G[i].id)) + ' ZIP' + (zipCount.get(G[i].id) > 1 ? 's' : '') : 'shares ZIPs with neighbors']
+        : [];
     return `<button class="geo" type="button" data-geo="${i}" aria-current="${i === state.sel}">
       <span class="geo-top"><span class="geo-name">${n + 1}. ${G[i].name}</span>
       <span class="geo-val">${metric().fmt(v)}</span></span>
@@ -707,7 +731,8 @@ function renderRail() {
     </button>`;
   }).join('') || '<p class="note" style="padding:10px">Nothing matches that filter.</p>';
   document.getElementById('quick').innerHTML =
-    [state.mode === 'state' ? idIndex.get('0400000US' + state.fips) : null, US]
+    [state.city ? idIndex.get(state.city) : null,
+     state.mode === 'state' ? idIndex.get('0400000US' + state.fips) : null, US]
       .filter(i => i != null)
       .map(i => `<button type="button" data-geo="${i}" aria-current="${i === state.sel}">${G[i].name}</button>`).join('');
 }
@@ -915,10 +940,10 @@ function syncMap() {
   const selP = svg.querySelector(`.tract[data-geo="${state.sel}"]`);
   const so = document.getElementById('sel-outline');
   if (so) so.setAttribute('d', selP ? selP.getAttribute('d') : '');
-  if (state.mode === 'state' && state.county) {
+  if (state.mode === 'state' && state.city) {
     svg.querySelectorAll('.tract').forEach(p => {
       const gi = p.dataset.geo === '' ? null : +p.dataset.geo;
-      p.classList.toggle('out', gi == null || G[gi].cty !== state.county);
+      p.classList.toggle('out', gi == null || G[gi].plid !== state.city);
     });
   } else svg.querySelectorAll('.tract').forEach(p => p.classList.remove('out'));
   const row = document.querySelector(`.geo[data-geo="${state.sel}"]`);
@@ -970,7 +995,7 @@ svg.addEventListener('pointerup', async e => {
   const hit = e.target.closest('.tract');
   if (!hit) return;
   if (state.mode === 'us' && hit.dataset.fips) { await enterState(hit.dataset.fips); return; }
-  if (hit.dataset.geo !== '' && hit.dataset.geo != null) { state.sel = +hit.dataset.geo; render(); }
+  if (hit.dataset.geo !== '' && hit.dataset.geo != null) select(+hit.dataset.geo);
 });
 svg.addEventListener('pointerleave', () => {
   drag = null; svg.classList.remove('dragging'); hideTip();
@@ -981,7 +1006,7 @@ document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click'
   zoomBy(b.dataset.zoom === 'in' ? 1 / 1.4 : 1.4, { x: VB.x + VB.w / 2, y: VB.y + VB.h / 2 })));
 document.getElementById('fit-reset').addEventListener('click', fitAll);
 document.getElementById('back-us').addEventListener('click', () => {
-  state.mode = 'us'; state.fips = null; state.county = '';
+  state.mode = 'us'; state.fips = null; state.city = '';
   state.sel = US; render(); buildMap();
 });
 
@@ -989,7 +1014,8 @@ document.getElementById('back-us').addEventListener('click', () => {
 async function enterState(fips) {
   document.getElementById('rail-count').textContent = 'loading...';
   await loadState(fips);
-  state.mode = 'state'; state.fips = fips; state.county = '';
+  recountZips();
+  state.mode = 'state'; state.fips = fips; state.city = '';
   state.sel = idIndex.get('0400000US' + fips);
   render(); buildMap();
 }
@@ -998,17 +1024,25 @@ function render() {
   paintMap(); syncMap();
   document.getElementById('back-us').style.display = state.mode === 'us' ? 'none' : '';
 }
+function select(i) {
+  state.sel = i;
+  const g = G[i];
+  if (g.sl === '160') state.city = g.id;
+  else if (g.sl === '860') state.city = g.plid || state.city;
+  render();
+}
 document.addEventListener('click', e => {
   const g = e.target.closest('[data-geo]');
-  if (g && !e.target.closest('svg')) { state.sel = +g.dataset.geo; render(); }
+  if (g && !e.target.closest('svg')) select(+g.dataset.geo);
 });
 document.getElementById('state-sel').addEventListener('change', e => {
   if (e.target.value) enterState(e.target.value);
-  else { state.mode = 'us'; state.fips = null; state.county = ''; state.sel = US; render(); buildMap(); }
+  else { state.mode = 'us'; state.fips = null; state.city = ''; state.sel = US; render(); buildMap(); }
 });
-document.getElementById('county-sel').addEventListener('change', e => {
-  state.county = e.target.value;
-  if (state.county) state.sel = idIndex.get(state.county);
+document.getElementById('city-sel').addEventListener('change', e => {
+  state.city = e.target.value;
+  if (state.city) state.sel = idIndex.get(state.city);
+  else if (state.mode === 'state') state.sel = idIndex.get('0400000US' + state.fips);
   render();
 });
 document.getElementById('cmp').addEventListener('change', e => {
