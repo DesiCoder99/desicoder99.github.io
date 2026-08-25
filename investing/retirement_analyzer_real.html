@@ -236,6 +236,31 @@
             color: #666;
             margin-top: 4px;
         }
+        .event-head, .event-row {
+            display: grid;
+            grid-template-columns: 20px 1fr 42px 62px 26px;
+            gap: 4px;
+            align-items: center;
+        }
+        .event-head {
+            font-size: 9px;
+            color: #808080;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+        .event-head span { text-align: center; }
+        .event-head span:nth-child(2) { text-align: left; }
+        .event-row { margin-bottom: 4px; }
+        .event-row input[type="text"],
+        .event-row input[type="number"] {
+            padding: 4px 6px;
+            font-size: 11px;
+        }
+        .event-row input[type="checkbox"] {
+            width: auto;
+            justify-self: center;
+        }
         .info-icon {
             display: inline-flex;
             align-items: center;
@@ -355,6 +380,20 @@
                     <label>Spending Adjust (±%)</label>
                     <input type="number" id="spendAdjust" value="10" min="5" max="30">
                 </div>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="grAbsFloor" checked style="width: auto; margin-right: 5px;">
+                        Absolute guardrail floor
+                    </label>
+                    <div class="setting-note">Also test the portfolio against the balance needed to sustain current spending at the initial rate. Without this, the 5-year moving-average baseline drifts down with a slow decline and the cut never fires. Uncheck for v1 behavior.</div>
+                </div>
+                <div class="input-group">
+                    <label>
+                        <input type="checkbox" id="grCutPriority" checked style="width: auto; margin-right: 5px;">
+                        Guardrail cut overrides health score
+                    </label>
+                    <div class="setting-note">v1 took max(guardrail, health). Health sits at 1.0 when idle, so max(0.9, 1.0) discarded every cut and the downside guardrail never fired at all. Uncheck for v1 behavior.</div>
+                </div>
             </div>
             
             <div id="gkInputs" style="display: none;">
@@ -366,6 +405,11 @@
                 <div class="input-group">
                     <label>Lower Limit (%)</label>
                     <input type="number" id="gkLower" value="15" min="10" max="25">
+                </div>
+                <div class="input-group">
+                    <label>Suspend Cuts in Final N Years</label>
+                    <input type="number" id="gkCprFinalYears" value="15" min="0" max="30">
+                    <div class="setting-note">Guyton-Klinger suspends the capital preservation rule near the end of the plan, when a high withdrawal rate is no longer a threat. Set to 0 for v1 behavior.</div>
                 </div>
             </div>
             
@@ -398,7 +442,18 @@
                 <label>Debt End Age</label>
                 <input type="number" id="debtEndAge" value="70" min="50" max="90">
             </div>
-            
+
+            <h2>Life Events</h2>
+            <div class="setting-note" style="margin-bottom: 8px;">
+                Recurring cashflow changes starting at a given age. Positive = money in
+                (second SS claim, mortgage paid off). Negative = new recurring expense.
+                "R" = real dollars; unchecked decays at the inflation rate.
+            </div>
+            <div class="event-head">
+                <span>On</span><span>Label</span><span>Age</span><span>$/mo</span><span>R</span>
+            </div>
+            <div id="eventRows"></div>
+
             <h2>Market (Real Returns)</h2>
             <div class="input-group">
                 <label>Return Model</label>
@@ -528,6 +583,20 @@
                 <div class="setting-note">Withdrawal rate that triggers a 15% spending cut (Guardrails+CommonSense only)</div>
             </div>
 
+            <div class="input-group">
+                <label>
+                    <input type="checkbox" id="panicFloorRelease" checked style="width: auto; margin-right: 5px;">
+                    Release panic floor on recovery
+                </label>
+                <div class="setting-note">A panic cut pins the spending floor to the reduced amount. This restores the original floor once the withdrawal rate recovers to 80% of the threshold. Uncheck for v1 behavior (floor stays pinned for the rest of the run).</div>
+            </div>
+
+            <div class="input-group">
+                <label>Random Seed</label>
+                <input type="number" id="rngSeed" value="" placeholder="blank = random each run">
+                <div class="setting-note">Fix the seed to get an identical return sequence across runs. Required for meaningful A/B against the v1 page.</div>
+            </div>
+
             <div class="modal-buttons">
                 <button class="secondary" onclick="closeSettings()">Cancel</button>
                 <button onclick="saveSettings()">Save</button>
@@ -641,9 +710,22 @@
         let simulationResults = null;
         let selectedPaths = new Set();
         
+        // Seedable PRNG so a run can be reproduced exactly (needed to A/B against v1)
+        function mulberry32(seed) {
+            let a = seed >>> 0;
+            return function() {
+                a = (a + 0x6D2B79F5) >>> 0;
+                let t = Math.imul(a ^ (a >>> 15), 1 | a);
+                t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        let rand = Math.random;
+
         function randn() {
-            let u1 = Math.random();
-            let u2 = Math.random();
+            let u1 = rand();
+            let u2 = rand();
             return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
         }
 
@@ -657,7 +739,7 @@
                 let yearIndex = 0;
                 while (returns.length < years) {
                     // Pick a random starting point (circular - can wrap around)
-                    const startIdx = Math.floor(Math.random() * HISTORICAL_RETURNS.length);
+                    const startIdx = Math.floor(rand() * HISTORICAL_RETURNS.length);
 
                     // Sample a block of consecutive years
                     for (let i = 0; i < blockSize && returns.length < years; i++) {
@@ -732,6 +814,38 @@
                 desc: 'Guardrails using 5-year moving average baseline. Health score allows raises when portfolio can sustain 1.5x years remaining. Panic cut (15%) when WR too high. Adaptive and responsive.'
             }
         };
+
+        // Scheduled cashflow changes. All start disabled so defaults match v1 exactly.
+        const DEFAULT_EVENTS = [
+            { enabled: false, label: 'Spouse SS',    age: 67, monthly: 1600, real: true  },
+            { enabled: false, label: 'Mortgage off', age: 70, monthly: 2000, real: false },
+            { enabled: false, label: 'Pension',      age: 65, monthly: 1000, real: false },
+            { enabled: false, label: '',             age: 70, monthly: 0,    real: true  },
+            { enabled: false, label: '',             age: 75, monthly: 0,    real: true  },
+            { enabled: false, label: '',             age: 80, monthly: 0,    real: true  }
+        ];
+
+        function buildEventRows() {
+            document.getElementById('eventRows').innerHTML = DEFAULT_EVENTS.map((e, i) => `
+                <div class="event-row">
+                    <input type="checkbox" id="ev${i}on"${e.enabled ? ' checked' : ''}>
+                    <input type="text" id="ev${i}label" value="${e.label}" placeholder="event ${i + 1}">
+                    <input type="number" id="ev${i}age" value="${e.age}" min="30" max="110">
+                    <input type="number" id="ev${i}amt" value="${e.monthly}" step="100">
+                    <input type="checkbox" id="ev${i}real"${e.real ? ' checked' : ''}>
+                </div>
+            `).join('');
+        }
+
+        function readEvents() {
+            return DEFAULT_EVENTS.map((_, i) => ({
+                enabled: document.getElementById(`ev${i}on`).checked,
+                label: document.getElementById(`ev${i}label`).value,
+                startAge: parseInt(document.getElementById(`ev${i}age`).value) || 0,
+                monthly: parseFloat(document.getElementById(`ev${i}amt`).value) || 0,
+                real: document.getElementById(`ev${i}real`).checked
+            }));
+        }
 
         function updateStrategyTooltip() {
             const strategy = document.getElementById('strategy').value;
@@ -823,6 +937,21 @@
             params.set('inflation', inputs.inflationRate * 100);
             params.set('ceiling', inputs.spendingCeiling);
             params.set('panicThresh', inputs.panicThreshold * 100);
+            // Rule fixes + events
+            params.set('gkCprFinal', inputs.gkCprFinalYears);
+            params.set('grAbsFloor', inputs.grAbsFloor ? '1' : '0');
+            params.set('grCutPriority', inputs.grCutPriority ? '1' : '0');
+            params.set('panicRelease', inputs.panicFloorRelease ? '1' : '0');
+            if (inputs.seed !== null) params.set('seed', inputs.seed);
+            const activeEvents = inputs.events
+                .map((e, i) => ({ e, i }))
+                .filter(({ e }) => e.enabled);
+            if (activeEvents.length) {
+                params.set('events', activeEvents
+                    .map(({ e, i }) => [i, e.startAge, e.monthly, e.real ? 1 : 0,
+                                        encodeURIComponent(e.label)].join('~'))
+                    .join('!'));
+            }
 
             const url = window.location.pathname + '?' + params.toString();
             
@@ -876,6 +1005,32 @@
                 if (params.has('panicThresh')) {
                     document.getElementById('panicThreshold').value = params.get('panicThresh');
                 }
+                if (params.has('gkCprFinal')) {
+                    document.getElementById('gkCprFinalYears').value = params.get('gkCprFinal');
+                }
+                if (params.has('grAbsFloor')) {
+                    document.getElementById('grAbsFloor').checked = params.get('grAbsFloor') === '1';
+                }
+                if (params.has('grCutPriority')) {
+                    document.getElementById('grCutPriority').checked = params.get('grCutPriority') === '1';
+                }
+                if (params.has('panicRelease')) {
+                    document.getElementById('panicFloorRelease').checked = params.get('panicRelease') === '1';
+                }
+                if (params.has('seed')) {
+                    document.getElementById('rngSeed').value = params.get('seed');
+                }
+                if (params.has('events')) {
+                    params.get('events').split('!').forEach(chunk => {
+                        const [i, age, amt, real, label] = chunk.split('~');
+                        if (!document.getElementById(`ev${i}on`)) return;
+                        document.getElementById(`ev${i}on`).checked = true;
+                        document.getElementById(`ev${i}age`).value = age;
+                        document.getElementById(`ev${i}amt`).value = amt;
+                        document.getElementById(`ev${i}real`).checked = real === '1';
+                        document.getElementById(`ev${i}label`).value = decodeURIComponent(label || '');
+                    });
+                }
 
                 updateStrategyInputs();
                 updateReturnModelInputs();
@@ -894,6 +1049,10 @@
                 spendAdjust: parseFloat(document.getElementById('spendAdjust').value) / 100,
                 gkUpper: parseFloat(document.getElementById('gkUpper').value) / 100,
                 gkLower: parseFloat(document.getElementById('gkLower').value) / 100,
+                gkCprFinalYears: parseInt(document.getElementById('gkCprFinalYears').value) || 0,
+                grAbsFloor: document.getElementById('grAbsFloor').checked,
+                grCutPriority: document.getElementById('grCutPriority').checked,
+                events: readEvents(),
                 // Return model settings
                 returnModel: document.getElementById('returnModel').value,
                 expReturn: parseFloat(document.getElementById('expReturn').value) / 100,
@@ -910,7 +1069,11 @@
                 // Advanced settings
                 inflationRate: parseFloat(document.getElementById('inflationRate').value) / 100,
                 spendingCeiling: parseFloat(document.getElementById('spendingCeiling').value),
-                panicThreshold: parseFloat(document.getElementById('panicThreshold').value) / 100
+                panicThreshold: parseFloat(document.getElementById('panicThreshold').value) / 100,
+                panicFloorRelease: document.getElementById('panicFloorRelease').checked,
+                seed: document.getElementById('rngSeed').value.trim() === ''
+                    ? null
+                    : (parseInt(document.getElementById('rngSeed').value, 10) || 0)
             };
         }
         
@@ -921,7 +1084,12 @@
             const { portfolio, years, expReturn, volatility, withdrawal, floor, strategy, startAge,
                     income, incomeStartAge, incomeInflationAdjusted,
                     debt, debtEndAge, debtInflationAdjusted,
-                    inflationRate, spendingCeiling, panicThreshold } = inputs;
+                    inflationRate, spendingCeiling, panicThreshold,
+                    events, panicFloorRelease } = inputs;
+
+            // Withdrawal rate must recover to this fraction of the panic threshold before
+            // the pinned floor is released. Hysteresis, to stop the floor chattering.
+            const PANIC_RELEASE_RATIO = 0.8;
 
             // Pre-generate all returns for this path
             const generatedReturns = generateReturns(inputs);
@@ -975,6 +1143,17 @@
                     }
                 }
                 
+                // Scheduled life events: recurring cashflow changes from startAge onward.
+                // Positive = money in (reduces the portfolio draw), negative = new expense.
+                let eventDelta = 0;
+                for (const ev of events) {
+                    if (!ev.enabled || !ev.monthly || currentAge < ev.startAge) continue;
+                    const annual = ev.monthly * 12;
+                    eventDelta += ev.real
+                        ? annual
+                        : annual / Math.pow(1 + inflationRate, currentAge - ev.startAge);
+                }
+
                 // Step 1: Calculate withdrawal (in real dollars - constant over time unless strategy adjusts)
                 let withdrawalAmount = 0;
                 let meta = {};
@@ -1018,7 +1197,17 @@
                         baselineCount++;
                     }
                     const baseline = baselineCount > 0 ? baselineSum / baselineCount : inputs.portfolio;
-                    const ratio = portfolioValue / baseline;
+                    const maRatio = portfolioValue / baseline;
+
+                    // The moving-average baseline drifts down with the portfolio, so a slow
+                    // steady decline keeps maRatio near 1 and never trips the cut. Test also
+                    // against an absolute baseline: the balance needed to sustain current
+                    // spending at the initial withdrawal rate. Taking the min means a cut
+                    // fires if either test says low, and a raise needs both to say high.
+                    const targetRate = withdrawal / inputs.portfolio;
+                    const absBaseline = targetRate > 0 ? baseAmount / targetRate : baseline;
+                    const absRatio = portfolioValue / absBaseline;
+                    const ratio = inputs.grAbsFloor ? Math.min(maRatio, absRatio) : maRatio;
 
                     // Guardrail check: threshold-crossing zones
                     let newZone = 'normal';
@@ -1054,12 +1243,20 @@
                         meta.healthRatio = healthRatio;
                     }
 
-                    // Take MAX of guardrail and health adjustments
-                    const multiplier = Math.max(guardrailMultiplier, healthMultiplier);
+                    // Health score may only ever ADD a raise. Taking an unconditional max
+                    // discards every cut, because healthMultiplier sits at 1.0 whenever it
+                    // has not triggered and max(0.9, 1.0) is 1.0 - which left the downside
+                    // guardrail permanently dead.
+                    const multiplier = (inputs.grCutPriority && guardrailMultiplier < 1)
+                        ? guardrailMultiplier
+                        : Math.max(guardrailMultiplier, healthMultiplier);
 
                     withdrawalAmount = baseAmount * multiplier;
                     meta.method = 'gr_commonsense';
                     meta.ratio = ratio;
+                    meta.maRatio = maRatio;
+                    meta.absRatio = absRatio;
+                    meta.absBaseline = absBaseline;
                     meta.baseline = baseline;
                     meta.zone = newZone;
                     meta.baseAmount = baseAmount;
@@ -1073,7 +1270,13 @@
                     const currentRate = baseAmount / portfolioValue;
                     const initialRate = withdrawal / inputs.portfolio;
 
-                    if (currentRate > initialRate * (1 + inputs.gkUpper)) {
+                    // GK suspends the capital preservation rule over the final stretch of the
+                    // plan, where a high withdrawal rate against a short horizon is not a threat.
+                    const yearsLeftInPlan = years - year + 1;
+                    const cprSuspended = yearsLeftInPlan <= inputs.gkCprFinalYears;
+                    meta.cprSuspended = cprSuspended;
+
+                    if (!cprSuspended && currentRate > initialRate * (1 + inputs.gkUpper)) {
                         baseAmount *= 0.90;
                         meta.rule = 'preservation';
                     }
@@ -1120,6 +1323,12 @@
                         meta.currentFloor = currentFloor;
                     } else if (currentWR >= panicThreshold) {
                         meta.highWrTolerated = true; // Near end of retirement, allow high WR
+                    } else if (panicFloorRelease && currentFloor !== floor &&
+                               currentWR < panicThreshold * PANIC_RELEASE_RATIO) {
+                        // Portfolio has recovered - unpin the floor so spending is supported
+                        // at the original standard of living again.
+                        currentFloor = floor;
+                        meta.panicFloorReleased = true;
                     }
 
                     meta.wr = currentWR;
@@ -1155,9 +1364,10 @@
                 prevWithdrawal = withdrawalAmount;
                 
                 // Net withdrawal = spending + debt - income (all in real dollars)
-                const netWithdrawal = withdrawalAmount + annualDebt - annualIncome;
+                const netWithdrawal = withdrawalAmount + annualDebt - annualIncome - eventDelta;
                 meta.income = annualIncome;
                 meta.debt = annualDebt;
+                meta.eventDelta = eventDelta;
                 meta.netWithdrawal = netWithdrawal;
                 
                 // Step 2: Subtract net withdrawal
@@ -1215,6 +1425,7 @@
         
         function runSimulation() {
             const inputs = getInputs();
+            rand = inputs.seed === null ? Math.random : mulberry32(inputs.seed);
             const paths = [];
             
             for (let i = 0; i < inputs.numPaths; i++) {
@@ -1824,6 +2035,7 @@
 
         // Initialize on page load
         window.addEventListener('DOMContentLoaded', function() {
+            buildEventRows();
             loadFromURL();
             updateStrategyInputs();
             updateReturnModelInputs();
