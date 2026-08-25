@@ -1,0 +1,2000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Penrose Stego - Tile Steganography</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-dark: #1e1e1e;
+            --bg-darker: #1a1a1a;
+            --accent-cyan: #9cdcfe;
+            --accent-green: #ce9178;
+            --accent-purple: #c586c0;
+            --text-primary: #d4d4d4;
+            --text-secondary: #858585;
+            --border-color: #3e3e42;
+            --hover-shadow: 0 0 20px rgba(156, 220, 254, 0.2);
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--bg-dark) 0%, var(--bg-darker) 100%);
+            color: var(--text-primary);
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 217, 255, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 217, 255, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        body.screensaver-mode { background: #050508; }
+        body.screensaver-mode::before { display: none; }
+
+        nav {
+            background: rgba(10, 14, 39, 0.95);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.2rem 2rem;
+            backdrop-filter: blur(10px);
+            position: sticky;
+            top: 0; z-index: 100;
+            box-shadow: 0 4px 30px rgba(0, 217, 255, 0.05);
+        }
+
+        nav ul {
+            list-style: none; display: flex; gap: 2rem;
+            max-width: 1200px; margin: 0 auto;
+        }
+
+        nav a {
+            color: var(--text-primary); text-decoration: none;
+            font-weight: 600; font-size: 0.95rem;
+            transition: all 0.3s ease;
+            padding: 0.5rem 1rem;
+            border-left: 2px solid transparent; display: block;
+        }
+
+        nav a:hover {
+            color: var(--accent-cyan);
+            border-left-color: var(--accent-cyan);
+            text-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+        }
+
+        .container {
+            flex: 1; max-width: 1400px; width: 100%;
+            margin: 0 auto; padding: 2rem;
+        }
+
+        .header {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 1.5rem;
+            flex-wrap: wrap; gap: 1rem;
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status { display: flex; gap: 2rem; font-size: 1rem; }
+        .status span { color: var(--accent-green); }
+
+        /* Studio layout */
+        .studio-area {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 2rem; min-height: 600px;
+        }
+
+        .side-panel {
+            display: flex; flex-direction: column; gap: 1rem;
+        }
+
+        .panel-section {
+            background: rgba(30, 41, 70, 0.5);
+            border: 1px solid var(--border-color);
+            border-radius: 8px; padding: 1rem;
+        }
+
+        .panel-section h3 {
+            color: var(--accent-cyan); font-size: 0.9rem;
+            margin-bottom: 0.8rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.4rem;
+        }
+
+        .panel-section label {
+            display: block; color: var(--text-secondary);
+            font-size: 0.8rem; margin-bottom: 0.3rem;
+        }
+
+        .panel-section select,
+        .panel-section textarea,
+        .panel-section input[type="text"] {
+            width: 100%; background: rgba(10, 14, 39, 0.8);
+            border: 1px solid var(--border-color); color: var(--text-primary);
+            font-family: inherit; font-size: 0.85rem;
+            padding: 0.5rem; border-radius: 4px; resize: vertical;
+        }
+
+        .panel-section textarea { min-height: 80px; }
+
+        .panel-section select:focus,
+        .panel-section textarea:focus,
+        .panel-section input:focus {
+            outline: none; border-color: var(--accent-cyan);
+            box-shadow: 0 0 5px rgba(156, 220, 254, 0.2);
+        }
+
+        .btn {
+            background: rgba(156, 220, 254, 0.1);
+            border: 1px solid var(--accent-cyan);
+            color: var(--accent-cyan);
+            padding: 0.5rem 1rem; border-radius: 6px;
+            cursor: pointer; font-family: inherit; font-size: 0.85rem;
+            transition: all 0.2s ease; display: inline-block;
+        }
+
+        .btn:hover {
+            background: rgba(156, 220, 254, 0.2);
+            box-shadow: 0 0 10px rgba(156, 220, 254, 0.3);
+        }
+
+        .btn-warn {
+            border-color: #ff6b6b; color: #ff6b6b;
+            background: rgba(255, 107, 107, 0.1);
+        }
+
+        .btn-warn:hover {
+            background: rgba(255, 107, 107, 0.2);
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+        }
+
+        .btn-green {
+            border-color: #4ecdc4; color: #4ecdc4;
+            background: rgba(78, 205, 196, 0.1);
+        }
+
+        .btn-row { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+
+        .viz-panel {
+            background: rgba(30, 41, 70, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 8px; position: relative;
+            min-height: 600px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #mainCanvas {
+            width: 100%; flex: 1; min-height: 600px;
+            border-radius: 8px; display: block;
+        }
+
+        .viz-hint {
+            position: absolute; bottom: 10px; left: 10px;
+            font-size: 0.8rem; color: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        /* Screensaver canvas */
+        #screensaverCanvas {
+            position: fixed; top: 0; left: 0;
+            width: 100vw; height: 100vh; display: none;
+        }
+
+        body.screensaver-mode #screensaverCanvas { display: block; }
+        body.screensaver-mode nav,
+        body.screensaver-mode .container,
+        body.screensaver-mode footer { display: none; }
+
+        .gear-btn {
+            position: fixed; bottom: 20px; right: 20px;
+            width: 40px; height: 40px;
+            background: rgba(156, 220, 254, 0.15);
+            border: 1px solid rgba(156, 220, 254, 0.3);
+            border-radius: 50%; cursor: pointer;
+            color: var(--accent-cyan); font-size: 1.2rem;
+            display: none; align-items: center; justify-content: center;
+            z-index: 200; transition: all 0.2s ease;
+        }
+
+        body.screensaver-mode .gear-btn { display: flex; }
+        .gear-btn:hover { background: rgba(156, 220, 254, 0.3); transform: rotate(30deg); }
+
+        /* Result display */
+        .result-box {
+            background: rgba(10, 14, 39, 0.8);
+            border: 1px solid var(--border-color);
+            border-radius: 4px; padding: 0.6rem;
+            font-size: 0.8rem; margin-top: 0.5rem;
+            max-height: 120px; overflow-y: auto;
+            word-break: break-all;
+        }
+
+        .result-box.success { border-color: #4ecdc4; }
+        .result-box.error { border-color: #ff6b6b; }
+
+        .word-tag {
+            display: inline-block; background: rgba(156, 220, 254, 0.1);
+            border: 1px solid var(--border-color); border-radius: 3px;
+            padding: 0.1rem 0.4rem; margin: 0.1rem; font-size: 0.75rem;
+        }
+
+        .word-tag.invalid { border-color: #ff6b6b; color: #ff6b6b; }
+        .word-tag.valid { border-color: #4ecdc4; }
+
+        /* Warning banner */
+        .security-banner {
+            background: rgba(78, 205, 196, 0.1);
+            border: 1px solid rgba(78, 205, 196, 0.3);
+            border-radius: 4px; padding: 0.4rem 0.8rem;
+            font-size: 0.75rem; color: #4ecdc4;
+            text-align: center; margin-bottom: 1rem;
+        }
+
+        /* Tabs */
+        .tab-bar {
+            display: flex; gap: 0; margin-bottom: 0.8rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .tab-btn {
+            background: none; border: none; border-bottom: 2px solid transparent;
+            color: var(--text-secondary); font-family: inherit;
+            font-size: 0.8rem; padding: 0.5rem 0.8rem;
+            cursor: pointer; transition: all 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-cyan);
+            border-bottom-color: var(--accent-cyan);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Stats */
+        .stat-row {
+            display: flex; justify-content: space-between;
+            font-size: 0.8rem; padding: 0.2rem 0;
+        }
+
+        .stat-row .label { color: var(--text-secondary); }
+        .stat-row .value { color: var(--accent-green); }
+
+        .webgpu-error {
+            display: flex; align-items: center; justify-content: center;
+            height: 100%; color: var(--text-secondary);
+            text-align: center; padding: 2rem;
+        }
+
+        footer {
+            background: rgba(10, 14, 39, 0.95);
+            border-top: 1px solid var(--border-color);
+            padding: 2rem; text-align: center;
+            box-shadow: 0 -4px 30px rgba(0, 217, 255, 0.05);
+            backdrop-filter: blur(10px); margin-top: auto;
+        }
+
+        footer ul {
+            list-style: none; display: flex;
+            justify-content: center; gap: 2rem;
+        }
+
+        footer a {
+            font-size: 0.9rem; color: var(--text-secondary);
+            text-decoration: none;
+        }
+
+        footer a:hover { color: var(--accent-cyan); }
+
+        @media (max-width: 900px) {
+            .studio-area { grid-template-columns: 1fr; }
+            .viz-panel { min-height: 400px; }
+            #mainCanvas { min-height: 400px; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <ul>
+            <li><a href="/">Home</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="/blog">Blog</a></li>
+        </ul>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1>Penrose Stego</h1>
+            <div class="status">
+                <div>Worms: <span id="wormCount">0</span> / <span id="wormCapacity">0</span></div>
+                <div>Rhombi: <span id="rhombiCount">0</span></div>
+                <div>Mode: <span id="modeDisplay">Studio</span></div>
+            </div>
+        </div>
+
+        <div class="security-banner">
+            Runs entirely in browser. No data sent to any server. All state is ephemeral.
+        </div>
+
+        <div class="studio-area">
+            <div class="side-panel">
+                <!-- Source selector -->
+                <div class="panel-section">
+                    <h3>Source</h3>
+                    <label>Data source</label>
+                    <select id="sourceSelect">
+                        <option value="timecode">Timecode (live screensaver)</option>
+                        <option value="bip39">BIP39 Seed Phrase (static)</option>
+                        <option value="tilexor-split">TileXOR Split</option>
+                        <option value="tilexor-combine">TileXOR Combine</option>
+                    </select>
+                </div>
+
+                <!-- Tiling params -->
+                <div class="panel-section">
+                    <h3>Tiling</h3>
+                    <label>Subdivision level</label>
+                    <select id="levelSelect">
+                        <option value="5">5 (~200 rhombi)</option>
+                        <option value="6">6 (~600 rhombi)</option>
+                        <option value="7" selected>7 (~1500 rhombi)</option>
+                        <option value="8">8 (~4000 rhombi)</option>
+                    </select>
+                    <div class="btn-row">
+                        <button class="btn" id="regenerateBtn">Regenerate</button>
+                    </div>
+                </div>
+
+                <!-- BIP39 tab -->
+                <div class="panel-section" id="bip39Panel" style="display:none;">
+                    <h3>BIP39 Phrase</h3>
+                    <div class="tab-bar">
+                        <button class="tab-btn active" data-tab="encode">Encode</button>
+                        <button class="tab-btn" data-tab="decode">Decode</button>
+                    </div>
+                    <div class="tab-content active" id="tab-encode">
+                        <label>Enter seed words (space-separated)</label>
+                        <textarea id="bip39Input" placeholder="abandon ability able about above absent ..."></textarea>
+                        <div id="wordValidation"></div>
+                        <div class="btn-row">
+                            <button class="btn btn-green" id="encodeBtn">Generate Painting</button>
+                            <button class="btn" id="exportBtn">Export</button>
+                        </div>
+                    </div>
+                    <div class="tab-content" id="tab-decode">
+                        <label>Load JSON sidecar</label>
+                        <input type="file" id="jsonImport" accept=".json" style="font-size:0.8rem; margin-bottom:0.5rem;">
+                        <div class="btn-row">
+                            <button class="btn btn-green" id="decodeBtn">Decode</button>
+                        </div>
+                        <div id="decodeResult"></div>
+                    </div>
+                </div>
+
+                <!-- TileXOR Split panel -->
+                <div class="panel-section" id="tilexorSplitPanel" style="display:none;">
+                    <h3>TileXOR Split</h3>
+                    <label>Enter BIP39 phrase to split</label>
+                    <textarea id="xorSplitInput" placeholder="Enter 12 or 24 seed words..."></textarea>
+                    <div class="btn-row">
+                        <button class="btn btn-green" id="xorSplitBtn">Split into 2 Frames</button>
+                    </div>
+                    <div class="btn-row">
+                        <button class="btn" id="exportFrameA" style="display:none;">Export Frame A</button>
+                        <button class="btn" id="exportFrameB" style="display:none;">Export Frame B</button>
+                    </div>
+                    <div id="xorSplitResult"></div>
+                </div>
+
+                <!-- TileXOR Combine panel -->
+                <div class="panel-section" id="tilexorCombinePanel" style="display:none;">
+                    <h3>TileXOR Combine</h3>
+                    <label>Frame A JSON</label>
+                    <input type="file" id="frameAImport" accept=".json" style="font-size:0.8rem; margin-bottom:0.5rem;">
+                    <label>Frame B JSON</label>
+                    <input type="file" id="frameBImport" accept=".json" style="font-size:0.8rem; margin-bottom:0.5rem;">
+                    <div class="btn-row">
+                        <button class="btn btn-green" id="xorCombineBtn">Combine Frames</button>
+                    </div>
+                    <div id="xorCombineResult"></div>
+                </div>
+
+                <!-- Stats -->
+                <div class="panel-section">
+                    <h3>Stats</h3>
+                    <div class="stat-row"><span class="label">Rhombi</span><span class="value" id="statRhombi">-</span></div>
+                    <div class="stat-row"><span class="label">Worms</span><span class="value" id="statWorms">-</span></div>
+                    <div class="stat-row"><span class="label">Capacity</span><span class="value" id="statCapacity">- bits</span></div>
+                    <div class="stat-row"><span class="label">Payload</span><span class="value" id="statPayload">- bits</span></div>
+                    <div class="stat-row"><span class="label">ECC</span><span class="value" id="statECC">-</span></div>
+                    <div class="btn-row">
+                        <button class="btn btn-warn" id="clearBtn">Clear All</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="viz-panel">
+                <canvas id="mainCanvas"></canvas>
+                <div class="viz-hint">Drag to pan | Scroll to zoom | S = screensaver | F = fullscreen</div>
+            </div>
+        </div>
+    </div>
+
+    <canvas id="screensaverCanvas"></canvas>
+    <button class="gear-btn" id="gearBtn" title="Back to studio">&#9881;</button>
+
+    <footer>
+        <ul>
+            <li><a href="mailto:codemajdoor@gmail.com">email</a></li>
+            <li><a href="https://github.com/DesiCoder99">github.com/DesiCoder99</a></li>
+        </ul>
+    </footer>
+
+    <script>
+    'use strict';
+
+    // ===========================================
+    // CONSTANTS
+    // ===========================================
+    const PHI = (1 + Math.sqrt(5)) / 2;
+    const PSI = 1 / PHI;
+    const DEG36 = Math.PI / 5;
+
+    // ===========================================
+    // PENROSE GENERATOR
+    // Robinson triangle subdivision → rhombus extraction
+    // Triangles stored as [type, A, B, C] where type=0 is acute, type=1 is obtuse
+    // ===========================================
+    class PenroseGenerator {
+        constructor(level = 7, radius = 1.0) {
+            this.level = level;
+            this.radius = radius;
+            this.triangles = [];
+            this.rhombi = [];
+        }
+
+        generate() {
+            this.triangles = this._createSunSeed();
+            for (let i = 0; i < this.level; i++) {
+                this.triangles = this._subdivide(this.triangles);
+            }
+            this.rhombi = this._extractRhombi(this.triangles);
+            this._pruneToViewport();
+            console.log('Penrose: level=' + this.level + ' tris=' + this.triangles.length + ' rhombi=' + this.rhombi.length);
+            return this.rhombi;
+        }
+
+        // Sun seed: 10 acute triangles arranged in a decagon
+        _createSunSeed() {
+            const tris = [];
+            for (let i = 0; i < 10; i++) {
+                const a1 = (2 * i - 1) * DEG36;
+                const a2 = (2 * i + 1) * DEG36;
+                const A = [0, 0];
+                const B = [this.radius * Math.cos(a1), this.radius * Math.sin(a1)];
+                const C = [this.radius * Math.cos(a2), this.radius * Math.sin(a2)];
+                if (i % 2 === 0) tris.push([0, A, B, C]);
+                else tris.push([0, A, C, B]);
+            }
+            return tris;
+        }
+
+        _subdivide(triangles) {
+            const result = [];
+            for (const [type, A, B, C] of triangles) {
+                if (type === 0) {
+                    // Acute triangle: split edge A→B at 1/phi
+                    const P = [A[0] + (B[0] - A[0]) / PHI, A[1] + (B[1] - A[1]) / PHI];
+                    result.push([0, C, P, B]);   // acute child
+                    result.push([1, P, C, A]);   // obtuse child
+                } else {
+                    // Obtuse triangle: split two edges
+                    const Q = [B[0] + (A[0] - B[0]) / PHI, B[1] + (A[1] - B[1]) / PHI];
+                    const R = [B[0] + (C[0] - B[0]) / PHI, B[1] + (C[1] - B[1]) / PHI];
+                    result.push([1, R, C, A]);   // obtuse child
+                    result.push([1, Q, R, B]);   // obtuse child
+                    result.push([0, R, Q, A]);   // acute child
+                }
+            }
+            return result;
+        }
+
+        _extractRhombi(triangles) {
+            const PREC = 1e6;
+            const snap = v => Math.round(v[0] * PREC) + ',' + Math.round(v[1] * PREC);
+            const edgeKey = (p1, p2) => {
+                const k1 = snap(p1), k2 = snap(p2);
+                return k1 < k2 ? k1 + '|' + k2 : k2 + '|' + k1;
+            };
+
+            // Index every edge of every triangle, keyed by (type, edge)
+            const edgeMap = new Map();
+            for (let i = 0; i < triangles.length; i++) {
+                const [type, A, B, C] = triangles[i];
+                const edges = [
+                    { key: edgeKey(A, B), verts: [A, B], other: C, eName: 'AB' },
+                    { key: edgeKey(B, C), verts: [B, C], other: A, eName: 'BC' },
+                    { key: edgeKey(A, C), verts: [A, C], other: B, eName: 'AC' }
+                ];
+                for (const e of edges) {
+                    const mapKey = type + ':' + e.key;
+                    if (!edgeMap.has(mapKey)) edgeMap.set(mapKey, []);
+                    edgeMap.get(mapKey).push({ triIdx: i, other: e.other, eName: e.eName, verts: e.verts });
+                }
+            }
+
+            const used = new Set();
+            const rhombi = [];
+
+            for (const [, entries] of edgeMap) {
+                if (entries.length !== 2) continue;
+                const [a, b] = entries;
+                if (used.has(a.triIdx) || used.has(b.triIdx)) continue;
+
+                // Ensure the two apex vertices are distinct (not the same point)
+                const d = Math.sqrt((a.other[0] - b.other[0]) ** 2 + (a.other[1] - b.other[1]) ** 2);
+                if (d < 1e-8) continue;
+
+                used.add(a.triIdx);
+                used.add(b.triIdx);
+
+                const isThick = triangles[a.triIdx][0] === 1;
+                const sharedV1 = a.verts[0], sharedV2 = a.verts[1];
+                const verts = [a.other, sharedV1, b.other, sharedV2];
+
+                // Ensure consistent CCW winding
+                let area = 0;
+                for (let k = 0; k < 4; k++) {
+                    const p = verts[k], q = verts[(k + 1) % 4];
+                    area += p[0] * q[1] - q[0] * p[1];
+                }
+                if (area < 0) verts.reverse();
+
+                rhombi.push({
+                    vertices: verts,
+                    center: [
+                        (verts[0][0] + verts[1][0] + verts[2][0] + verts[3][0]) / 4,
+                        (verts[0][1] + verts[1][1] + verts[2][1] + verts[3][1]) / 4
+                    ],
+                    isThick,
+                    flipped: false
+                });
+            }
+
+            return rhombi;
+        }
+
+        _pruneToViewport() {
+            let maxR = 0;
+            for (const r of this.rhombi) {
+                const d = Math.sqrt(r.center[0] ** 2 + r.center[1] ** 2);
+                if (d > maxR) maxR = d;
+            }
+            const cutoff = maxR * 0.90;
+            this.rhombi = this.rhombi.filter(r => {
+                const d = Math.sqrt(r.center[0] ** 2 + r.center[1] ** 2);
+                return d < cutoff;
+            });
+        }
+    }
+
+    // ===========================================
+    // WORM DETECTOR
+    // Conway worm detection with deterministic ordering
+    // ===========================================
+    class WormDetector {
+        constructor(rhombi) {
+            this.rhombi = rhombi;
+            this.worms = [];
+            this.adjacency = new Map(); // edge key -> [rhombus indices]
+        }
+
+        detect() {
+            this._buildAdjacency();
+            this._traceWorms();
+            this._sortWorms();
+            return this.worms;
+        }
+
+        _edgeKey(p1, p2) {
+            const PREC = 1e6;
+            const k1 = Math.round(p1[0] * PREC) + ',' + Math.round(p1[1] * PREC);
+            const k2 = Math.round(p2[0] * PREC) + ',' + Math.round(p2[1] * PREC);
+            return k1 < k2 ? k1 + '|' + k2 : k2 + '|' + k1;
+        }
+
+        _edgeDirection(p1, p2) {
+            let angle = Math.atan2(p2[1] - p1[1], p2[0] - p1[0]);
+            // Normalize to [0, PI)
+            while (angle < 0) angle += Math.PI;
+            while (angle >= Math.PI) angle -= Math.PI;
+            // Classify into 5 families: 0, 36, 72, 108, 144 degrees
+            const family = Math.round(angle / DEG36) % 5;
+            return family;
+        }
+
+        _buildAdjacency() {
+            // For each rhombus, index its 4 edges
+            for (let ri = 0; ri < this.rhombi.length; ri++) {
+                const v = this.rhombi[ri].vertices;
+                for (let ei = 0; ei < 4; ei++) {
+                    const p1 = v[ei];
+                    const p2 = v[(ei + 1) % 4];
+                    const key = this._edgeKey(p1, p2);
+                    if (!this.adjacency.has(key)) this.adjacency.set(key, []);
+                    this.adjacency.get(key).push({ rhombusIdx: ri, edgeIdx: ei });
+                }
+            }
+        }
+
+        _getEdgeFamilies(ri) {
+            // Return the two direction families for a rhombus (from opposite edge pairs)
+            const v = this.rhombi[ri].vertices;
+            const f0 = this._edgeDirection(v[0], v[1]); // edge 0-1
+            const f1 = this._edgeDirection(v[1], v[2]); // edge 1-2
+            return [f0, f1];
+        }
+
+        _getParallelEdges(ri, family) {
+            // Return the two edge indices whose direction matches the given family
+            const v = this.rhombi[ri].vertices;
+            const edges = [];
+            for (let ei = 0; ei < 4; ei++) {
+                const p1 = v[ei];
+                const p2 = v[(ei + 1) % 4];
+                if (this._edgeDirection(p1, p2) === family) {
+                    edges.push(ei);
+                }
+            }
+            return edges;
+        }
+
+        _traceWorms() {
+            // Track visited (rhombus, direction-family) pairs
+            const visited = new Set();
+
+            for (let ri = 0; ri < this.rhombi.length; ri++) {
+                const families = this._getEdgeFamilies(ri);
+                for (const family of families) {
+                    const key = `${ri}:${family}`;
+                    if (visited.has(key)) continue;
+
+                    // Trace worm in both directions from this rhombus
+                    const chain = this._traceOneDirection(ri, family, visited);
+                    if (chain.length >= 2) {
+                        // Mark all as visited
+                        for (const idx of chain) {
+                            visited.add(`${idx}:${family}`);
+                        }
+                        this.worms.push({
+                            rhombiIndices: chain,
+                            dirFamily: family,
+                            centroid: this._wormCentroid(chain)
+                        });
+                    }
+                }
+            }
+        }
+
+        _traceOneDirection(startRi, family, visited) {
+            // Trace forward
+            const forward = [];
+            let current = startRi;
+            const seen = new Set();
+            while (current !== -1 && !seen.has(current)) {
+                seen.add(current);
+                forward.push(current);
+                current = this._stepWorm(current, family, 1);
+            }
+
+            // Trace backward
+            const backward = [];
+            current = this._stepWorm(startRi, family, -1);
+            while (current !== -1 && !seen.has(current)) {
+                seen.add(current);
+                backward.push(current);
+                current = this._stepWorm(current, family, -1);
+            }
+
+            backward.reverse();
+            return [...backward, ...forward];
+        }
+
+        _stepWorm(ri, family, direction) {
+            // Get the two parallel edges for this family
+            const parallelEdges = this._getParallelEdges(ri, family);
+            if (parallelEdges.length < 2) return -1;
+
+            // Pick exit edge based on direction
+            const exitEdgeIdx = direction > 0 ? parallelEdges[1] : parallelEdges[0];
+            const v = this.rhombi[ri].vertices;
+            const p1 = v[exitEdgeIdx];
+            const p2 = v[(exitEdgeIdx + 1) % 4];
+            const key = this._edgeKey(p1, p2);
+
+            const neighbors = this.adjacency.get(key);
+            if (!neighbors) return -1;
+
+            for (const n of neighbors) {
+                if (n.rhombusIdx !== ri) {
+                    return n.rhombusIdx;
+                }
+            }
+            return -1;
+        }
+
+        _wormCentroid(indices) {
+            let cx = 0, cy = 0;
+            for (const ri of indices) {
+                cx += this.rhombi[ri].center[0];
+                cy += this.rhombi[ri].center[1];
+            }
+            return [cx / indices.length, cy / indices.length];
+        }
+
+        _sortWorms() {
+            const ROUND = 1e-4;
+            this.worms.sort((a, b) => {
+                // Primary: direction family
+                if (a.dirFamily !== b.dirFamily) return a.dirFamily - b.dirFamily;
+                // Secondary: perpendicular projection of centroid
+                const angle = a.dirFamily * DEG36;
+                const perpX = -Math.sin(angle);
+                const perpY = Math.cos(angle);
+                const projA = Math.round((a.centroid[0] * perpX + a.centroid[1] * perpY) / ROUND) * ROUND;
+                const projB = Math.round((b.centroid[0] * perpX + b.centroid[1] * perpY) / ROUND) * ROUND;
+                return projA - projB;
+            });
+        }
+    }
+
+    // ===========================================
+    // HAMMING(7,4) ECC
+    // ===========================================
+    const Hamming = {
+        // Generator matrix rows for systematic Hamming(7,4)
+        // d0 d1 d2 d3 p0 p1 p2
+        encode4(nibble) {
+            const d = [(nibble >> 3) & 1, (nibble >> 2) & 1, (nibble >> 1) & 1, nibble & 1];
+            const p0 = d[0] ^ d[1] ^ d[3];
+            const p1 = d[0] ^ d[2] ^ d[3];
+            const p2 = d[1] ^ d[2] ^ d[3];
+            return (d[0] << 6) | (d[1] << 5) | (d[2] << 4) | (d[3] << 3) | (p0 << 2) | (p1 << 1) | p2;
+        },
+
+        decode7(code) {
+            const bits = [];
+            for (let i = 6; i >= 0; i--) bits.push((code >> i) & 1);
+            // bits: d0 d1 d2 d3 p0 p1 p2
+            const s0 = bits[0] ^ bits[1] ^ bits[3] ^ bits[4];
+            const s1 = bits[0] ^ bits[2] ^ bits[3] ^ bits[5];
+            const s2 = bits[1] ^ bits[2] ^ bits[3] ^ bits[6];
+            const syndrome = (s0 << 2) | (s1 << 1) | s2;
+
+            let corrected = false;
+            if (syndrome !== 0) {
+                // Syndrome to bit position mapping
+                const syndromeMap = { 3: 0, 5: 1, 6: 2, 7: 3, 1: 4, 2: 5, 4: 6 };
+                const pos = syndromeMap[syndrome];
+                if (pos !== undefined) {
+                    bits[pos] ^= 1;
+                    corrected = true;
+                }
+            }
+
+            const nibble = (bits[0] << 3) | (bits[1] << 2) | (bits[2] << 1) | bits[3];
+            return { nibble, corrected, syndrome };
+        },
+
+        encodePayload(data) {
+            // data: Uint8Array of raw bits (0/1 values)
+            // Pad to multiple of 4
+            const padded = new Uint8Array(Math.ceil(data.length / 4) * 4);
+            padded.set(data);
+            const coded = [];
+            for (let i = 0; i < padded.length; i += 4) {
+                const nibble = (padded[i] << 3) | (padded[i + 1] << 2) | (padded[i + 2] << 1) | padded[i + 3];
+                const code = this.encode4(nibble);
+                for (let b = 6; b >= 0; b--) coded.push((code >> b) & 1);
+            }
+            return new Uint8Array(coded);
+        },
+
+        decodePayload(coded, originalBitLen) {
+            const blocks = Math.ceil(coded.length / 7);
+            const decoded = [];
+            let corrections = 0;
+            for (let i = 0; i < blocks; i++) {
+                let code = 0;
+                for (let b = 0; b < 7; b++) {
+                    const idx = i * 7 + b;
+                    code = (code << 1) | (idx < coded.length ? coded[idx] : 0);
+                }
+                const { nibble, corrected } = this.decode7(code);
+                if (corrected) corrections++;
+                decoded.push((nibble >> 3) & 1, (nibble >> 2) & 1, (nibble >> 1) & 1, nibble & 1);
+            }
+            return { bits: new Uint8Array(decoded.slice(0, originalBitLen)), corrections };
+        }
+    };
+
+    // ===========================================
+    // CRC-16
+    // ===========================================
+    function crc16(bits) {
+        let crc = 0xFFFF;
+        for (let i = 0; i < bits.length; i++) {
+            crc ^= (bits[i] << 15);
+            if (crc & 0x8000) {
+                crc = ((crc << 1) ^ 0x8005) & 0xFFFF;
+            } else {
+                crc = (crc << 1) & 0xFFFF;
+            }
+        }
+        return crc;
+    }
+
+    // ===========================================
+    // BIT INTERLEAVING
+    // ===========================================
+    function interleave(bits, blockSize = 7) {
+        const stride = Math.ceil(bits.length / blockSize);
+        const out = new Uint8Array(bits.length);
+        for (let i = 0; i < bits.length; i++) {
+            const pos = (i % stride) * blockSize + Math.floor(i / stride);
+            if (pos < bits.length) out[pos] = bits[i];
+        }
+        return out;
+    }
+
+    function deinterleave(bits, blockSize = 7) {
+        const stride = Math.ceil(bits.length / blockSize);
+        const out = new Uint8Array(bits.length);
+        for (let i = 0; i < bits.length; i++) {
+            const pos = (i % stride) * blockSize + Math.floor(i / stride);
+            if (pos < bits.length) out[i] = bits[pos];
+        }
+        return out;
+    }
+
+    // ===========================================
+    // STEGO PIPELINE
+    // ===========================================
+    class StegoPipeline {
+        constructor(worms, rhombi) {
+            this.worms = worms;
+            this.rhombi = rhombi;
+            // Store canonical vertices for flip detection
+            this.canonicalVertices = rhombi.map(r => r.vertices.map(v => [...v]));
+        }
+
+        get capacity() { return this.worms.length; }
+
+        // Build header: 4 bits type + 2 bits ECC + 10 bits length + 16 bits CRC = 32 bits
+        _buildHeader(typeCode, eccMode, payloadBitLen, payloadBits) {
+            const crc = crc16(payloadBits);
+            const header = new Uint8Array(32);
+            // Type code (4 bits)
+            for (let i = 0; i < 4; i++) header[i] = (typeCode >> (3 - i)) & 1;
+            // ECC mode (2 bits)
+            for (let i = 0; i < 2; i++) header[4 + i] = (eccMode >> (1 - i)) & 1;
+            // Payload length (10 bits)
+            for (let i = 0; i < 10; i++) header[6 + i] = (payloadBitLen >> (9 - i)) & 1;
+            // CRC-16 (16 bits)
+            for (let i = 0; i < 16; i++) header[16 + i] = (crc >> (15 - i)) & 1;
+            return header;
+        }
+
+        _parseHeader(bits) {
+            let typeCode = 0;
+            for (let i = 0; i < 4; i++) typeCode = (typeCode << 1) | bits[i];
+            let eccMode = 0;
+            for (let i = 0; i < 2; i++) eccMode = (eccMode << 1) | bits[4 + i];
+            let payloadLen = 0;
+            for (let i = 0; i < 10; i++) payloadLen = (payloadLen << 1) | bits[6 + i];
+            let crc = 0;
+            for (let i = 0; i < 16; i++) crc = (crc << 1) | bits[16 + i];
+            return { typeCode, eccMode, payloadLen, crc };
+        }
+
+        encode(typeCode, eccMode, payloadBits) {
+            const header = this._buildHeader(typeCode, eccMode, payloadBits.length, payloadBits);
+
+            let codedPayload;
+            if (eccMode === 1) {
+                const hamming = Hamming.encodePayload(payloadBits);
+                codedPayload = interleave(hamming);
+            } else {
+                codedPayload = payloadBits;
+            }
+
+            // Combine header + coded payload
+            const totalBits = new Uint8Array(header.length + codedPayload.length);
+            totalBits.set(header);
+            totalBits.set(codedPayload, header.length);
+
+            if (totalBits.length > this.capacity) {
+                throw new Error(`Need ${totalBits.length} worms, have ${this.capacity}`);
+            }
+
+            // Apply flips
+            this._applyFlips(totalBits);
+            return totalBits.length;
+        }
+
+        decode() {
+            const bits = this._readFlips();
+            if (bits.length < 32) throw new Error('Not enough worms for header');
+
+            const header = this._parseHeader(bits);
+
+            let payloadBits;
+            const codedBits = bits.slice(32);
+            if (header.eccMode === 1) {
+                const deintBits = deinterleave(codedBits, 7);
+                const result = Hamming.decodePayload(deintBits, header.payloadLen);
+                payloadBits = result.bits;
+                header.corrections = result.corrections;
+            } else {
+                payloadBits = codedBits.slice(0, header.payloadLen);
+                header.corrections = 0;
+            }
+
+            // Verify CRC
+            const actualCrc = crc16(payloadBits);
+            header.crcOk = actualCrc === header.crc;
+
+            return { header, payloadBits };
+        }
+
+        _applyFlips(bits) {
+            for (let wi = 0; wi < this.worms.length; wi++) {
+                const bit = wi < bits.length ? bits[wi] : (Math.random() > 0.5 ? 1 : 0);
+                if (bit === 1) {
+                    this._flipWorm(wi);
+                }
+            }
+        }
+
+        _flipWorm(wi) {
+            const worm = this.worms[wi];
+            // Compute worm's central axis
+            const indices = worm.rhombiIndices;
+            const first = this.rhombi[indices[0]].center;
+            const last = this.rhombi[indices[indices.length - 1]].center;
+            const axisX = last[0] - first[0];
+            const axisY = last[1] - first[1];
+            const axisLen = Math.sqrt(axisX ** 2 + axisY ** 2);
+            if (axisLen < 1e-10) return;
+            const nx = axisX / axisLen;
+            const ny = axisY / axisLen;
+            const midX = (first[0] + last[0]) / 2;
+            const midY = (first[1] + last[1]) / 2;
+
+            // Reflect each rhombus vertex across the worm axis
+            for (const ri of indices) {
+                const rhombus = this.rhombi[ri];
+                for (let vi = 0; vi < 4; vi++) {
+                    const v = rhombus.vertices[vi];
+                    const dx = v[0] - midX;
+                    const dy = v[1] - midY;
+                    const dot = dx * nx + dy * ny;
+                    const cross = dx * ny - dy * nx;
+                    v[0] = midX + dot * nx - cross * ny;
+                    v[1] = midY + dot * ny + cross * nx;
+                }
+                // Update center
+                rhombus.center = [
+                    (rhombus.vertices[0][0] + rhombus.vertices[1][0] + rhombus.vertices[2][0] + rhombus.vertices[3][0]) / 4,
+                    (rhombus.vertices[0][1] + rhombus.vertices[1][1] + rhombus.vertices[2][1] + rhombus.vertices[3][1]) / 4
+                ];
+                rhombus.flipped = !rhombus.flipped;
+            }
+        }
+
+        _readFlips() {
+            const bits = new Uint8Array(this.worms.length);
+            for (let wi = 0; wi < this.worms.length; wi++) {
+                // A worm is "flipped" if any of its rhombi have flipped flag
+                const indices = this.worms[wi].rhombiIndices;
+                bits[wi] = this.rhombi[indices[0]].flipped ? 1 : 0;
+            }
+            return bits;
+        }
+
+        // For export: get the flip bit array
+        getFlipBits() {
+            return this._readFlips();
+        }
+    }
+
+    // ===========================================
+    // BIP39 WORDLIST (2048 words)
+    // Embedded minimal list — first 100 + placeholders
+    // Full list loaded on demand from standard
+    // ===========================================
+    const BIP39_WORDS = [];
+    let bip39Loaded = false;
+
+    async function loadBIP39() {
+        if (bip39Loaded) return;
+        try {
+            const resp = await fetch('https://raw.githubusercontent.com/bitcoin/bips/master/bip-0039/english.txt');
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const text = await resp.text();
+            BIP39_WORDS.length = 0;
+            BIP39_WORDS.push(...text.trim().split('\n').map(w => w.trim()));
+            bip39Loaded = true;
+            console.log('BIP39 wordlist loaded:', BIP39_WORDS.length, 'words');
+        } catch (e) {
+            console.warn('Failed to load BIP39 wordlist:', e);
+            // Don't throw — BIP39 features will be unavailable but tiling still works
+        }
+    }
+
+    function bip39Encode(words) {
+        const bits = [];
+        for (const word of words) {
+            const idx = BIP39_WORDS.indexOf(word.toLowerCase().trim());
+            if (idx === -1) throw new Error(`Invalid BIP39 word: "${word}"`);
+            for (let b = 10; b >= 0; b--) bits.push((idx >> b) & 1);
+        }
+        return new Uint8Array(bits);
+    }
+
+    function bip39Decode(bits) {
+        const words = [];
+        for (let i = 0; i + 10 < bits.length; i += 11) {
+            let idx = 0;
+            for (let b = 0; b < 11; b++) idx = (idx << 1) | bits[i + b];
+            if (idx < BIP39_WORDS.length) words.push(BIP39_WORDS[idx]);
+            else words.push(`[${idx}]`);
+        }
+        return words;
+    }
+
+    // ===========================================
+    // DATA SOURCES
+    // ===========================================
+    const TimecodeSource = {
+        name: 'Timecode',
+        typeCode: 0,
+        eccMode: 0,
+        encode() {
+            const ts = Math.floor(Date.now() / 1000);
+            const bits = new Uint8Array(42);
+            for (let i = 0; i < 42; i++) bits[i] = (ts >> (41 - i)) & 1;
+            return bits;
+        },
+        decode(bits) {
+            let ts = 0;
+            for (let i = 0; i < Math.min(42, bits.length); i++) ts = (ts << 1) | bits[i];
+            return { timestamp: ts, date: new Date(ts * 1000).toISOString() };
+        }
+    };
+
+    const BIP39Source = {
+        name: 'BIP39',
+        typeCode: 1,
+        eccMode: 1,
+        encode(words) {
+            return bip39Encode(words);
+        },
+        decode(bits) {
+            return { words: bip39Decode(bits) };
+        }
+    };
+
+    // ===========================================
+    // TILE XOR — Secret sharing
+    // ===========================================
+    const TileXOR = {
+        split(payloadBits) {
+            // Generate random mask
+            const mask = new Uint8Array(payloadBits.length);
+            crypto.getRandomValues(mask);
+            for (let i = 0; i < mask.length; i++) mask[i] = mask[i] & 1;
+
+            // XOR
+            const masked = new Uint8Array(payloadBits.length);
+            for (let i = 0; i < payloadBits.length; i++) {
+                masked[i] = payloadBits[i] ^ mask[i];
+            }
+
+            return { frameA: mask, frameB: masked };
+        },
+
+        combine(frameABits, frameBBits) {
+            const len = Math.min(frameABits.length, frameBBits.length);
+            const result = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                result[i] = frameABits[i] ^ frameBBits[i];
+            }
+            return result;
+        }
+    };
+
+    // ===========================================
+    // WEBGPU RENDERER
+    // ===========================================
+    class PenroseRenderer {
+        constructor(canvas) {
+            this.canvas = canvas;
+            this.device = null;
+            this.context = null;
+            this.pipeline = null;
+            this.initialized = false;
+
+            // Camera (2D orthographic with pan/zoom)
+            this.panX = 0;
+            this.panY = 0;
+            this.zoom = 1.0;
+            this.isDragging = false;
+            this.lastMouseX = 0;
+            this.lastMouseY = 0;
+
+            // Screensaver drift
+            this.driftTime = 0;
+            this.screensaverMode = false;
+
+            // Tile data
+            this.rhombi = [];
+            this.worms = [];
+            this.storageBuffer = null;
+            this.instanceCount = 0;
+            this.highlightWorm = -1.0;
+
+            // Hue shift
+            this.hueShift = 0;
+        }
+
+        async init() {
+            if (!navigator.gpu) {
+                this.showError('WebGPU not supported in this browser');
+                return false;
+            }
+            try {
+                const adapter = await navigator.gpu.requestAdapter();
+                if (!adapter) { this.showError('No WebGPU adapter found'); return false; }
+                this.device = await adapter.requestDevice();
+                this.context = this.canvas.getContext('webgpu');
+                if (!this.context) { this.showError('Could not get WebGPU context'); return false; }
+                this.resizeCanvas();
+                const format = navigator.gpu.getPreferredCanvasFormat();
+                this.context.configure({ device: this.device, format, alphaMode: 'premultiplied' });
+                await this._createPipeline(format);
+                this.initialized = true;
+                this._setupControls();
+                window.addEventListener('resize', () => this.resizeCanvas());
+                return true;
+            } catch (e) {
+                console.error('WebGPU error:', e);
+                this.showError('WebGPU init failed: ' + e.message);
+                return false;
+            }
+        }
+
+        showError(msg) {
+            this.canvas.style.display = 'none';
+            const div = document.createElement('div');
+            div.className = 'webgpu-error';
+            div.innerHTML = `<div><p>${msg}</p><p>Try Chrome 113+ or Edge 113+</p></div>`;
+            this.canvas.parentElement.appendChild(div);
+        }
+
+        resizeCanvas() {
+            const rect = this.canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            const w = Math.max(1, Math.floor(rect.width * dpr));
+            const h = Math.max(1, Math.floor(rect.height * dpr));
+            this.canvas.width = w;
+            this.canvas.height = h;
+            if (this.context && this.device) {
+                this.context.configure({
+                    device: this.device,
+                    format: navigator.gpu.getPreferredCanvasFormat(),
+                    alphaMode: 'premultiplied'
+                });
+            }
+        }
+
+        _setupControls() {
+            this.canvas.addEventListener('mousedown', (e) => {
+                this.isDragging = true;
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            });
+            window.addEventListener('mouseup', () => { this.isDragging = false; });
+            window.addEventListener('mousemove', (e) => {
+                if (!this.isDragging) return;
+                const dx = e.clientX - this.lastMouseX;
+                const dy = e.clientY - this.lastMouseY;
+                this.panX += dx * 0.003 / this.zoom;
+                this.panY -= dy * 0.003 / this.zoom;
+                this.lastMouseX = e.clientX;
+                this.lastMouseY = e.clientY;
+            });
+            this.canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                this.zoom *= e.deltaY > 0 ? 0.95 : 1.05;
+                this.zoom = Math.max(0.1, Math.min(20, this.zoom));
+            });
+        }
+
+        async _createPipeline(format) {
+            const shaderCode = `
+                struct Uniforms {
+                    viewProj: mat4x4<f32>,
+                    time: f32,
+                    highlightWorm: f32,
+                    pad0: f32,
+                    pad1: f32,
+                }
+
+                struct RhombusData {
+                    v0: vec2<f32>, v1: vec2<f32>, v2: vec2<f32>, v3: vec2<f32>,
+                    color: vec4<f32>,
+                    wormId: f32,
+                    isThick: f32,
+                    flipped: f32,
+                    pad: f32,
+                }
+
+                @group(0) @binding(0) var<uniform> uniforms: Uniforms;
+                @group(0) @binding(1) var<storage, read> tiles: array<RhombusData>;
+
+                struct VertexOutput {
+                    @builtin(position) position: vec4<f32>,
+                    @location(0) color: vec4<f32>,
+                    @location(1) bary: vec3<f32>,
+                    @location(2) wormId: f32,
+                }
+
+                @vertex
+                fn vertexMain(@builtin(instance_index) inst: u32, @builtin(vertex_index) vi: u32) -> VertexOutput {
+                    let tile = tiles[inst];
+                    // 6 vertices per quad: 0,1,2, 0,2,3
+                    var pos: vec2<f32>;
+                    var bary: vec3<f32>;
+                    let triVert = vi % 3u;
+                    let triIdx = vi / 3u;
+
+                    if (triIdx == 0u) {
+                        if (triVert == 0u) { pos = tile.v0; bary = vec3(1.0, 0.0, 0.0); }
+                        else if (triVert == 1u) { pos = tile.v1; bary = vec3(0.0, 1.0, 0.0); }
+                        else { pos = tile.v2; bary = vec3(0.0, 0.0, 1.0); }
+                    } else {
+                        if (triVert == 0u) { pos = tile.v0; bary = vec3(1.0, 0.0, 0.0); }
+                        else if (triVert == 1u) { pos = tile.v2; bary = vec3(0.0, 1.0, 0.0); }
+                        else { pos = tile.v3; bary = vec3(0.0, 0.0, 1.0); }
+                    }
+
+                    var out: VertexOutput;
+                    out.position = uniforms.viewProj * vec4<f32>(pos, 0.0, 1.0);
+                    out.color = tile.color;
+                    out.bary = bary;
+                    out.wormId = tile.wormId;
+                    return out;
+                }
+
+                @fragment
+                fn fragmentMain(in: VertexOutput) -> @location(0) vec4<f32> {
+                    // Edge detection via barycentric coords
+                    let minBary = min(in.bary.x, min(in.bary.y, in.bary.z));
+                    let edgeFactor = smoothstep(0.0, 0.04, minBary);
+
+                    // Edge color: gold/amber glow
+                    let edgeColor = vec4<f32>(0.85, 0.65, 0.25, 1.0);
+
+                    // Worm highlight
+                    var baseColor = in.color;
+                    if (uniforms.highlightWorm >= 0.0 && abs(in.wormId - uniforms.highlightWorm) < 0.5) {
+                        baseColor = mix(baseColor, vec4<f32>(1.0, 1.0, 0.5, 1.0), 0.4);
+                    }
+
+                    let finalColor = mix(edgeColor, baseColor, edgeFactor);
+                    return finalColor;
+                }
+            `;
+
+            const shaderModule = this.device.createShaderModule({ code: shaderCode });
+
+            this.uniformBuffer = this.device.createBuffer({
+                size: 80, // mat4(64) + 4 floats(16)
+                usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
+            });
+
+            // Placeholder storage buffer
+            this.storageBuffer = this.device.createBuffer({
+                size: 64,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            });
+
+            this.bindGroupLayout = this.device.createBindGroupLayout({
+                entries: [
+                    { binding: 0, visibility: GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT, buffer: { type: 'uniform' } },
+                    { binding: 1, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }
+                ]
+            });
+
+            this.bindGroup = this.device.createBindGroup({
+                layout: this.bindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: this.uniformBuffer } },
+                    { binding: 1, resource: { buffer: this.storageBuffer } }
+                ]
+            });
+
+            const pipelineLayout = this.device.createPipelineLayout({
+                bindGroupLayouts: [this.bindGroupLayout]
+            });
+
+            this.pipeline = this.device.createRenderPipeline({
+                layout: pipelineLayout,
+                vertex: { module: shaderModule, entryPoint: 'vertexMain' },
+                fragment: {
+                    module: shaderModule,
+                    entryPoint: 'fragmentMain',
+                    targets: [{
+                        format,
+                        blend: {
+                            color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+                            alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha', operation: 'add' }
+                        }
+                    }]
+                },
+                primitive: { topology: 'triangle-list' }
+            });
+        }
+
+        updateTiles(rhombi, worms) {
+            this.rhombi = rhombi;
+            this.worms = worms;
+            this._rebuildStorage();
+        }
+
+        _tileColor(rhombus, hueShift) {
+            const cx = rhombus.center[0];
+            const cy = rhombus.center[1];
+            const dist = Math.sqrt(cx * cx + cy * cy);
+
+            let h, s, l;
+            if (rhombus.isThick) {
+                // Warm: amber/gold range
+                h = (30 + dist * 8 + hueShift) % 360;
+                s = 0.6 + Math.sin(dist * 2) * 0.15;
+                l = 0.35 + Math.sin(dist * 1.5 + 1) * 0.1;
+            } else {
+                // Cool: teal/blue range
+                h = (200 + dist * 6 + hueShift) % 360;
+                s = 0.5 + Math.cos(dist * 2) * 0.15;
+                l = 0.3 + Math.cos(dist * 1.5) * 0.1;
+            }
+
+            // Imperceptible brightness offset for flip state
+            if (rhombus.flipped) l += 0.008;
+
+            return this._hslToRgb(h / 360, s, l);
+        }
+
+        _hslToRgb(h, s, l) {
+            const c = (1 - Math.abs(2 * l - 1)) * s;
+            const x = c * (1 - Math.abs((h * 6) % 2 - 1));
+            const m = l - c / 2;
+            let r, g, b;
+            const sector = Math.floor(h * 6);
+            switch (sector % 6) {
+                case 0: r = c; g = x; b = 0; break;
+                case 1: r = x; g = c; b = 0; break;
+                case 2: r = 0; g = c; b = x; break;
+                case 3: r = 0; g = x; b = c; break;
+                case 4: r = x; g = 0; b = c; break;
+                default: r = c; g = 0; b = x; break;
+            }
+            return [r + m, g + m, b + m];
+        }
+
+        _rebuildStorage() {
+            if (!this.device || this.rhombi.length === 0) {
+                console.log('_rebuildStorage skip: device=' + !!this.device + ' rhombi=' + this.rhombi.length);
+                return;
+            }
+
+            // Build worm lookup: rhombus index -> first worm it belongs to
+            const rhombusToWorm = new Float32Array(this.rhombi.length).fill(-1);
+            for (let wi = 0; wi < this.worms.length; wi++) {
+                for (const ri of this.worms[wi].rhombiIndices) {
+                    if (rhombusToWorm[ri] < 0) rhombusToWorm[ri] = wi;
+                }
+            }
+
+            // 12 floats per rhombus: v0(2) + v1(2) + v2(2) + v3(2) + color(4) + wormId,isThick,flipped,pad = 16 floats
+            const floatsPerRhombus = 16;
+            const data = new Float32Array(this.rhombi.length * floatsPerRhombus);
+
+            for (let i = 0; i < this.rhombi.length; i++) {
+                const r = this.rhombi[i];
+                const [cr, cg, cb] = this._tileColor(r, this.hueShift);
+                const off = i * floatsPerRhombus;
+                data[off + 0] = r.vertices[0][0]; data[off + 1] = r.vertices[0][1];
+                data[off + 2] = r.vertices[1][0]; data[off + 3] = r.vertices[1][1];
+                data[off + 4] = r.vertices[2][0]; data[off + 5] = r.vertices[2][1];
+                data[off + 6] = r.vertices[3][0]; data[off + 7] = r.vertices[3][1];
+                data[off + 8] = cr; data[off + 9] = cg; data[off + 10] = cb; data[off + 11] = 1.0;
+                data[off + 12] = rhombusToWorm[i];
+                data[off + 13] = r.isThick ? 1.0 : 0.0;
+                data[off + 14] = r.flipped ? 1.0 : 0.0;
+                data[off + 15] = 0.0;
+            }
+
+            if (this.storageBuffer) this.storageBuffer.destroy();
+
+            this.storageBuffer = this.device.createBuffer({
+                size: data.byteLength,
+                usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
+            });
+            this.device.queue.writeBuffer(this.storageBuffer, 0, data);
+            this.instanceCount = this.rhombi.length;
+            console.log('Storage rebuilt: instances=' + this.instanceCount + ' bytes=' + data.byteLength +
+                        ' first16=[' + Array.from(data.slice(0, 16)).map(v => v.toFixed(3)).join(', ') + ']');
+
+            // Recreate bind group with new storage buffer
+            this.bindGroup = this.device.createBindGroup({
+                layout: this.bindGroupLayout,
+                entries: [
+                    { binding: 0, resource: { buffer: this.uniformBuffer } },
+                    { binding: 1, resource: { buffer: this.storageBuffer } }
+                ]
+            });
+        }
+
+        render(time) {
+            if (!this.initialized || this.instanceCount === 0) {
+                return;
+            }
+
+            try {
+                // Screensaver drift
+                if (this.screensaverMode) {
+                    this.driftTime = time || 0;
+                    this.panX = Math.sin(this.driftTime * 0.0001) * 0.3;
+                    this.panY = Math.cos(this.driftTime * 0.00013) * 0.2;
+                    this.zoom = 1.0 + Math.sin(this.driftTime * 0.00008) * 0.3;
+                    this.hueShift = (this.driftTime * 0.0003) % 360;
+                }
+
+                const aspect = this.canvas.width / this.canvas.height;
+                const viewProj = this._orthoViewProj(aspect);
+
+                const uniformData = new Float32Array(20);
+                uniformData.set(viewProj, 0);
+                uniformData[16] = time || 0;
+                uniformData[17] = this.highlightWorm;
+                this.device.queue.writeBuffer(this.uniformBuffer, 0, uniformData);
+
+                const commandEncoder = this.device.createCommandEncoder();
+                const textureView = this.context.getCurrentTexture().createView();
+
+                const passEncoder = commandEncoder.beginRenderPass({
+                    colorAttachments: [{
+                        view: textureView,
+                        clearValue: { r: 0.02, g: 0.02, b: 0.03, a: 1.0 },
+                        loadOp: 'clear',
+                        storeOp: 'store'
+                    }]
+                });
+
+                passEncoder.setPipeline(this.pipeline);
+                passEncoder.setBindGroup(0, this.bindGroup);
+                passEncoder.draw(6, this.instanceCount);
+                passEncoder.end();
+
+                this.device.queue.submit([commandEncoder.finish()]);
+            } catch (e) {
+                console.error('Render error:', e);
+            }
+        }
+
+        _orthoViewProj(aspect) {
+            // Orthographic projection: maps world coords to clip [-1,1]
+            // halfW/halfH define the visible world-space extents
+            const halfH = 1.0 / this.zoom;
+            const halfW = halfH * aspect;
+            const ox = this.panX;
+            const oy = this.panY;
+
+            // Column-major orthographic matrix
+            const sx = 1.0 / halfW;
+            const sy = 1.0 / halfH;
+            return new Float32Array([
+                sx, 0, 0, 0,
+                0, sy, 0, 0,
+                0, 0, -0.01, 0,
+                -ox * sx, -oy * sy, 0, 1
+            ]);
+        }
+    }
+
+    // ===========================================
+    // APP ORCHESTRATOR
+    // ===========================================
+    class App {
+        constructor() {
+            this.generator = null;
+            this.detector = null;
+            this.pipeline = null;
+            this.renderer = null;
+            this.screensaverRenderer = null;
+            this.rhombi = [];
+            this.worms = [];
+            this.mode = 'studio'; // 'studio' or 'screensaver'
+            this.source = 'timecode';
+            this.timecodeInterval = null;
+            this.animFrameId = null;
+
+            // TileXOR state
+            this.xorFrameA = null;
+            this.xorFrameB = null;
+        }
+
+        async init() {
+            // Load BIP39 in background (don't block tiling)
+            loadBIP39();
+
+            // Init studio renderer
+            this.renderer = new PenroseRenderer(document.getElementById('mainCanvas'));
+            const ok = await this.renderer.init();
+            if (!ok) return;
+
+            // Init screensaver renderer (lazy — only init on first use)
+            this.screensaverRenderer = new PenroseRenderer(document.getElementById('screensaverCanvas'));
+
+            // Generate initial tiling
+            this._generateTiling();
+
+            // Setup UI
+            this._setupUI();
+
+            // Ensure canvas is properly sized after layout settles
+            requestAnimationFrame(() => {
+                this.renderer.resizeCanvas();
+                this.renderer._rebuildStorage();
+            });
+
+            // Start render loop
+            this._startRenderLoop();
+        }
+
+        _generateTiling() {
+            const level = parseInt(document.getElementById('levelSelect').value);
+            this.generator = new PenroseGenerator(level, 1.0);
+            this.rhombi = this.generator.generate();
+            this.detector = new WormDetector(this.rhombi);
+            this.worms = this.detector.detect();
+
+            this.pipeline = new StegoPipeline(this.worms, this.rhombi);
+
+            this.renderer.updateTiles(this.rhombi, this.worms);
+            this._updateStats();
+
+            // Auto-fit zoom: zoom=1 means halfH=1, so we need zoom = 1/maxR to fit
+            let maxR = 0;
+            for (const r of this.rhombi) {
+                for (const v of r.vertices) {
+                    const d = Math.sqrt(v[0] ** 2 + v[1] ** 2);
+                    if (d > maxR) maxR = d;
+                }
+            }
+            // zoom such that tiling fills ~85% of viewport
+            this.renderer.zoom = maxR > 0 ? 0.85 / maxR : 1;
+            this.renderer.panX = 0;
+            this.renderer.panY = 0;
+            console.log('Tiling: rhombi=' + this.rhombi.length + ' worms=' + this.worms.length + ' maxR=' + maxR.toFixed(2) + ' zoom=' + this.renderer.zoom.toFixed(4));
+        }
+
+        _updateStats() {
+            document.getElementById('statRhombi').textContent = this.rhombi.length;
+            document.getElementById('statWorms').textContent = this.worms.length;
+            document.getElementById('statCapacity').textContent = this.worms.length + ' bits';
+            document.getElementById('rhombiCount').textContent = this.rhombi.length;
+            document.getElementById('wormCount').textContent = this.worms.length;
+            document.getElementById('wormCapacity').textContent = this.worms.length;
+        }
+
+        _setupUI() {
+            // Source select
+            document.getElementById('sourceSelect').addEventListener('change', (e) => {
+                this.source = e.target.value;
+                this._updatePanelVisibility();
+            });
+
+            // Tab buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const tab = e.target.dataset.tab;
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                    e.target.classList.add('active');
+                    document.getElementById('tab-' + tab).classList.add('active');
+                });
+            });
+
+            // Regenerate
+            document.getElementById('regenerateBtn').addEventListener('click', () => {
+                this._generateTiling();
+            });
+
+            // BIP39 encode
+            document.getElementById('encodeBtn').addEventListener('click', () => this._encodeBIP39());
+
+            // BIP39 decode
+            document.getElementById('decodeBtn').addEventListener('click', () => this._decodeBIP39());
+
+            // BIP39 input validation
+            document.getElementById('bip39Input').addEventListener('input', (e) => this._validateWords(e.target.value));
+
+            // Export
+            document.getElementById('exportBtn').addEventListener('click', () => this._export());
+
+            // Import
+            document.getElementById('jsonImport').addEventListener('change', (e) => this._importJSON(e));
+
+            // TileXOR
+            document.getElementById('xorSplitBtn').addEventListener('click', () => this._xorSplit());
+            document.getElementById('xorCombineBtn').addEventListener('click', () => this._xorCombine());
+            document.getElementById('exportFrameA').addEventListener('click', () => this._exportXORFrame('A'));
+            document.getElementById('exportFrameB').addEventListener('click', () => this._exportXORFrame('B'));
+            document.getElementById('frameAImport').addEventListener('change', (e) => this._loadXORFrame(e, 'A'));
+            document.getElementById('frameBImport').addEventListener('change', (e) => this._loadXORFrame(e, 'B'));
+
+            // Clear
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                document.getElementById('bip39Input').value = '';
+                document.getElementById('xorSplitInput').value = '';
+                document.getElementById('wordValidation').innerHTML = '';
+                document.getElementById('decodeResult').innerHTML = '';
+                document.getElementById('xorSplitResult').innerHTML = '';
+                document.getElementById('xorCombineResult').innerHTML = '';
+                this.xorFrameA = null;
+                this.xorFrameB = null;
+                this._generateTiling();
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+                if (e.key === 's' || e.key === 'S') this._toggleScreensaver();
+                if (e.key === 'f' || e.key === 'F') this._toggleFullscreen();
+            });
+
+            // Gear button
+            document.getElementById('gearBtn').addEventListener('click', () => this._toggleScreensaver());
+
+            this._updatePanelVisibility();
+        }
+
+        _updatePanelVisibility() {
+            document.getElementById('bip39Panel').style.display = this.source === 'bip39' ? 'block' : 'none';
+            document.getElementById('tilexorSplitPanel').style.display = this.source === 'tilexor-split' ? 'block' : 'none';
+            document.getElementById('tilexorCombinePanel').style.display = this.source === 'tilexor-combine' ? 'block' : 'none';
+            document.getElementById('modeDisplay').textContent =
+                this.source === 'timecode' ? 'Live' : 'Studio';
+        }
+
+        _validateWords(text) {
+            const container = document.getElementById('wordValidation');
+            const words = text.trim().split(/\s+/).filter(w => w);
+            if (words.length === 0) { container.innerHTML = ''; return; }
+
+            container.innerHTML = words.map(w => {
+                const valid = BIP39_WORDS.includes(w.toLowerCase());
+                return `<span class="word-tag ${valid ? 'valid' : 'invalid'}">${w}</span>`;
+            }).join('');
+        }
+
+        _encodeBIP39() {
+            try {
+                const text = document.getElementById('bip39Input').value.trim();
+                const words = text.split(/\s+/).filter(w => w);
+                if (words.length !== 12 && words.length !== 24) {
+                    this._showResult('wordValidation', 'Need exactly 12 or 24 words', true);
+                    return;
+                }
+                // Re-generate fresh tiling to encode into
+                this._generateTiling();
+
+                const payloadBits = BIP39Source.encode(words);
+                const used = this.pipeline.encode(BIP39Source.typeCode, BIP39Source.eccMode, payloadBits);
+
+                this.renderer.updateTiles(this.rhombi, this.worms);
+                document.getElementById('statPayload').textContent = payloadBits.length + ' bits';
+                document.getElementById('statECC').textContent = 'Hamming(7,4)';
+                this._showResult('wordValidation', `Encoded ${words.length} words (${used} worms used)`, false);
+            } catch (e) {
+                this._showResult('wordValidation', e.message, true);
+            }
+        }
+
+        _decodeBIP39() {
+            try {
+                const { header, payloadBits } = this.pipeline.decode();
+                if (header.typeCode !== 1) {
+                    this._showResult('decodeResult', 'Not a BIP39 frame (type=' + header.typeCode + ')', true);
+                    return;
+                }
+                const { words } = BIP39Source.decode(payloadBits);
+                const crcStatus = header.crcOk ? 'CRC OK' : 'CRC FAILED';
+                const corrections = header.corrections || 0;
+                this._showResult('decodeResult',
+                    `${words.join(' ')}\n[${crcStatus}, ${corrections} corrections]`, !header.crcOk);
+            } catch (e) {
+                this._showResult('decodeResult', e.message, true);
+            }
+        }
+
+        _export() {
+            const flipBits = this.pipeline.getFlipBits();
+            const level = parseInt(document.getElementById('levelSelect').value);
+            const json = {
+                version: 1,
+                level,
+                wormCount: this.worms.length,
+                flipBits: Array.from(flipBits),
+                timestamp: Date.now()
+            };
+
+            const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `penrose_frame_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+
+            // Also export PNG
+            this.canvas = this.renderer.canvas;
+            this.canvas.toBlob((pngBlob) => {
+                const a2 = document.createElement('a');
+                a2.href = URL.createObjectURL(pngBlob);
+                a2.download = `penrose_frame_${Date.now()}.png`;
+                a2.click();
+                URL.revokeObjectURL(a2.href);
+            });
+        }
+
+        _importJSON(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const json = JSON.parse(ev.target.result);
+                    // Regenerate same tiling
+                    document.getElementById('levelSelect').value = json.level;
+                    this._generateTiling();
+
+                    // Apply flips from JSON
+                    const bits = new Uint8Array(json.flipBits);
+                    this.pipeline._applyFlips(bits);
+                    this.renderer.updateTiles(this.rhombi, this.worms);
+                    this._showResult('decodeResult', 'Frame loaded, click Decode to extract data', false);
+                } catch (err) {
+                    this._showResult('decodeResult', 'Invalid JSON: ' + err.message, true);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        _xorSplit() {
+            try {
+                const text = document.getElementById('xorSplitInput').value.trim();
+                const words = text.split(/\s+/).filter(w => w);
+                if (words.length !== 12 && words.length !== 24) {
+                    this._showResult('xorSplitResult', 'Need exactly 12 or 24 words', true);
+                    return;
+                }
+
+                const payloadBits = BIP39Source.encode(words);
+                const { frameA, frameB } = TileXOR.split(payloadBits);
+
+                // Store for export
+                const level = parseInt(document.getElementById('levelSelect').value);
+                this.xorFrameA = this._buildXORFrame(frameA, level, 'A');
+                this.xorFrameB = this._buildXORFrame(frameB, level, 'B');
+
+                document.getElementById('exportFrameA').style.display = 'inline-block';
+                document.getElementById('exportFrameB').style.display = 'inline-block';
+
+                // Show Frame A in canvas
+                this._generateTiling();
+                this.pipeline.encode(BIP39Source.typeCode, BIP39Source.eccMode, frameA);
+                this.renderer.updateTiles(this.rhombi, this.worms);
+
+                this._showResult('xorSplitResult',
+                    `Split into 2 frames. Export both. Neither reveals the secret alone.`, false);
+            } catch (e) {
+                this._showResult('xorSplitResult', e.message, true);
+            }
+        }
+
+        _buildXORFrame(payloadBits, level, frameId) {
+            // Generate tiling, encode, capture flips
+            const gen = new PenroseGenerator(level, 1.0);
+            const rhombi = gen.generate();
+            const det = new WormDetector(rhombi);
+            const worms = det.detect();
+            const pipe = new StegoPipeline(worms, rhombi);
+            pipe.encode(BIP39Source.typeCode, BIP39Source.eccMode, payloadBits);
+            return {
+                version: 1,
+                level,
+                frameId,
+                wormCount: worms.length,
+                flipBits: Array.from(pipe.getFlipBits()),
+                timestamp: Date.now()
+            };
+        }
+
+        _exportXORFrame(id) {
+            const frame = id === 'A' ? this.xorFrameA : this.xorFrameB;
+            if (!frame) return;
+            const blob = new Blob([JSON.stringify(frame, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `penrose_xor_frame_${id}_${Date.now()}.json`;
+            a.click();
+            URL.revokeObjectURL(a.href);
+        }
+
+        _loadXORFrame(e, id) {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const json = JSON.parse(ev.target.result);
+                    if (id === 'A') this.xorFrameA = json;
+                    else this.xorFrameB = json;
+                } catch (err) {
+                    this._showResult('xorCombineResult', 'Invalid JSON: ' + err.message, true);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        _xorCombine() {
+            try {
+                if (!this.xorFrameA || !this.xorFrameB) {
+                    this._showResult('xorCombineResult', 'Load both frames first', true);
+                    return;
+                }
+
+                // Decode each frame
+                const decodeFrame = (json) => {
+                    document.getElementById('levelSelect').value = json.level;
+                    this._generateTiling();
+                    const bits = new Uint8Array(json.flipBits);
+                    this.pipeline._applyFlips(bits);
+                    const result = this.pipeline.decode();
+                    return result.payloadBits;
+                };
+
+                const bitsA = decodeFrame(this.xorFrameA);
+                const bitsB = decodeFrame(this.xorFrameB);
+                const secret = TileXOR.combine(bitsA, bitsB);
+                const { words } = BIP39Source.decode(secret);
+
+                this._showResult('xorCombineResult',
+                    `Recovered: ${words.join(' ')}`, false);
+            } catch (e) {
+                this._showResult('xorCombineResult', e.message, true);
+            }
+        }
+
+        _showResult(elementId, message, isError) {
+            const el = document.getElementById(elementId);
+            el.innerHTML = `<div class="result-box ${isError ? 'error' : 'success'}">${message}</div>`;
+        }
+
+        _toggleScreensaver() {
+            if (this.mode === 'studio') {
+                this.mode = 'screensaver';
+                document.body.classList.add('screensaver-mode');
+                // Init screensaver renderer if needed
+                if (!this.screensaverRenderer.initialized) {
+                    this.screensaverRenderer.init().then(() => {
+                        this.screensaverRenderer.screensaverMode = true;
+                        this.screensaverRenderer.updateTiles(this.rhombi, this.worms);
+                        this.screensaverRenderer.resizeCanvas();
+                    });
+                } else {
+                    this.screensaverRenderer.screensaverMode = true;
+                    this.screensaverRenderer.updateTiles(this.rhombi, this.worms);
+                    this.screensaverRenderer.resizeCanvas();
+                }
+                // Start timecode encoding
+                this._startTimecode();
+            } else {
+                this.mode = 'studio';
+                document.body.classList.remove('screensaver-mode');
+                this._stopTimecode();
+                this.renderer.updateTiles(this.rhombi, this.worms);
+            }
+            document.getElementById('modeDisplay').textContent =
+                this.mode === 'screensaver' ? 'Screensaver' : 'Studio';
+        }
+
+        _startTimecode() {
+            this._stopTimecode();
+            this.timecodeInterval = setInterval(() => {
+                if (this.mode !== 'screensaver') return;
+                // Re-generate and encode timecode
+                const level = parseInt(document.getElementById('levelSelect').value);
+                this.generator = new PenroseGenerator(level, 1.0);
+                this.rhombi = this.generator.generate();
+                this.detector = new WormDetector(this.rhombi);
+                this.worms = this.detector.detect();
+                this.pipeline = new StegoPipeline(this.worms, this.rhombi);
+
+                const payloadBits = TimecodeSource.encode();
+                this.pipeline.encode(TimecodeSource.typeCode, TimecodeSource.eccMode, payloadBits);
+
+                this.screensaverRenderer.updateTiles(this.rhombi, this.worms);
+            }, 1000);
+        }
+
+        _stopTimecode() {
+            if (this.timecodeInterval) {
+                clearInterval(this.timecodeInterval);
+                this.timecodeInterval = null;
+            }
+        }
+
+        _toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                document.exitFullscreen();
+            }
+        }
+
+        _startRenderLoop() {
+            const loop = (time) => {
+                if (this.mode === 'screensaver' && this.screensaverRenderer.initialized) {
+                    this.screensaverRenderer.render(time);
+                } else {
+                    this.renderer.render(time);
+                }
+                this.animFrameId = requestAnimationFrame(loop);
+            };
+            loop(0);
+        }
+    }
+
+    // ===========================================
+    // BOOT
+    // ===========================================
+    const app = new App();
+    app.init().catch(e => console.error('App init failed:', e));
+
+    </script>
+</body>
+</html>
