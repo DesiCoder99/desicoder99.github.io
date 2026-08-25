@@ -280,8 +280,9 @@ footer a{color:var(--ink-2)}
       <div class="sub" id="geo-sub"></div>
     </div>
     <div class="compare">
-      <label class="eyebrow" for="cmp">Compared with</label>
-      <select id="cmp" class="search"></select>
+      <label class="eyebrow" for="cmp-state">Compared with</label>
+      <select id="cmp-state" class="search" aria-label="Comparison state"></select>
+      <select id="cmp-place" class="search" aria-label="Comparison place"></select>
     </div>
     <div class="chips" id="chips"></div>
     <div class="hero">
@@ -656,13 +657,43 @@ function renderHead() {
       <span class="delta ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d.toFixed(0)}%</span></div>`;
   }).join('');
 }
+function cmpStateFips(i) {
+  if (i == null) return '';
+  const g = G[i];
+  if (g.sl === '040') return g.fips;
+  if (g.sl === '050' || g.sl === '160') return g.st ? g.st.slice(9, 11) : '';
+  if (g.sl === '860') return g.cty ? g.cty.slice(9, 11) : '';
+  return '';
+}
 function renderCompare() {
-  const sel = document.getElementById('cmp');
-  let opts = refGeos();
-  if (state.sel === US) opts = stateRows;
-  if (!opts.includes(state.cmp) || state.cmp === state.sel) state.cmp = opts[0] ?? null;
-  sel.innerHTML = opts.map(i =>
-    `<option value="${i}" ${i === state.cmp ? 'selected' : ''}>${G[i].name}</option>`).join('');
+  if (state.cmp == null || state.cmp === state.sel) {
+    const anc = refGeos();
+    state.cmp = anc.length ? anc[0] : (state.sel === US ? null : US);
+    if (state.cmp === state.sel) state.cmp = null;
+  }
+  const cs = document.getElementById('cmp-state');
+  const fips = cmpStateFips(state.cmp);
+  cs.innerHTML = '<option value="">United States</option>' + stateRows.map(i =>
+    `<option value="${G[i].fips}" ${G[i].fips === fips ? 'selected' : ''}>${G[i].name}</option>`).join('');
+  renderCmpPlace(fips);
+}
+function renderCmpPlace(fips) {
+  const cp = document.getElementById('cmp-place');
+  if (!fips) { cp.innerHTML = '<option value="">United States overall</option>'; cp.disabled = true; return; }
+  cp.disabled = false;
+  const stId = '0400000US' + fips;
+  const counties = G.map((g, i) => i)
+    .filter(i => G[i].sl === '050' && G[i].st === stId)
+    .sort((a, b) => G[a].name.localeCompare(G[b].name));
+  const cities = G.map((g, i) => i)
+    .filter(i => G[i].sl === '160' && G[i].st === stId)
+    .sort((a, b) => G[a].name.localeCompare(G[b].name));
+  const mark = i => i === state.cmp ? 'selected' : '';
+  cp.innerHTML = `<option value="${idIndex.get(stId)}" ${mark(idIndex.get(stId))}>${G[idIndex.get(stId)].name} overall</option>` +
+    (counties.length ? '<optgroup label="Counties">' + counties.map(i =>
+      `<option value="${i}" ${mark(i)}>${G[i].name}</option>`).join('') + '</optgroup>' : '') +
+    (cities.length ? '<optgroup label="Cities">' + cities.map(i =>
+      `<option value="${i}" ${mark(i)}>${G[i].name}</option>`).join('') + '</optgroup>' : '');
 }
 
 /* ---------------- scoping & rail ---------------- */
@@ -966,7 +997,8 @@ svg.addEventListener('wheel', e => {
 }, { passive: false });
 let drag = null;
 svg.addEventListener('pointerdown', e => {
-  drag = { x: e.clientX, y: e.clientY, vx: VB.x, vy: VB.y, moved: 0 };
+  drag = { x: e.clientX, y: e.clientY, vx: VB.x, vy: VB.y, moved: 0,
+           hit: e.target.closest('.tract') };  // pointer capture retargets pointerup to the svg
   svg.setPointerCapture(e.pointerId); svg.classList.add('dragging');
 });
 svg.addEventListener('pointermove', e => {
@@ -990,10 +1022,9 @@ svg.addEventListener('pointermove', e => {
 });
 svg.addEventListener('pointerup', async e => {
   const wasDrag = drag && drag.moved > 4;
+  const hit = drag && drag.hit;
   drag = null; svg.classList.remove('dragging');
-  if (wasDrag) return;
-  const hit = e.target.closest('.tract');
-  if (!hit) return;
+  if (wasDrag || !hit) return;
   if (state.mode === 'us' && hit.dataset.fips) { await enterState(hit.dataset.fips); return; }
   if (hit.dataset.geo !== '' && hit.dataset.geo != null) select(+hit.dataset.geo);
 });
@@ -1045,7 +1076,17 @@ document.getElementById('city-sel').addEventListener('change', e => {
   else if (state.mode === 'state') state.sel = idIndex.get('0400000US' + state.fips);
   render();
 });
-document.getElementById('cmp').addEventListener('change', e => {
+document.getElementById('cmp-state').addEventListener('change', async e => {
+  const fips = e.target.value;
+  if (!fips) { state.cmp = US; renderCmpPlace(''); renderHead(); renderFigures(); return; }
+  document.getElementById('cmp-place').innerHTML = '<option>loading...</option>';
+  await loadState(fips);
+  recountZips();
+  state.cmp = idIndex.get('0400000US' + fips);
+  renderCmpPlace(fips);
+  renderHead(); renderFigures();
+});
+document.getElementById('cmp-place').addEventListener('change', e => {
   state.cmp = +e.target.value; renderHead(); renderFigures();
 });
 document.getElementById('metric-sel').addEventListener('change', e => {
