@@ -508,6 +508,12 @@ function figure(n, title, universe, rows, opts) {
 }
 
 /* ---------------- Figure 1: merged bins + Pareto tail ---------------- */
+const BANDS = [[0, 10000], [10000, 15000], [15000, 20000], [20000, 25000], [25000, 30000],
+  [30000, 35000], [35000, 40000], [40000, 45000], [45000, 50000], [50000, 60000],
+  [60000, 75000], [75000, 100000], [100000, 125000], [125000, 150000], [150000, 200000],
+  [200000, Infinity]];
+const BRACKET_VARS = BANDS.map((_, i) => 'B19001_' + String(i + 2).padStart(3, '0'));
+
 const OBS_BINS = [
   { label: 'Under $25k', vars: ['B19001_002', 'B19001_003', 'B19001_004', 'B19001_005'] },
   { label: '$25k - $50k', vars: ['B19001_006', 'B19001_007', 'B19001_008', 'B19001_009', 'B19001_010'] },
@@ -566,19 +572,70 @@ function binRows(g) {
   }
   return rows;
 }
-function figure1() {
+function figure1c(n) {
   const tot = val(state.sel, 'B19001_001');
   const mine = binRows(state.sel), theirs = cmpOK() ? binRows(state.cmp) : null;
   const rows = (mine || []).map((r, i) => ({
     label: r.label + (r.est ? ' \u00b7 est.' : ''), est: r.est,
     value: r.share, compare: theirs && theirs[i] ? theirs[i].share : null
   }));
-  return figure(1, 'Household income distribution',
+  return figure(n, 'Household income distribution',
     `Share of ${tot ? tot.toLocaleString('en-US') : ''} households in each income band`, rows,
     { fmt: v => pct(v), axisFmt: v => v.toFixed(0) + '%', compare: true, labelw: 148, head: 'Income band',
       note: 'The Census Bureau stops counting at $200,000+. The three bands marked est. split that ' +
         'bracket with a Pareto tail fit calibrated to the mean income of the top 5% of households ' +
         '(which is published uncapped); they are model estimates, not counts.' });
+}
+
+/* ---------------- city ZIP-footprint aggregate ---------------- */
+function interpFromHist(counts, N, alpha, q) {
+  let target = q * N, cum = 0;
+  for (let i = 0; i < counts.length; i++) {
+    const n = counts[i];
+    if (cum + n >= target && n > 0) {
+      const [lo, hi] = BANDS[i];
+      if (hi === Infinity) {
+        const f = Math.min(0.999, (target - cum) / n);
+        return 200000 * Math.pow(1 - f, -1 / alpha);
+      }
+      return lo + (hi - lo) * (target - cum) / n;
+    }
+    cum += n;
+  }
+  return null;
+}
+function comboFor(cityIdx) {
+  const id = 'CMB' + G[cityIdx].id;
+  if (idIndex.has(id)) return idIndex.get(id);
+  const members = stateZips().filter(i => G[i].plid === G[cityIdx].id);
+  if (!members.length) return null;
+  const vals = new Array(BASE.vars.length).fill(null);
+  const sumVar = v => {
+    const slot = VI.get(v);
+    let any = false, sum = 0;
+    members.forEach(i => { const x = VALS[i][slot]; if (x != null) { any = true; sum += x; } });
+    return any ? sum : null;
+  };
+  ['B19001_001'].concat(BRACKET_VARS, ['B19025_001']).forEach(v => { vals[VI.get(v)] = sumVar(v); });
+  const N = vals[VI.get('B19001_001')];
+  if (N) {
+    const alpha = paretoAlpha(cityIdx);   // tail shape from the city itself (county/state fallback)
+    const counts = BRACKET_VARS.map(v => vals[VI.get(v)] ?? 0);
+    vals[VI.get('B19013_001')] = interpFromHist(counts, N, alpha, 0.5);
+    ['B19080_001', 'B19080_002', 'B19080_003', 'B19080_004', 'B19080_005']
+      .forEach((v, k) => { vals[VI.get(v)] = interpFromHist(counts, N, alpha, [.2, .4, .6, .8, .95][k]); });
+  }
+  const ctyCount = new Map();
+  members.forEach(i => { const c = G[i].cty; if (c) ctyCount.set(c, (ctyCount.get(c) || 0) + 1); });
+  const cty = [...ctyCount.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || '';
+  const gi = G.length;
+  G.push({ id, sl: 'CMB', name: 'All ' + members.length + ' ZIPs in ' + G[cityIdx].name,
+           pl: G[cityIdx].name, plid: G[cityIdx].id, cty, st: G[cityIdx].st,
+           spans: 0, members });
+  VALS.push(vals);
+  MOES.push(new Array(BASE.vars.length).fill(null));
+  idIndex.set(id, gi);
+  return gi;
 }
 
 /* ---------------- ranks & header ---------------- */
@@ -602,7 +659,7 @@ function rankOf(g, varname) {
 }
 function refGeos() {
   const g = G[state.sel], out = [];
-  if (g.sl === '860') {
+  if (g.sl === '860' || g.sl === 'CMB') {
     const pl = g.plid ? idIndex.get(g.plid) : null; if (pl != null) out.push(pl);
     const c = idIndex.get(g.cty); if (c != null) out.push(c);
     if (c != null) { const st = idIndex.get(G[c].st); if (st != null) out.push(st); }
@@ -619,7 +676,10 @@ function renderHead() {
   document.getElementById('vintage').textContent = BASE.vintage + ' \u00b7 released ' + BASE.released;
   document.getElementById('geo-title').textContent = g.name;
   const bits = [];
-  if (g.sl === '860') {
+  if (g.sl === 'CMB') {
+    bits.push('ZIP-code footprint of ' + g.pl);
+    bits.push('bracket counts summed across ' + g.members.length + ' ZCTAs');
+  } else if (g.sl === '860') {
     if (g.pl) bits.push(g.pl);
     const c = idIndex.get(g.cty);
     if (c != null) bits.push(G[c].name + ', ' + (idIndex.get(G[c].st) != null ? G[idIndex.get(G[c].st)].name : ''));
@@ -662,7 +722,7 @@ function cmpStateFips(i) {
   const g = G[i];
   if (g.sl === '040') return g.fips;
   if (g.sl === '050' || g.sl === '160') return g.st ? g.st.slice(9, 11) : '';
-  if (g.sl === '860') return g.cty ? g.cty.slice(9, 11) : '';
+  if (g.sl === '860' || g.sl === 'CMB') return g.cty ? g.cty.slice(9, 11) : '';
   return '';
 }
 function renderCompare() {
@@ -740,6 +800,10 @@ function renderRail() {
   let list = railUnits();
   if (q) list = list.filter(i => (G[i].name + ' ' + (G[i].pl || '')).toLowerCase().includes(q));
   list = list.slice().sort((a, b) => (mval(b) ?? -1) - (mval(a) ?? -1));
+  let pinned = null;
+  if (state.mode === 'state' && state.city && !q && idIndex.get(state.city) != null) {
+    pinned = comboFor(idIndex.get(state.city));
+  }
   const max = Math.max(...list.map(i => mval(i) ?? 0), 1);
   const noun = state.mode === 'us' ? 'states' : state.city ? 'ZIP codes' : 'cities';
   const where = state.mode === 'us' ? ''
@@ -747,7 +811,15 @@ function renderRail() {
     : ' in ' + (idIndex.get('0400000US' + state.fips) != null ? G[idIndex.get('0400000US' + state.fips)].name : '');
   document.getElementById('rail-count').textContent =
     list.length + ' ' + noun + where + ' \u00b7 ranked by ' + metric().label.toLowerCase();
-  document.getElementById('rail-list').innerHTML = list.map((i, n) => {
+  const pinnedRow = pinned == null ? '' : (() => {
+    const v = mval(pinned);
+    return `<button class="geo" type="button" data-geo="${pinned}" aria-current="${pinned === state.sel}">
+      <span class="geo-top"><span class="geo-name">${G[pinned].name}</span>
+      <span class="geo-val">${v == null ? '\u2014' : '~' + metric().fmt(v).replace(/^~/, '')}</span></span>
+      <span class="geo-sub"><span>combined ZIP footprint \u00b7 median interpolated</span></span>
+    </button>`;
+  })();
+  document.getElementById('rail-list').innerHTML = pinnedRow + list.map((i, n) => {
     const v = mval(i);
     const sub = G[i].sl === '860'
       ? [G[i].pl || '', G[i].spans > 1 ? G[i].spans + ' counties' : ''].filter(Boolean)
@@ -773,15 +845,31 @@ function renderFigures() {
   const s = state.sel, c = cmpOK() ? state.cmp : null;
   const wrap = document.getElementById('figures');
   wrap.innerHTML = '';
-  wrap.appendChild(figure1());
+  let fno = 0;
+  const num = () => ++fno;
+  const has = v => val(s, v) != null;
+  const isCMB = G[s].sl === 'CMB';
+  if (isCMB) {
+    const note = document.createElement('figure');
+    note.className = 'panel';
+    note.innerHTML = `<p class="note" style="margin:0">This view sums income-bracket counts across
+      the ${G[s].members.length} ZCTAs whose largest share of land is in ${G[s].pl}. Its footprint
+      extends past the city limits wherever ZIPs do. The median and percentiles are interpolated
+      from the combined histogram (Pareto tail above $200k), so they carry no margins of error.
+      Quintile means, income shares, the Gini index, and medians by race cannot be derived from
+      ZIP aggregates \u2014 select ${G[s].pl} itself for those, measured directly by the Census.</p>`;
+    wrap.appendChild(note);
+  }
+  if (has('B19001_001')) wrap.appendChild(figure1c(num()));
 
   const PCTL = [['B19080_001', '20th percentile'], ['B19080_002', '40th percentile'],
     ['B19080_003', '60th percentile'], ['B19080_004', '80th percentile'],
     ['B19080_005', '95th percentile (top 5% floor)']];
   const p = PCTL.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v), compare: c == null ? null : val(c, v) }));
-  wrap.appendChild(figure(2, 'Income percentiles', 'Household income thresholds', p, {
-    fmt: capped, axisFmt: short, compare: true, labelw: 168, head: 'Threshold',
-    note: p.some(r => r.value >= TOPCODE)
+  if (p.some(r => r.value != null)) wrap.appendChild(figure(num(), 'Income percentiles',
+    isCMB ? 'Interpolated from the combined ZIP histogram' : 'Household income thresholds', p, {
+    fmt: isCMB ? money : capped, axisFmt: short, compare: true, labelw: 168, head: 'Threshold',
+    note: isCMB ? '' : p.some(r => r.value >= TOPCODE)
       ? 'Topcoded: the Census Bureau censors household income percentiles at $250,001, so the upper thresholds shown here are floors, not estimates.' : ''
   }));
 
@@ -789,7 +877,7 @@ function renderFigures() {
     ['B19081_003', 'Third quintile'], ['B19081_004', 'Fourth quintile'],
     ['B19081_005', 'Highest quintile'], ['B19081_006', 'Top 5 percent']];
   const q = QUINT.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v), compare: c == null ? null : val(c, v) }));
-  wrap.appendChild(figure(3, 'Mean income by quintile',
+  if (has('B19081_001')) wrap.appendChild(figure(num(), 'Mean income by quintile',
     'Average household income within each fifth of the distribution', q,
     { fmt: money, axisFmt: short, compare: true, labelw: 140, head: 'Quintile' }));
 
@@ -799,12 +887,14 @@ function renderFigures() {
   const top5 = val(s, 'B19082_006');
   const fig4 = document.createElement('figure');
   fig4.className = 'panel';
+  if (!has('B19082_001')) fig4.classList.add('hidden');
   const segs = sh.map(r => {
     const w = r.value ?? 0;
     return `<div style="width:${w}%;background:var(--q${r.q})" data-lab="${r.label}" data-val="${pct(w)}" data-cmp="${pct(r.compare)}">
       ${w >= 10 ? `<b>${w.toFixed(1)}%</b>` : ''}</div>`;
   }).join('');
-  fig4.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 4</div>
+  const n4 = has('B19082_001') ? num() : 0;
+  fig4.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure ${n4}</div>
       <figcaption><h3>Share of all income, by fifth</h3>
       <div class="universe">How ${G[s].name}'s total household income splits across its own income fifths</div></figcaption></div>
       <button class="toggle" type="button">Table</button></div>
@@ -833,7 +923,9 @@ function renderFigures() {
   const marks = refGeos().filter(i => val(i, 'B19083_001') != null).slice(0, 3);
   const fig5 = document.createElement('figure');
   fig5.className = 'panel';
-  fig5.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 5</div>
+  if (gini == null) fig5.classList.add('hidden');
+  const n5 = gini != null ? num() : 0;
+  fig5.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure ${n5}</div>
       <figcaption><h3>Income inequality (Gini index)</h3>
       <div class="universe">0 = every household earns the same; 1 = one household earns everything</div></figcaption></div></div>
     <div class="meter"><div class="meter-track">
@@ -855,8 +947,10 @@ function renderFigures() {
   const mult = t5 && med ? t5 / med : null;
   const fig6 = document.createElement('figure');
   fig6.className = 'panel';
+  if (t5 == null) fig6.classList.add('hidden');
+  const n6 = t5 != null ? num() : 0;
   const opts6 = { fmt: money, axisFmt: compact, labelw: 168, head: 'Geography' };
-  fig6.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 6</div>
+  fig6.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure ${n6}</div>
       <figcaption><h3>The top of the distribution</h3>
       <div class="universe">Mean income of the richest 5% of households. This measure is not topcoded,
         so unlike the median it keeps separating places above $250,000.</div></figcaption></div>
@@ -888,7 +982,7 @@ function renderFigures() {
     ['B19013I_001', 'Hispanic or Latino (any race)']
   ];
   const race = RACE.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v) }));
-  wrap.appendChild(figure(7, 'Median household income by race and ethnicity',
+  if (race.some(r => r.value != null)) wrap.appendChild(figure(num(), 'Median household income by race and ethnicity',
     'Median income of households, by race or ethnicity of the householder', race, {
       fmt: capped, axisFmt: short, labelw: 210, head: 'Group',
       note: race.some(r => r.value == null)
@@ -968,9 +1062,18 @@ function paintMap() {
     m.hint + ' Classes are quintiles of the areas in view.';
 }
 function syncMap() {
-  const selP = svg.querySelector(`.tract[data-geo="${state.sel}"]`);
   const so = document.getElementById('sel-outline');
-  if (so) so.setAttribute('d', selP ? selP.getAttribute('d') : '');
+  if (so) {
+    if (G[state.sel] && G[state.sel].sl === 'CMB') {
+      so.setAttribute('d', G[state.sel].members.map(i => {
+        const p = svg.querySelector(`.tract[data-geo="${i}"]`);
+        return p ? p.getAttribute('d') : '';
+      }).join(''));
+    } else {
+      const selP = svg.querySelector(`.tract[data-geo="${state.sel}"]`);
+      so.setAttribute('d', selP ? selP.getAttribute('d') : '');
+    }
+  }
   if (state.mode === 'state' && state.city) {
     svg.querySelectorAll('.tract').forEach(p => {
       const gi = p.dataset.geo === '' ? null : +p.dataset.geo;
@@ -1059,7 +1162,7 @@ function select(i) {
   state.sel = i;
   const g = G[i];
   if (g.sl === '160') state.city = g.id;
-  else if (g.sl === '860') state.city = g.plid || state.city;
+  else if (g.sl === '860' || g.sl === 'CMB') state.city = g.plid || state.city;
   render();
 }
 document.addEventListener('click', e => {
