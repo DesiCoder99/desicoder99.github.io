@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Household income for every US state and ZIP code, from the 2020-2024 American Community Survey.">
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>%F0%9F%97%BA</text></svg>">
+<title>US Income Atlas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&display=swap">
+<style>
+:root{
+  color-scheme: light;
+  --plane:#f4f6f7; --surface:#ffffff; --sunk:#eef1f3;
+  --ink:#11161b; --ink-2:#4c565f; --ink-3:#7d8790;
+  --line:#e0e5e8; --line-strong:#c8d0d5;
+  --series-1:#2a78d6; --series-2:#eb6834;
+  --q1:#86b6ef; --q2:#5598e7; --q3:#2a78d6; --q4:#1c5cab; --q5:#0d366b;
+  --track:#dce9fa; --on-fill:#ffffff;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --serif:"Source Serif 4",Georgia,serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --plane:#0e1114; --surface:#171b1f; --sunk:#1e242a;
+    --ink:#eef1f3; --ink-2:#aeb7bf; --ink-3:#7d8790;
+    --line:#262d33; --line-strong:#39424a;
+    --series-1:#3987e5; --series-2:#d95926;
+    --q1:#184f95; --q2:#256abf; --q3:#3987e5; --q4:#6da7ec; --q5:#9ec5f4;
+    --track:#1d2a3a; --on-fill:#ffffff;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --plane:#0e1114; --surface:#171b1f; --sunk:#1e242a;
+  --ink:#eef1f3; --ink-2:#aeb7bf; --ink-3:#7d8790;
+  --line:#262d33; --line-strong:#39424a;
+  --series-1:#3987e5; --series-2:#d95926;
+  --q1:#184f95; --q2:#256abf; --q3:#3987e5; --q4:#6da7ec; --q5:#9ec5f4;
+  --track:#1d2a3a; --on-fill:#ffffff;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--plane); color:var(--ink);
+  font-family:var(--sans); font-size:14px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0; font-family:var(--serif); font-weight:600; text-wrap:balance}
+button,input,select{font:inherit; color:inherit}
+:focus-visible{outline:2px solid var(--series-1); outline-offset:2px; border-radius:3px}
+
+.eyebrow{
+  font-family:var(--mono); font-size:11px; letter-spacing:.08em;
+  text-transform:uppercase; color:var(--ink-3);
+}
+
+/* ---------- header ---------- */
+.topbar{
+  position:sticky; top:0; z-index:20;
+  background:var(--surface); border-bottom:1px solid var(--line);
+}
+.topbar-in{
+  max-width:1440px; margin:0 auto; padding:14px 24px;
+  display:grid; grid-template-columns:minmax(200px,auto) auto minmax(0,1fr) auto;
+  gap:12px 28px; align-items:end;
+}
+@media (max-width:1180px){
+  .topbar-in{grid-template-columns:minmax(0,1fr) auto; align-items:start}
+  .topbar-in .chips{grid-column:1 / -1}
+}
+@media (max-width:700px){ .topbar-in{grid-template-columns:minmax(0,1fr)} }
+.masthead{display:flex; flex-direction:column; gap:4px; min-width:260px}
+.masthead h1{font-size:22px; line-height:1.2}
+.masthead .sub{color:var(--ink-2); font-size:12.5px}
+.hero{display:flex; flex-direction:column; gap:2px; justify-self:end; text-align:right}
+.hero .label{font-size:12px; color:var(--ink-2)}
+.hero .value{font-family:var(--sans); font-weight:600; font-size:48px; line-height:1.05; letter-spacing:-.02em}
+.hero .moe{font-size:12px; color:var(--ink-3); font-family:var(--mono)}
+.chips{display:flex; flex-wrap:wrap; gap:8px; align-items:center}
+.compare{display:flex; flex-direction:column; gap:4px; min-width:200px}
+.compare select{cursor:pointer}
+.chip{
+  border:1px solid var(--line); background:var(--surface); border-radius:999px;
+  padding:5px 11px; font-size:12px; color:var(--ink-2); display:flex; gap:7px; align-items:center;
+}
+.chip b{font-weight:600; color:var(--ink); font-variant-numeric:tabular-nums}
+.chip .delta{font-family:var(--mono); font-size:11.5px}
+.up{color:#006300} .down{color:#c0392f}
+:root[data-theme="dark"] .up{color:#0ca30c} :root[data-theme="dark"] .down{color:#e66767}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .up{color:#0ca30c}
+  :root:not([data-theme="light"]) .down{color:#e66767}
+}
+
+/* ---------- layout ---------- */
+.layout{
+  max-width:1440px; margin:0 auto; padding:24px;
+  display:grid; grid-template-columns:352px minmax(0,1fr); gap:24px; align-items:start;
+}
+@media (max-width:1020px){ .layout{grid-template-columns:minmax(0,1fr)} }
+
+.panel{background:var(--surface); border:1px solid var(--line); border-radius:8px}
+.rail{position:sticky; top:96px; display:flex; flex-direction:column; max-height:calc(100vh - 120px)}
+@media (max-width:1020px){ .rail{position:static; max-height:none} }
+.rail-head{padding:16px 16px 12px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:8px}
+.rail-head label{margin-bottom:-4px}
+select.search{cursor:pointer}
+.rail h2{font-size:15px}
+.scope{display:flex; gap:0; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+.scope button{
+  flex:1; padding:7px 10px; font-size:12px; background:transparent; border:0;
+  color:var(--ink-2); cursor:pointer; white-space:nowrap;
+}
+.scope button[aria-pressed="true"]{background:var(--sunk); color:var(--ink); font-weight:600}
+.search{
+  width:100%; padding:7px 10px; border:1px solid var(--line); border-radius:6px;
+  background:var(--sunk); font-size:13px;
+}
+.rail-list{overflow-y:auto; padding:6px}
+.geo{
+  width:100%; text-align:left; background:transparent; border:0; cursor:pointer;
+  padding:8px 10px; border-radius:6px; display:grid; gap:5px;
+}
+.geo:hover{background:var(--sunk)}
+.geo[aria-current="true"]{background:var(--sunk); box-shadow:inset 2px 0 0 var(--series-1)}
+.geo-top{display:flex; justify-content:space-between; gap:10px; align-items:baseline}
+.geo-name{font-size:13px; font-weight:500}
+.geo-val{font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums; color:var(--ink-2)}
+.geo-sub{font-size:11.5px; color:var(--ink-3); display:flex; gap:8px}
+.geo-bar{height:4px; background:var(--sunk); border-radius:2px; overflow:hidden}
+.geo-bar span{display:block; height:100%; background:var(--series-1); border-radius:0 2px 2px 0}
+.quick{padding:8px 6px; border-top:1px solid var(--line); display:flex; flex-wrap:wrap; gap:6px}
+.quick button{
+  padding:5px 10px; font-size:12px; border:1px solid var(--line); border-radius:999px;
+  background:transparent; cursor:pointer; color:var(--ink-2);
+}
+.quick button[aria-current="true"]{background:var(--series-1); border-color:var(--series-1); color:#fff}
+
+/* ---------- map ---------- */
+.col{display:flex; flex-direction:column; gap:20px; min-width:0}
+.map-panel{padding:16px; display:flex; flex-direction:column; gap:10px}
+.map-head{display:flex; gap:14px; align-items:flex-start; flex-wrap:wrap}
+.map-head .txt{flex:1; min-width:220px}
+.maptools{display:flex; gap:6px; flex-wrap:wrap}
+.maptools button{
+  padding:5px 10px; font-size:12px; border:1px solid var(--line); border-radius:6px;
+  background:transparent; cursor:pointer; color:var(--ink-2);
+}
+.maptools button:hover{background:var(--sunk)}
+.map-wrap{
+  position:relative; background:var(--sunk); border:1px solid var(--line);
+  border-radius:6px; overflow:hidden; height:clamp(340px,54vh,540px);
+}
+.map-wrap svg{width:100%; height:100%; display:block; touch-action:none; cursor:grab}
+.map-wrap svg.dragging{cursor:grabbing}
+.tract{stroke:var(--surface); stroke-width:var(--tw,.8); vector-effect:non-scaling-stroke; cursor:pointer}
+.tract.out{opacity:.28}
+.outline{fill:none; vector-effect:non-scaling-stroke; pointer-events:none; stroke-linejoin:round}
+#hover-outline{stroke:var(--ink); stroke-width:1.6}
+#sel-outline{stroke:var(--ink); stroke-width:3.2}
+.placecasing{stroke:var(--surface); stroke-width:5}
+.countyline{stroke:var(--ink-3); stroke-width:.9; opacity:.55}
+.placeline{stroke:var(--ink-2); stroke-width:1.8}
+.maplegend{display:flex; flex-wrap:wrap; gap:6px 14px; font-size:11.5px; color:var(--ink-2); align-items:center}
+.maplegend span{display:flex; gap:6px; align-items:center}
+.maplegend i{width:16px; height:11px; border-radius:2px; display:inline-block}
+.mapzoom{position:absolute; right:10px; bottom:10px; display:flex; flex-direction:column; gap:4px}
+.mapzoom button{
+  width:30px; height:30px; font-size:15px; line-height:1; border:1px solid var(--line);
+  border-radius:6px; background:var(--surface); color:var(--ink-2); cursor:pointer;
+}
+.mapzoom button:hover{background:var(--sunk)}
+
+/* ---------- figures ---------- */
+.figures{display:flex; flex-direction:column; gap:20px; min-width:0}
+figure{margin:0; padding:20px}
+.fig-head{display:flex; gap:16px; align-items:flex-start; margin-bottom:4px}
+.fig-head .txt{flex:1; min-width:0}
+figcaption h3{font-size:16.5px}
+.universe{font-size:12px; color:var(--ink-3); margin-top:2px}
+.toggle{
+  border:1px solid var(--line); background:transparent; border-radius:6px;
+  padding:4px 10px; font-size:11.5px; color:var(--ink-2); cursor:pointer; white-space:nowrap;
+}
+.toggle:hover{background:var(--sunk)}
+.legend{display:flex; gap:14px; flex-wrap:wrap; margin:12px 0 4px; font-size:12px; color:var(--ink-2)}
+.legend span{display:flex; gap:6px; align-items:center}
+.swatch{width:11px; height:11px; border-radius:2px; background:var(--series-1)}
+.swatch.tick{width:3px; height:13px; border-radius:1px; background:var(--series-2)}
+
+.chart{margin-top:12px; display:flex; flex-direction:column; gap:3px}
+.row{display:grid; grid-template-columns:var(--labelw,150px) minmax(0,1fr) var(--valw,104px); gap:12px; align-items:center}
+.row:hover .bar{filter:saturate(1.15)}
+.rlabel{font-size:12.5px; color:var(--ink-2); text-align:right; overflow-wrap:anywhere}
+.plot{position:relative; height:22px}
+.grid{position:absolute; inset:0; pointer-events:none}
+.grid i{position:absolute; top:-3px; bottom:-3px; width:1px; background:var(--line)}
+.bar{
+  position:absolute; left:0; top:1px; height:20px; background:var(--series-1);
+  border-radius:0 4px 4px 0; min-width:2px;
+}
+.bar.est{opacity:.55}
+.marker{
+  position:absolute; top:-2px; height:26px; width:2px; background:var(--series-2);
+  box-shadow:0 0 0 2px var(--surface); border-radius:1px;
+}
+.rval{font-family:var(--mono); font-size:12px; font-variant-numeric:tabular-nums; text-align:right}
+.rval.none{color:var(--ink-3); font-size:11px}
+.axis{display:grid; grid-template-columns:var(--labelw,150px) minmax(0,1fr) var(--valw,104px); gap:12px; margin-top:8px}
+.axis .ticks{position:relative; height:16px; border-top:1px solid var(--line-strong)}
+.axis .ticks span{
+  position:absolute; top:3px; transform:translateX(-50%); font-family:var(--mono);
+  font-size:10.5px; color:var(--ink-3); white-space:nowrap;
+}
+
+/* stacked */
+.stack{display:flex; gap:2px; height:44px; margin-top:14px}
+.stack div{position:relative; display:flex; align-items:center; justify-content:center; border-radius:2px}
+.stack div:first-child{border-radius:4px 2px 2px 4px}
+.stack div:last-child{border-radius:2px 4px 4px 2px}
+.stack b{font-size:12px; font-weight:600; color:var(--on-fill); font-variant-numeric:tabular-nums}
+.stack-key{display:flex; flex-wrap:wrap; gap:6px 16px; margin-top:12px; font-size:12px; color:var(--ink-2)}
+.stack-key span{display:flex; gap:6px; align-items:center}
+
+/* meter */
+.meter{margin-top:16px}
+.meter-track{position:relative; height:22px; background:var(--track); border-radius:4px}
+.meter-fill{position:absolute; left:0; top:0; bottom:0; background:var(--series-1); border-radius:4px 4px 4px 4px}
+.meter-mark{position:absolute; top:-4px; height:30px; width:2px; background:var(--series-2); box-shadow:0 0 0 2px var(--surface)}
+.meter-scale{display:flex; justify-content:space-between; margin-top:6px; font-family:var(--mono); font-size:10.5px; color:var(--ink-3)}
+.readout{display:flex; gap:28px; flex-wrap:wrap; margin-top:14px}
+.readout div{display:flex; flex-direction:column; gap:1px}
+.readout .k{font-size:11.5px; color:var(--ink-3)}
+.readout .v{font-size:19px; font-weight:600; font-variant-numeric:tabular-nums}
+
+/* table view */
+table{width:100%; border-collapse:collapse; margin-top:12px; font-size:12.5px}
+th,td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:right}
+th:first-child,td:first-child{text-align:left}
+thead th{font-family:var(--mono); font-size:10.5px; letter-spacing:.05em; text-transform:uppercase; color:var(--ink-3); font-weight:400}
+td.num{font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto}
+.note{margin-top:12px; font-size:11.5px; color:var(--ink-3); max-width:68ch}
+.hidden{display:none}
+
+/* tooltip */
+#tip{
+  position:fixed; z-index:60; pointer-events:none; opacity:0; transition:opacity .09s;
+  background:var(--surface); border:1px solid var(--line-strong); border-radius:6px;
+  padding:8px 10px; font-size:12px; box-shadow:0 6px 20px rgba(0,0,0,.14); max-width:280px;
+}
+#tip .t{font-weight:600; margin-bottom:3px}
+#tip .l{display:flex; justify-content:space-between; gap:16px; color:var(--ink-2)}
+#tip .l b{font-family:var(--mono); font-variant-numeric:tabular-nums; color:var(--ink); font-weight:500}
+@media (prefers-reduced-motion:reduce){ *{transition:none !important} }
+
+footer{max-width:1440px; margin:0 auto; padding:8px 24px 40px; color:var(--ink-3); font-size:11.5px}
+footer a{color:var(--ink-2)}
+.themetoggle{
+  position:fixed; right:14px; bottom:14px; z-index:40;
+  width:36px; height:36px; border-radius:999px; cursor:pointer;
+  border:1px solid var(--line); background:var(--surface); color:var(--ink-2);
+  font-size:15px; line-height:1; box-shadow:0 2px 10px rgba(0,0,0,.10);
+}
+.themetoggle:hover{background:var(--sunk)}
+@media print{ .themetoggle{display:none} }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="topbar-in">
+    <div class="masthead">
+      <div class="eyebrow" id="vintage"></div>
+      <h1 id="geo-title"></h1>
+      <div class="sub" id="geo-sub"></div>
+    </div>
+    <div class="compare">
+      <label class="eyebrow" for="cmp">Compared with</label>
+      <select id="cmp" class="search"></select>
+    </div>
+    <div class="chips" id="chips"></div>
+    <div class="hero">
+      <div class="label">Median household income</div>
+      <div class="value" id="hero-value"></div>
+      <div class="moe" id="hero-moe"></div>
+      <div class="moe" id="hero-caution"></div>
+    </div>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="rail panel">
+    <div class="rail-head">
+      <h2>Places</h2>
+      <label class="eyebrow" for="state-sel">State</label>
+      <select class="search" id="state-sel"></select>
+      <label class="eyebrow" for="county-sel">County</label>
+      <select class="search" id="county-sel"></select>
+      <input class="search" id="search" type="search" placeholder="Filter" aria-label="Filter list">
+      <div class="eyebrow" id="rail-count"></div>
+    </div>
+    <div class="rail-list" id="rail-list"></div>
+    <div class="quick" id="quick"></div>
+  </aside>
+
+  <main class="col">
+    <section class="panel map-panel">
+      <div class="map-head">
+        <div class="txt">
+          <div class="eyebrow">Map</div>
+          <h2 style="font-size:16.5px" id="map-title"></h2>
+          <div class="universe">Click a state to open its ZIP codes; click a ZIP to load it below.
+            Scroll to zoom, drag to pan.</div>
+          <div class="universe" id="metric-hint" style="margin-top:6px"></div>
+        </div>
+        <div class="maptools">
+          <button type="button" id="back-us">&larr; United States</button>
+          <select class="search" id="metric-sel" aria-label="Colour areas by" style="width:auto"></select>
+          <button type="button" id="fit-reset">Fit</button>
+        </div>
+      </div>
+      <div class="map-wrap">
+        <svg id="map" role="img" aria-label="Choropleth map of household income by state and ZIP code"></svg>
+        <div class="mapzoom">
+          <button type="button" data-zoom="in" aria-label="Zoom in">+</button>
+          <button type="button" data-zoom="out" aria-label="Zoom out">&minus;</button>
+        </div>
+      </div>
+      <div class="maplegend" id="maplegend"></div>
+    </section>
+    <div class="figures" id="figures"></div>
+  </main>
+</div>
+
+<footer>
+  Source: US Census Bureau, American Community Survey 5-year estimates (ACS 2020-2024, released
+  January 29, 2026), table-based Summary File. Dollar figures are inflation-adjusted to 2024.
+  ZIP codes are ZIP Code Tabulation Areas (ZCTAs), the Census Bureau's areal approximation of USPS
+  delivery routes: PO-box-only ZIPs have no ZCTA, and a ZCTA can cross county and state lines, so
+  each is assigned to the county and state holding most of its land area. Values marked &ge; are
+  topcoded by the Census Bureau; &plusmn; figures are 90% margins of error.
+</footer>
+
+<div id="tip" role="tooltip" aria-hidden="true"></div>
+
+<button class="themetoggle" id="themetoggle" type="button" aria-label="Switch between light and dark">&#9681;</button>
+<script>
+(function () {
+  var root = document.documentElement, KEY = 'atlas-theme';
+  try { var saved = localStorage.getItem(KEY); if (saved) root.setAttribute('data-theme', saved); } catch (e) {}
+  document.getElementById('themetoggle').addEventListener('click', function () {
+    var dark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.hasAttribute('data-theme') && matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = dark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+  });
+})();
+</script>
+<script id="payload" type="application/json">{"vintage":"ACS 2020-2024 5-year","released":"January 29, 2026","vars":["B19001_001","B19001_002","B19001_003","B19001_004","B19001_005","B19001_006","B19001_007","B19001_008","B19001_009","B19001_010","B19001_011","B19001_012","B19001_013","B19001_014","B19001_015","B19001_016","B19001_017","B19013_001","B19080_001","B19080_002","B19080_003","B19080_004","B19080_005","B19081_001","B19081_002","B19081_003","B19081_004","B19081_005","B19081_006","B19082_001","B19082_002","B19082_003","B19082_004","B19082_005","B19082_006","B19083_001","B19013A_001","B19013B_001","B19013C_001","B19013D_001","B19013E_001","B19013F_001","B19013G_001","B19013H_001","B19013I_001","B19025_001"],"labels":{"B19001_001":{"label":"Total:","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_002":{"label":"Less than $10,000","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_003":{"label":"$10,000 to $14,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_004":{"label":"$15,000 to $19,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_005":{"label":"$20,000 to $24,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_006":{"label":"$25,000 to $29,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_007":{"label":"$30,000 to $34,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_008":{"label":"$35,000 to $39,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_009":{"label":"$40,000 to $44,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_010":{"label":"$45,000 to $49,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_011":{"label":"$50,000 to $59,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_012":{"label":"$60,000 to $74,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_013":{"label":"$75,000 to $99,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_014":{"label":"$100,000 to $124,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_015":{"label":"$125,000 to $149,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_016":{"label":"$150,000 to $199,999","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19001_017":{"label":"$200,000 or more","title":"Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19013_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19080_001":{"label":"Lowest Quintile","title":"Household Income Quintile Upper Limits","universe":"Households"},"B19080_002":{"label":"Second Quintile","title":"Household Income Quintile Upper Limits","universe":"Households"},"B19080_003":{"label":"Third Quintile","title":"Household Income Quintile Upper Limits","universe":"Households"},"B19080_004":{"label":"Fourth Quintile","title":"Household Income Quintile Upper Limits","universe":"Households"},"B19080_005":{"label":"Lower Limit of Top 5 Percent","title":"Household Income Quintile Upper Limits","universe":"Households"},"B19081_001":{"label":"Lowest Quintile","title":"Mean Household Income of Quintiles","universe":"Households"},"B19081_002":{"label":"Second Quintile","title":"Mean Household Income of Quintiles","universe":"Households"},"B19081_003":{"label":"Third Quintile","title":"Mean Household Income of Quintiles","universe":"Households"},"B19081_004":{"label":"Fourth Quintile","title":"Mean Household Income of Quintiles","universe":"Households"},"B19081_005":{"label":"Highest Quintile","title":"Mean Household Income of Quintiles","universe":"Households"},"B19081_006":{"label":"Top 5 Percent","title":"Mean Household Income of Quintiles","universe":"Households"},"B19082_001":{"label":"Lowest Quintile","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19082_002":{"label":"Second Quintile","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19082_003":{"label":"Third Quintile","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19082_004":{"label":"Fourth Quintile","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19082_005":{"label":"Highest Quintile","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19082_006":{"label":"Top 5 Percent","title":"Shares of Aggregate Household Income by Quintile","universe":"Households"},"B19083_001":{"label":"Gini Index","title":"Gini Index of Income Inequality","universe":"Households"},"B19025_001":{"label":"Aggregate household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Aggregate Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars)","universe":"Households"},"B19013A_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (White Alone Householder)","universe":"Households with a householder who is White alone"},"B19013B_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Black or African American Alone Householder)","universe":"Households with a householder who is Black or African American alone"},"B19013C_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (American Indian and Alaska Native Alone Householder)","universe":"Households with a householder who is American Indian and Alaska Native alone"},"B19013D_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Asian Alone Householder)","universe":"Households with a householder who is Asian alone"},"B19013E_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Native Hawaiian and Other Pacific Islander Alone Householder)","universe":"Households with a householder who is Native Hawaiian and Other Pacific Islander alone"},"B19013F_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Some Other Race Alone Householder)","universe":"Households with a householder who is Some Other Race alone"},"B19013G_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Two or More Races Householder)","universe":"Households with a householder who is Two or More Races"},"B19013H_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (White Alone, Not Hispanic or Latino Householder)","universe":"Households with a householder who is White alone, not Hispanic or Latino"},"B19013I_001":{"label":"Median household income in the past 12 months (in 2024 inflation-adjusted dollars)","title":"Median Household Income in the Past 12 Months (in 2024 Inflation-Adjusted Dollars) (Hispanic or Latino Householder)","universe":"Households with a householder who is Hispanic or Latino"}},"geos":[{"id":"0100000US","sl":"010","name":"United States"},{"id":"0400000US01","sl":"040","name":"Alabama","fips":"01"},{"id":"0400000US02","sl":"040","name":"Alaska","fips":"02"},{"id":"0400000US04","sl":"040","name":"Arizona","fips":"04"},{"id":"0400000US05","sl":"040","name":"Arkansas","fips":"05"},{"id":"0400000US06","sl":"040","name":"California","fips":"06"},{"id":"0400000US08","sl":"040","name":"Colorado","fips":"08"},{"id":"0400000US09","sl":"040","name":"Connecticut","fips":"09"},{"id":"0400000US10","sl":"040","name":"Delaware","fips":"10"},{"id":"0400000US11","sl":"040","name":"District of Columbia","fips":"11"},{"id":"0400000US12","sl":"040","name":"Florida","fips":"12"},{"id":"0400000US13","sl":"040","name":"Georgia","fips":"13"},{"id":"0400000US15","sl":"040","name":"Hawaii","fips":"15"},{"id":"0400000US16","sl":"040","name":"Idaho","fips":"16"},{"id":"0400000US17","sl":"040","name":"Illinois","fips":"17"},{"id":"0400000US18","sl":"040","name":"Indiana","fips":"18"},{"id":"0400000US19","sl":"040","name":"Iowa","fips":"19"},{"id":"0400000US20","sl":"040","name":"Kansas","fips":"20"},{"id":"0400000US21","sl":"040","name":"Kentucky","fips":"21"},{"id":"0400000US22","sl":"040","name":"Louisiana","fips":"22"},{"id":"0400000US23","sl":"040","name":"Maine","fips":"23"},{"id":"0400000US24","sl":"040","name":"Maryland","fips":"24"},{"id":"0400000US25","sl":"040","name":"Massachusetts","fips":"25"},{"id":"0400000US26","sl":"040","name":"Michigan","fips":"26"},{"id":"0400000US27","sl":"040","name":"Minnesota","fips":"27"},{"id":"0400000US28","sl":"040","name":"Mississippi","fips":"28"},{"id":"0400000US29","sl":"040","name":"Missouri","fips":"29"},{"id":"0400000US30","sl":"040","name":"Montana","fips":"30"},{"id":"0400000US31","sl":"040","name":"Nebraska","fips":"31"},{"id":"0400000US32","sl":"040","name":"Nevada","fips":"32"},{"id":"0400000US33","sl":"040","name":"New Hampshire","fips":"33"},{"id":"0400000US34","sl":"040","name":"New Jersey","fips":"34"},{"id":"0400000US35","sl":"040","name":"New Mexico","fips":"35"},{"id":"0400000US36","sl":"040","name":"New York","fips":"36"},{"id":"0400000US37","sl":"040","name":"North Carolina","fips":"37"},{"id":"0400000US38","sl":"040","name":"North Dakota","fips":"38"},{"id":"0400000US39","sl":"040","name":"Ohio","fips":"39"},{"id":"0400000US40","sl":"040","name":"Oklahoma","fips":"40"},{"id":"0400000US41","sl":"040","name":"Oregon","fips":"41"},{"id":"0400000US42","sl":"040","name":"Pennsylvania","fips":"42"},{"id":"0400000US44","sl":"040","name":"Rhode Island","fips":"44"},{"id":"0400000US45","sl":"040","name":"South Carolina","fips":"45"},{"id":"0400000US46","sl":"040","name":"South Dakota","fips":"46"},{"id":"0400000US47","sl":"040","name":"Tennessee","fips":"47"},{"id":"0400000US48","sl":"040","name":"Texas","fips":"48"},{"id":"0400000US49","sl":"040","name":"Utah","fips":"49"},{"id":"0400000US50","sl":"040","name":"Vermont","fips":"50"},{"id":"0400000US51","sl":"040","name":"Virginia","fips":"51"},{"id":"0400000US53","sl":"040","name":"Washington","fips":"53"},{"id":"0400000US54","sl":"040","name":"West Virginia","fips":"54"},{"id":"0400000US55","sl":"040","name":"Wisconsin","fips":"55"},{"id":"0400000US56","sl":"040","name":"Wyoming","fips":"56"},{"id":"0400000US72","sl":"040","name":"Puerto Rico","fips":"72"}],"values":[[129227496,6397599,4406926,3858602,4245461,4192539,4358743,4343918,4433159,4296543,8280714,11750969,16319799,13068961,9601960,12405370,17266233,80734,33040,63330,101088,162235,250001,17079,48012,81211,128012,293336,528428,3.01,8.46,14.31,22.55,51.67,23.27,0.4832,86271,55157,62420,116503,81811,67563,75660,86872,71415,14671199681000],[1997247,125671,93634,82807,91963,83915,85929,77425,80212,77293,142085,190778,253461,181365,128713,147127,154869,63999,25318,50003,81046,130459,236918,13124,37353,64592,102806,226615,397327,2.95,8.4,14.53,23.13,50.98,22.35,0.4791,73812,44035,62769,89784,77643,52799,63418,73987,58702,177551239800],[270533,10063,5761,7677,6883,6174,7184,7270,8152,8776,14630,25209,36803,30730,23143,32455,39623,92788,41904,75242,113458,174027,250001,22141,58597,93515,140891,279782,464476,3.72,9.85,15.72,23.68,47.03,19.52,0.4326,100819,73726,60737,93199,81393,82920,91053,101360,79360,32189442100],[2856081,141599,78316,76599,87816,93654,95173,97012,100582,101885,197261,274886,385994,308860,216619,269589,330236,79964,34894,63638,98735,153607,250001,18113,49217,80335,122967,270733,481655,3.35,9.09,14.84,22.71,50.01,22.24,0.4637,84312,63021,51388,104817,88386,69232,73888,85455,71214,309236360600],[1205987,73254,58600,52298,55516,53665,55814,55358,50648,49959,90450,119599,153786,112639,68562,75021,80818,60773,25138,47720,76148,120698,226185,13168,36169,61080,96240,217141,393716,3.11,8.53,14.41,22.71,51.24,23.23,0.4794,65372,40164,57488,88767,65376,61078,60826,65541,59588,102218670300],[13548091,605499,398942,319456,363123,353999,359478,362241,371483,361398,699670,1056983,1573684,1357935,1052814,1533999,2777387,99122,39191,77573,123854,202683,250001,19817,58088,99603,158760,365914,652267,2.82,8.27,14.18,22.61,52.11,23.22,0.4889,107983,69282,83494,129046,99100,76866,90461,111251,81624,1902644458000],[2374218,93418,57782,53367,60470,61525,61797,62901,68305,69032,136121,211300,302834,251881,202825,277959,402701,95470,41718,76043,117874,184293,250001,21787,58830,95865,147468,317323,554557,3.4,9.17,14.95,23.0,49.48,21.62,0.4585,100427,68608,69080,112228,74868,74289,82618,102244,76704,304504386500],[1434007,64774,43917,36242,39726,38423,38294,40232,40880,39164,77525,112817,171125,141458,112229,162575,274626,95781,38098,75217,120507,194995,250001,19232,56317,96332,153558,368283,691840,2.77,8.12,13.89,22.14,53.09,24.93,0.499,105458,65521,66387,131092,null,58922,79255,107520,63457,198960572300],[402038,16744,10394,9721,10943,11113,12765,13564,14705,13849,26911,36907,54390,43603,32629,43811,49989,84954,38052,67569,104810,161962,250001,20437,52565,85559,130599,273918,475872,3.63,9.34,15.19,23.19,48.65,21.13,0.4494,91757,65718,62648,134255,88429,64170,73897,91928,68056,45275814000],[324491,23408,11115,7364,7881,5704,6292,7175,6513,6867,14073,20882,32881,28277,24219,35050,86790,109870,36987,84247,142394,242931,250001,15195,60906,111083,185879,438423,774234,1.87,7.51,13.69,22.91,54.03,23.85,0.5169,168664,60764,66485,126268,160887,89467,123231,170201,117634,52663959500],[8752810,449553,285853,269457,307634,307538,332683,326763,326287,320229,615158,858597,1144243,889764,618548,738368,962135,74568,31856,59310,92767,147327,250001,16635,45334,75031,116930,275903,515024,3.14,8.56,14.16,22.07,52.07,24.3,0.4851,80213,56881,67552,96990,86827,64492,72307,80830,70097,927507120700],[4074366,219526,138699,128174,139522,135539,141222,146930,146243,141769,265754,380471,529016,411252,293369,373457,483423,77353,31814,60932,96339,154052,250001,16201,46056,77719,121912,272829,483449,3.03,8.61,14.53,22.8,51.02,22.6,0.4771,88331,60205,62516,110971,71551,63265,76557,88639,71161,435727616400],[492453,21691,12733,9759,12193,10888,11312,11955,12328,13155,27554,40383,61288,53793,43002,59505,90914,100389,43279,80090,122967,191371,250001,21466,61565,100739,153547,317949,538386,3.28,9.4,15.37,23.43,48.52,20.54,0.4507,98512,81548,73854,107564,81807,75263,101433,98872,88708,64537546100],[713005,25677,19500,19822,24027,23070,23916,25543,26725,26235,52397,76455,104577,81579,56119,61705,65658,77800,36114,63191,94372,142518,250001,20121,49830,78177,115865,249739,450282,3.92,9.7,15.22,22.55,48.61,21.91,0.4443,79386,70436,57439,83421,62902,68866,71507,79586,69300,73258869800],[5036449,271292,163473,142492,157143,158077,160511,161949,165127,160428,304237,443479,636158,517314,387880,510782,696107,83390,33491,65481,104097,166035,250001,16790,49203,83934,131544,296721,533114,2.91,8.51,14.52,22.75,51.32,23.05,0.4814,90723,50704,76593,114625,73176,73989,79574,91123,77559,582406595500],[2716009,131948,92514,84679,98743,99050,105957,109478,108221,103960,200514,279533,376773,281835,193769,225753,223282,71957,31618,57454,88293,136508,242229,16852,44320,72176,110021,232866,406394,3.54,9.31,15.16,23.1,48.9,21.33,0.4523,75678,47487,61576,84542,63292,59122,65827,75784,65467,258691680900],[1315707,52401,42753,42431,45678,45954,48614,50421,50104,48620,95685,134707,184128,145654,100299,115618,112640,75059,33467,60354,92280,140325,244444,18330,46692,75460,113871,236580,411848,3.74,9.51,15.37,23.19,48.19,20.97,0.4439,77120,44055,56086,86979,65872,67388,65160,77292,65318,129184854000],[1174060,51591,37764,34174,39179,46739,45449,41418,44995,43433,89730,118057,158657,121859,85750,103007,112258,74275,32692,59423,91921,143399,250001,17932,46157,74635,114941,248421,438959,3.58,9.19,14.86,22.89,49.47,21.86,0.4571,77237,49021,66688,89660,75699,61341,64854,77760,63926,117895897500],[1814469,111531,94300,73828,76647,73789,76794,75462,73629,70291,129146,180270,231619,171614,116340,128111,131098,63726,25431,49966,80106,127452,230676,13051,37504,64250,101318,222911,397314,2.98,8.54,14.63,23.08,50.77,22.62,0.477,65934,47105,41983,84810,49536,55518,55512,66015,57597,159323091300],[1804780,129134,104513,81330,88415,76876,74348,74466,70197,68447,124751,161742,210659,157960,109313,131787,140842,60756,22598,46680,77978,129381,237747,11514,34139,61253,100983,227299,401046,2.65,7.84,14.07,23.2,52.23,23.04,0.4952,73748,39169,64241,73994,66576,54553,62645,74021,62343,157083892500],[597159,24391,22577,20444,22393,21124,21697,21742,22595,22456,41650,58591,77552,64329,45349,54263,56006,74733,31869,59467,93592,144261,250001,17377,45508,75517,116273,245835,430042,3.47,9.09,15.09,23.23,49.12,21.48,0.456,75327,55930,65051,72099,132443,73209,71148,75325,79444,59776855000],[2362928,104696,57325,49596,52750,55637,59071,57298,59401,61119,121429,181955,281948,250350,195428,295150,479775,103678,42893,82098,127967,201435,250001,21566,62469,104057,161184,333934,562624,3.16,9.14,15.23,23.59,48.88,20.59,0.4563,115770,83654,78283,133197,117614,83265,107055,116071,92723,322875555100],[2785042,123166,92544,76093,75831,70043,68987,69476,70776,67545,130350,203452,298075,265810,222092,330817,619985,103960,38447,80312,131158,212184,250001,19108,59109,104523,167254,374759,659051,2.64,8.16,14.42,23.08,51.71,22.73,0.4886,111426,73413,73454,131900,65844,65147,76958,112361,66137,403693046100],[4076369,212141,154586,131788,145054,144688,153292,155035,161057,149255,286738,398613,539031,413435,291191,351802,388663,72875,30838,57668,90609,142884,250001,15975,44010,73247,113771,246499,431408,3.24,8.92,14.84,23.05,49.95,21.85,0.4653,77815,45398,57731,108469,86250,63556,69346,77943,67116,402339104000],[2307955,87165,61988,59232,61707,62576,66902,71265,71758,72462,148597,210709,304114,255890,196685,257864,319041,89062,39316,71373,109588,168458,250001,21026,55170,89586,135970,289765,508887,3.56,9.33,15.14,22.99,48.99,21.51,0.4525,92321,56045,53768,104796,57411,72126,81200,92471,74040,273039296000],[1145431,81648,68720,56783,57967,53608,53144,48427,49994,47268,82700,106341,137389,98339,66690,70550,65863,56447,21838,43695,71841,117348,209330,11223,32404,56850,92567,201567,350029,2.85,8.21,14.41,23.46,51.08,22.17,0.4825,69978,39434,48901,70833,null,50951,54911,70133,53342,90400034600],[2508227,122182,95602,85269,94053,94900,99940,101619,101568,94261,181713,254024,332037,253582,175214,204425,217838,70702,30464,55996,87668,137691,249759,16216,42961,71048,109991,241020,429588,3.37,8.93,14.76,22.86,50.08,22.32,0.4653,74538,47941,60741,95651,63490,64423,64327,74709,63809,241410457400],[458859,19185,17157,14677,17640,16385,18358,18667,18491,17165,32951,46589,62562,47471,32455,37708,41398,72509,31681,57998,89058,139681,250001,17428,44440,72719,111503,248452,451698,3.53,8.99,14.7,22.55,50.24,22.83,0.4648,74295,52391,44051,62841,135411,75066,65576,74523,61974,45384959500],[797847,34209,24976,24939,26341,25700,29245,30612,29004,28687,58530,79697,108062,88500,62009,72219,75117,76475,33939,61191,94538,144056,250001,18302,47405,76977,116864,252445,456174,3.58,9.26,15.03,22.82,49.31,22.27,0.4561,79447,48119,52761,87669,68333,70538,68417,79885,67528,81698487900],[1202593,64405,31562,31745,39000,39705,42922,44598,42652,42811,80179,118008,162788,127391,91763,111917,131147,78260,33893,62455,96674,150854,250001,17474,47884,78832,120805,267379,483672,3.28,8.99,14.81,22.69,50.22,22.71,0.4672,85207,52965,64268,87737,72044,64754,78357,85954,71012,128045842200],[555822,17588,12783,13293,14085,14120,15269,15275,15178,14618,32339,47049,68837,62458,48682,70817,93431,99031,42835,79141,120856,184293,250001,23299,60659,99155,149769,308730,526597,3.63,9.45,15.45,23.34,48.12,20.52,0.444,99724,78475,102250,112719,null,81170,91383,99624,88430,71324468400],[3507701,144425,95070,77721,90482,86359,93532,86884,92152,89221,176349,271200,396821,351280,282986,414092,759127,103556,41447,80893,129581,208809,250001,21154,60938,104030,164663,366030,640483,2.95,8.5,14.51,22.97,51.06,22.34,0.4784,113928,71115,70504,157130,86333,71718,86781,115459,76364,502874812900],[837414,55581,42494,35481,35904,34561,35649,32604,31030,30233,60826,81069,103580,75772,53743,63464,65423,64059,24718,50229,80865,131239,237694,12561,36998,64612,103287,223316,381839,2.85,8.39,14.66,23.43,50.66,21.66,0.4772,71643,58288,46669,88766,null,51780,60536,73835,58248,73822141400],[7722646,448836,304684,233586,249741,237417,238377,231013,231905,224072,435937,615410,883133,728586,559085,782846,1318018,85974,31367,65880,109539,182655,250001,15341,48242,86585,141702,349367,658885,2.39,7.52,13.5,22.1,54.48,25.69,0.5167,96384,62083,63956,97126,49701,60400,79417,97182,65593,990409253700],[4282345,214424,158210,150018,153716,156367,161959,169994,168501,161255,304419,413024,557416,418173,294583,356589,443697,72388,30706,57016,90192,144687,250001,16102,43624,72714,114186,259413,464413,3.18,8.62,14.37,22.56,51.26,22.94,0.4774,80333,52390,48615,120193,82697,58257,69199,80642,62341,433407507800],[331063,15342,10664,10945,10682,12367,11301,10972,12650,12080,22970,32134,45940,34914,26598,29635,31869,76657,32668,60865,94385,145245,250001,17536,46891,76804,117267,250469,446825,3.45,9.21,15.09,23.04,49.21,21.95,0.4568,80577,48289,46368,69063,null,52827,61839,80489,65018,33699991700],[4863191,255117,193163,162176,181887,176851,188161,183996,194730,184003,345507,477258,638582,492204,339923,406047,443586,71389,30087,56301,88728,139936,250001,15626,43009,71697,111571,243046,428314,3.22,8.87,14.78,23.01,50.12,22.08,0.4672,76604,44124,46517,97504,55080,54787,62086,76756,60264,471681119200],[1562389,91619,63380,56826,61905,70151,66799,61921,65873,61465,121363,160417,204141,150681,100261,112660,112927,65039,27845,51952,81244,127824,231714,14438,39578,65617,102205,222842,395074,3.25,8.9,14.76,22.98,50.11,22.21,0.4671,69090,45363,57946,75014,65779,56501,59976,69573,57612,138952649000],[1718422,77275,55650,51770,53805,53234,53811,54394,60198,56422,110128,153970,227611,183104,134709,173841,218500,83011,34815,65904,102791,160719,250001,18076,50078,83471,128593,277493,483899,3.24,8.98,14.97,23.06,49.75,21.69,0.463,83957,62538,65641,111619,90123,72946,77586,84366,74085,191676351100],[5274853,256495,185556,166423,186847,176061,189267,185805,185483,180985,344096,492869,674859,540251,395488,490778,623590,77971,32067,61442,97586,154678,250001,16831,46491,78498,122764,273107,484206,3.13,8.65,14.6,22.83,50.79,22.51,0.4742,83152,49610,60000,103069,51907,52815,70485,83382,61416,567248537400],[441570,20451,17960,14928,12135,12066,13066,12311,12479,12352,26194,37858,55396,45806,38370,49183,61015,87796,34028,68887,109059,167412,250001,17084,51566,88177,136034,282516,480722,2.97,8.96,15.33,23.64,49.1,20.89,0.461,95351,66250,80130,104570,null,57644,67516,96227,58477,50813741800],[2117989,124011,80415,75408,80226,81209,81777,84702,85188,82999,153385,207032,276823,206164,142140,168443,188067,69324,28889,54414,86073,137096,250001,14773,41553,69488,108810,243211,435664,3.09,8.7,14.54,22.77,50.9,22.79,0.4755,79623,46781,52486,96210,44968,55299,65506,79827,61809,202409591000],[365544,15198,11555,11597,12804,12647,12847,13573,14140,14480,28194,35552,53400,40930,27989,30910,29728,75081,33503,59672,91614,137651,243324,18196,46744,75259,112244,240192,435820,3.7,9.49,15.28,22.78,48.75,22.12,0.4493,78401,59174,37390,72130,34479,59812,70085,78607,61173,36015892800],[2824277,147257,112145,100292,109966,101516,108852,108768,119153,111013,208501,279786,371698,281300,194157,216988,252885,69595,29690,55069,86589,136546,250001,15428,42351,69999,108991,247332,451917,3.19,8.75,14.46,22.51,51.09,23.34,0.4761,74363,50672,62377,103164,71076,59124,64783,74364,63799,273446718200],[10992816,554843,361231,324962,364672,363315,383584,384181,392840,376277,729041,1041263,1405088,1090816,808816,1039536,1372351,78476,32815,61988,98263,157770,250001,17073,47302,79026,124693,281570,503327,3.11,8.61,14.38,22.68,51.22,22.89,0.4782,89150,60084,73411,117028,72854,61073,67957,93968,65194,1208469399500],[1124822,34621,22197,21540,23317,25937,30217,33221,32321,33820,69446,105215,159514,136104,107143,133801,156408,95166,45250,77876,114967,170149,250001,25250,61450,95516,139522,285142,493961,4.16,10.13,15.74,22.99,46.98,20.35,0.4266,98033,65684,66397,102181,81352,75650,88038,98954,79997,136526444400],[273416,10126,8784,8257,9857,9339,8812,9154,8972,9589,18342,26298,35213,30300,21644,28498,30231,81203,34709,64525,100958,155516,250001,19056,49495,81755,125144,263808,458386,3.54,9.18,15.16,23.21,48.92,21.25,0.4531,81469,54797,62250,80353,null,79738,84233,81516,90614,29488398400],[3365732,142753,92371,83258,91709,94119,98080,94258,101559,100683,198205,284677,406430,341833,266447,374192,595158,93170,38653,73166,116476,187330,250001,20129,55612,93670,147703,324187,557789,3.14,8.67,14.61,23.03,50.55,21.74,0.4715,99675,64912,82067,135924,98429,80844,99118,99746,92028,431689033400],[3064820,120544,77938,67999,73939,74170,78728,79804,85881,85111,173014,260415,381370,333859,255808,348680,567560,98141,42266,78123,120911,191595,250001,21958,60044,98547,151713,340677,601055,3.26,8.92,14.64,22.54,50.62,22.33,0.4691,99225,72813,70989,140340,93643,73840,89098,99656,79513,412487055900],[728655,45212,40377,32904,35581,34271,32656,31079,30929,28385,54896,71379,92282,65014,44857,45935,42898,59608,23813,46532,74888,119794,212468,12593,34764,59871,95057,203663,353496,3.1,8.56,14.75,23.42,50.17,21.77,0.4709,60311,42737,36667,75978,null,57725,51244,60359,66607,59159270600],[2479480,102887,75277,68913,77603,87775,89621,84398,90929,91646,182324,251551,342585,278243,194157,232818,228753,77485,34620,61940,95213,144753,250001,18885,48537,77841,117470,244598,427600,3.73,9.57,15.34,23.15,48.21,21.07,0.444,80923,43296,59670,90216,62288,62564,69784,81064,64859,251583796300],[243318,11032,7422,8062,8360,8629,9288,9309,8436,8015,16749,24509,33446,26700,19356,23223,20782,76176,32728,61011,93914,142509,245884,17798,46609,76665,116116,246018,443880,3.54,9.26,15.23,23.07,48.89,22.05,0.4539,77184,53547,52436,82344,48580,71665,71615,77524,63667,24487800300],[1290866,262466,135786,120363,103859,86154,74137,66602,56423,47351,75777,80925,79148,38440,20596,21242,21597,26297,9817,19906,34415,60580,124190,3857,14705,26539,45669,119198,226295,1.84,7.0,12.64,21.75,56.77,26.94,0.5428,26175,26204,30829,32038,null,25144,27330,44128,26214,54208341500]],"moes":[[209365,26113,20579,17470,17755,15949,17495,16698,18540,18669,22509,29181,42704,40040,42352,57556,82369,166,88,145,191,275,null,50,109,165,234,553,1421,0,0,0,0,0,0,0,134,255,558,503,1282,298,412,139,252,49032297444],[6490,2818,2681,2355,2581,2241,2307,2253,2683,2445,3156,3790,3921,3751,3351,3096,2657,399,220,321,447,725,2106,163,235,370,574,2178,6860,0,0,0,0,0,0,0,546,822,6785,4792,29397,3496,2202,552,2832,1221708556],[1456,668,508,608,544,577,651,633,663,809,880,1278,1278,1482,1122,1454,1366,1232,844,898,1359,2714,null,599,840,1148,1935,5498,17401,0,0,0,0,0,0,0,1649,3012,1774,6453,14956,7266,3671,1707,4223,440062409],[6374,2790,2197,2601,2691,2737,2279,2362,3269,3207,4729,4021,5916,4560,4365,4161,4128,407,320,349,520,629,null,195,250,380,531,2434,8080,0,0,0,0,0,0,0,537,1629,1504,2387,7914,1479,1182,503,890,1798988483],[4874,2571,1757,1984,1830,1692,1627,1876,2173,1877,2317,2445,2999,2858,2034,2200,2497,467,290,444,522,777,3090,240,318,485,627,3747,12620,0,0,0,0,0,0,0,675,879,3714,4091,7567,2503,1799,699,1826,1258718638],[17724,7657,5620,5164,5640,5357,4728,5217,4899,5036,6095,9608,10636,9849,8120,9892,15403,310,202,272,370,569,null,119,229,297,437,1473,4108,0,0,0,0,0,0,0,404,1245,1923,849,3296,473,599,491,364,7550455387],[4232,2566,2280,2032,2042,2092,1919,2207,2109,2378,3245,4063,4988,3780,4083,3938,4866,578,354,468,685,809,null,251,370,526,711,2569,8525,0,0,0,0,0,0,0,670,2329,3844,3920,15705,1661,1560,715,1256,1805224457],[3233,2560,2207,1846,1849,1870,1807,1685,1744,1811,1975,3312,3853,3193,2631,2984,3694,732,553,647,743,1354,null,362,557,674,986,4076,13272,0,0,0,0,0,0,0,919,2462,12147,4781,null,1925,2195,908,1443,1521329766],[1657,1063,970,976,905,930,1104,1108,1198,1036,1420,1619,1863,1774,1623,1785,1804,1251,771,1092,1293,1798,null,568,789,1040,1440,4761,14706,0,0,0,0,0,0,0,1437,2271,11561,7034,85350,7851,3271,1465,5306,527218720],[1816,1360,1158,858,756,699,759,907,840,859,1249,1509,1944,1767,1527,1536,1924,1937,1462,1578,2148,3255,null,851,1679,1911,2460,8722,26386,0,0,0,0,0,0,0,3187,3128,2251,11414,123570,9199,8369,3274,6580,781845833],[20285,6599,4769,5153,4859,5791,6226,5236,5492,5868,7500,8640,10584,8496,7618,8158,8818,284,170,255,391,471,null,131,209,283,408,1557,5264,0,0,0,0,0,0,0,368,594,4517,1939,12696,1110,618,374,523,4695014260],[9635,4071,3203,3238,3644,3298,3353,3938,3520,3554,4514,5733,6736,5631,5298,5495,5345,407,255,303,487,711,null,168,297,377,591,1752,5694,0,0,0,0,0,0,0,593,555,2678,2542,7769,1786,1900,588,1316,2226036889],[2224,1245,951,672,900,818,837,855,973,788,1284,1394,1909,1667,1354,1909,2391,1121,961,1110,1402,2825,null,645,882,1116,1595,6094,17077,0,0,0,0,0,0,0,2343,7501,22903,1904,4062,9984,1915,2416,3662,903710386],[2422,1380,939,1110,1256,1141,1402,1115,1268,1424,1710,2287,2719,2302,1872,1960,2233,743,483,620,956,1271,null,356,530,702,998,4530,14256,0,0,0,0,0,0,0,733,11685,5703,7532,18817,3142,2292,738,1855,819186911],[8009,4514,3450,2932,3472,3466,3593,4070,3809,3177,4450,5252,6285,5999,5148,5470,6373,362,258,317,388,640,null,171,278,333,469,1806,5630,0,0,0,0,0,0,0,374,844,3753,2414,21544,1317,1311,395,961,2644817054],[6039,3223,2843,2477,2706,2487,2528,2379,3139,2241,3417,4355,4636,4426,3902,3962,3568,352,234,362,420,709,1719,194,279,334,458,1860,5969,0,0,0,0,0,0,0,372,1175,4143,3251,22056,1940,1872,371,1495,1442526974],[3984,1649,1441,1563,1485,1642,1652,1711,1465,1607,2255,2912,3338,2541,2353,2181,2007,418,343,398,517,688,1903,247,351,387,535,2437,8131,0,0,0,0,0,0,0,402,1992,5934,4142,15124,4172,2047,410,2379,896008997],[4246,1816,1328,1374,1562,1793,1811,1692,1752,1612,2367,2092,3157,2612,1904,2517,2302,475,357,439,627,1121,null,264,364,487,681,3034,10146,0,0,0,0,0,0,0,550,1706,4313,4524,25168,2281,1776,599,1734,1016436233],[5224,3133,2827,1942,2628,2007,2127,2014,2143,2247,2813,2845,3880,2682,2663,2753,2427,429,307,379,436,692,2563,201,327,394,516,2113,6898,0,0,0,0,0,0,0,470,1809,7898,3454,9488,7194,2152,474,1887,1231067298],[5143,3021,3206,2432,2776,2205,2085,2789,2167,2414,3023,3193,3812,3741,3407,3180,3380,408,273,430,525,976,3099,179,327,434,588,2907,8983,0,0,0,0,0,0,0,562,780,2982,5623,50549,2976,1890,575,1899,1315712649],[2532,1276,1272,946,1241,1058,996,970,1159,1133,1662,1921,2182,1895,1478,1612,1811,795,533,750,975,1416,null,395,612,818,1002,3558,11516,0,0,0,0,0,0,0,988,6251,6947,10711,39587,4945,3579,996,7449,648352470],[3782,2540,2051,1919,2057,1850,2168,1731,2099,2324,2872,3369,4311,3847,3626,4357,5298,597,504,521,822,1014,null,282,446,614,823,2416,6768,0,0,0,0,0,0,0,766,1049,6628,3350,49050,2314,2769,798,1895,1881917453],[5182,3038,2187,2217,2714,2266,2356,2199,2269,2336,3047,3204,4355,3875,3765,4182,5566,527,436,470,636,1141,null,218,415,500,756,2647,8286,0,0,0,0,0,0,0,680,1961,8917,2898,28668,2612,1912,711,1297,2153898089],[8399,2984,3209,2930,3001,2888,3186,2973,2834,2693,4080,4120,5879,5600,3614,4433,4841,293,190,243,337,530,null,125,193,271,393,1404,4310,0,0,0,0,0,0,0,299,700,2424,1642,29841,2063,1743,298,1241,2005525560],[6063,1983,2045,1762,1968,1994,1825,1722,2002,2069,2875,3078,3345,3160,3553,3610,3222,409,283,334,455,726,null,195,287,373,506,2068,7095,0,0,0,0,0,0,0,431,1799,3252,1905,45613,3930,1981,441,1541,1472027075],[4267,2312,2273,1787,2230,1949,1985,1976,1825,2081,2393,2635,3213,2715,2101,2526,2330,539,243,471,647,972,2549,193,318,494,704,2560,8170,0,0,0,0,0,0,0,838,847,6135,8647,null,4430,2795,839,3169,870495439],[6821,2637,2850,2374,2628,2565,2797,2330,2452,2674,3259,4395,4544,4119,3222,3638,3317,325,269,334,418,674,2741,181,261,297,452,2124,6758,0,0,0,0,0,0,0,349,900,3462,3831,10761,3058,1958,354,2132,1444152757],[3762,843,996,863,998,1065,1012,1092,1003,917,1263,1483,2051,1593,1243,1404,1524,761,446,688,893,1356,null,313,618,751,984,4468,14297,0,0,0,0,0,0,0,805,12117,3471,8311,75605,11371,4765,795,4305,600509693],[2728,1316,1244,1081,1150,1156,1361,1164,1240,1093,1708,2120,2520,2005,1683,1478,1872,633,435,496,858,1092,null,313,412,583,830,3943,13245,0,0,0,0,0,0,0,673,2435,5489,5376,57310,2495,2646,659,2406,814940374],[3427,2041,1792,1612,1745,1915,1671,1960,1730,1858,2264,2934,3403,2649,2236,2634,2992,596,418,468,702,1193,null,293,404,517,821,3417,10234,0,0,0,0,0,0,0,868,1938,6450,2096,8112,1637,1842,870,1017,1182342568],[2236,825,778,920,958,1009,1193,915,1097,947,1226,1791,1888,2016,1886,1612,2185,1123,816,1093,1116,1880,null,430,827,1056,1393,4304,12280,0,0,0,0,0,0,0,1182,11845,58282,11352,null,4664,3826,1178,7776,832192041],[5116,4037,2924,2373,3147,2520,2957,2200,2509,2776,3897,4341,5426,5192,4386,5572,5700,513,372,476,695,789,null,264,376,490,668,2369,7150,0,0,0,0,0,0,0,644,1142,6675,1906,63619,1130,1827,643,1050,2444060512],[2650,1979,2127,1768,1452,1639,1453,1478,1468,1472,2252,2409,3186,2434,2042,2037,2089,808,433,647,846,1416,3601,267,516,705,905,2595,8287,0,0,0,0,0,0,0,901,6769,1368,5614,null,2024,1221,1165,1221,629427060],[12717,5004,5784,4830,4389,4742,4138,4943,4747,4338,6203,7012,7713,7794,6089,6957,9233,402,215,348,460,571,null,123,273,386,524,2194,6911,0,0,0,0,0,0,0,435,693,3172,1461,14576,827,1375,449,692,5271114011],[9120,3789,3460,3416,3767,3482,3370,3743,3897,3358,4733,5761,5781,5477,4583,4843,5580,324,200,287,432,689,null,141,214,338,500,1893,5658,0,0,0,0,0,0,0,509,536,2206,3525,11885,1761,1495,503,826,2546668340],[1699,1057,839,813,696,1067,902,891,825,975,937,1258,1364,1477,1168,1196,1480,1163,818,800,1225,1787,null,463,841,1137,1385,5520,16018,0,0,0,0,0,0,0,1233,4815,5362,13947,null,12617,2928,1201,7848,508661599],[8557,4383,3712,3679,3934,3140,3202,3713,3541,3477,4459,5013,5851,5468,4846,5084,4737,321,204,278,385,575,null,142,229,298,428,1395,4452,0,0,0,0,0,0,0,314,611,4299,3204,16236,1855,1076,321,1248,2219019121],[2824,2154,1480,1536,1558,2000,1985,1771,2028,1799,2381,2544,3059,2357,2284,2355,2460,439,241,331,547,791,2390,198,290,407,576,2328,7690,0,0,0,0,0,0,0,566,1200,1036,3916,1788,1562,1022,572,1064,983770427],[4082,2439,2126,1878,2111,1908,2121,2074,2161,1882,2604,2996,2899,3484,2612,3720,3995,573,423,418,651,1116,null,278,365,518,773,2794,8422,0,0,0,0,0,0,0,610,5832,4911,3623,21316,2352,1937,599,1505,1454513434],[8848,4460,3258,3509,3408,3614,3390,3851,3268,3393,3767,5439,7104,5744,4657,5650,6300,342,195,276,382,545,null,145,250,323,410,1465,4163,0,0,0,0,0,0,0,323,782,4900,2314,11215,1532,1448,331,1196,2576472692],[1908,1377,1252,1349,907,1150,1085,1178,930,891,1481,1798,1845,1925,1563,1629,1914,1209,877,1158,1311,1808,null,498,853,1034,1313,5674,15799,0,0,0,0,0,0,0,1338,4379,16047,10613,null,4034,4124,1288,2775,637697018],[5782,3150,2219,2323,2719,2689,2809,2758,2605,2875,3790,3912,4876,3860,3151,3582,3804,570,336,449,545,904,null,222,351,481,632,2905,9341,0,0,0,0,0,0,0,611,733,3166,7263,20426,3183,2838,618,1764,1739355563],[1728,910,692,885,809,821,946,865,801,860,1183,1172,1565,1521,1040,1235,1316,888,718,849,1034,1297,6023,446,692,874,1019,4932,15244,0,0,0,0,0,0,0,1042,5598,2883,9528,34102,8420,4775,1024,5546,482667188],[6378,3534,3333,2323,3039,3099,2536,2784,3219,3160,3790,4346,4562,4538,3316,3778,3814,429,289,352,456,661,null,202,277,387,471,2238,7568,0,0,0,0,0,0,0,489,831,12506,4096,21047,2478,1923,483,1871,1719117860],[15813,7476,6413,5460,5862,4998,6090,5549,5082,6750,7860,9292,10593,9397,8555,10904,11036,263,174,190,318,517,null,119,175,252,406,1409,4437,0,0,0,0,0,0,0,343,505,2407,1503,7379,564,688,397,396,5179570770],[2819,1535,1147,1054,1181,1284,1608,1618,1851,1555,2328,2456,3371,2998,2552,2467,2617,774,579,726,837,1049,null,387,558,709,817,2768,8911,0,0,0,0,0,0,0,782,5040,3523,4387,3681,4338,2390,792,1699,956885346],[1473,776,639,691,718,701,680,691,663,672,965,1204,1204,1132,986,1093,1060,1339,883,984,1371,1844,null,561,832,1137,1394,4892,13747,0,0,0,0,0,0,0,1423,14399,30058,9495,null,14650,4359,1408,12071,405445815],[7402,2724,2415,2643,2570,2221,2569,2577,2672,2250,3417,4196,5058,4431,4441,4998,5645,458,329,396,464,778,null,195,326,418,523,2180,6475,0,0,0,0,0,0,0,534,856,9448,2235,17809,2926,1693,525,1354,2534914728],[5874,3157,2373,2031,2178,2049,2238,2142,2508,2699,3562,4250,4528,4360,4370,4640,5632,414,294,422,412,941,null,221,303,391,608,2602,7600,0,0,0,0,0,0,0,503,2821,2686,2058,5116,1679,1442,511,1088,2325226607],[3249,1538,1601,1342,1432,1434,1257,1678,1609,1423,1771,1966,2642,2245,1579,1509,1656,691,320,625,850,1167,3486,221,407,638,877,3178,9341,0,0,0,0,0,0,0,726,2793,13852,18298,null,8232,2334,727,7974,627129019],[5787,2764,1944,1948,1909,2388,2518,2103,1986,2225,3183,2975,3875,3766,2978,3243,3526,455,272,304,475,576,null,186,282,414,465,1888,6334,0,0,0,0,0,0,0,431,1085,3716,2675,20511,2635,1623,432,1459,1478974551],[1490,846,647,737,859,531,865,824,513,529,1104,999,1322,1106,1154,1128,1139,1168,860,836,1283,2205,6332,633,920,1139,1726,8817,31050,0,0,0,0,0,1,0,1404,16327,9841,19454,33689,6026,2642,1501,4272,542834885],[4630,3345,2893,3131,2058,1914,2253,2022,1983,1746,2356,2350,2483,1675,1322,1256,1172,261,127,201,303,534,1480,77,143,250,365,1953,6804,0,0,0,0,0,0,0,531,719,7757,10430,null,501,425,7221,259,618662967]],"map":{"w":1000,"h":667.5,"states":{"35":"M272 411L272 295L376 295L375 400L314 400L315 405L286 405L286 414L272 414L272 411Z","46":"M358 112L358 88L488 89L483 97L490 104L490 148L487 149L490 157L486 166L490 172L476 163L466 163L462 165L454 160L358 160L358 112Z","06":"M107 370L112 374L107 370ZM106 379L111 384L106 379ZM90 374L92 375L90 374ZM84 358L91 358L86 360L84 358ZM78 359L82 358L83 360L80 361L78 359ZM75 358L77 359L75 358ZM6 219L11 206L12 196L9 188L10 183L82 183L82 252L175 338L179 350L184 354L179 357L177 368L174 372L174 378L178 380L177 385L132 389L126 374L115 364L110 365L108 359L97 357L90 350L75 350L71 347L71 335L68 334L67 329L60 324L49 310L48 305L51 302L50 297L45 296L41 291L40 278L41 282L47 286L40 274L43 272L39 271L39 278L33 273L30 274L31 268L18 253L16 233L7 223L6 219Z","21":"M612 306L616 303L617 292L620 290L628 294L628 287L635 285L633 281L638 278L638 275L642 277L643 274L646 275L651 278L656 274L659 277L664 269L670 275L673 268L680 262L680 258L691 256L690 250L692 248L697 249L701 256L711 260L713 258L717 260L724 257L725 261L729 263L729 270L731 275L734 281L740 284L727 293L720 301L710 304L635 302L635 306L612 306ZM609 305L610 306L609 305Z","01":"M630 436L635 436L630 436ZM628 403L634 340L632 338L677 339L685 383L690 395L685 403L688 421L643 421L647 432L645 435L635 436L640 435L636 427L634 435L629 433L628 403Z","13":"M677 339L721 338L716 345L724 349L730 360L748 380L755 398L760 400L752 410L754 410L748 421L749 427L741 424L739 433L737 434L736 429L689 426L686 417L685 404L690 395L685 383L677 339Z","05":"M521 306L599 306L600 310L595 317L606 317L607 319L602 323L604 324L603 327L601 327L601 329L598 329L600 335L596 337L596 341L593 341L591 351L585 354L587 356L585 356L586 357L585 360L583 359L584 364L581 365L583 366L580 366L582 367L580 372L583 371L581 380L531 380L531 368L524 367L525 330L521 306Z","42":"M765 208L765 184L778 177L778 183L855 183L860 188L861 195L866 198L858 207L860 209L857 213L866 226L858 232L850 233L847 235L765 235L765 208Z","29":"M501 216L571 215L573 217L577 221L575 226L578 235L589 246L590 253L592 254L594 252L599 255L595 269L610 280L612 294L617 296L615 305L612 304L611 307L609 305L609 312L606 312L608 314L606 317L595 317L600 310L599 306L521 306L522 248L518 247L513 239L517 235L516 232L513 232L508 228L501 216Z","08":"M272 260L272 206L393 206L393 296L272 295L272 260Z","49":"M185 283L185 183L237 183L237 206L272 206L272 295L185 295L185 283Z","40":"M376 306L376 295L521 295L525 330L524 367L511 360L510 362L505 360L495 363L491 366L487 361L484 363L481 360L478 365L477 361L473 363L469 359L463 362L461 356L455 358L442 355L439 350L439 351L434 351L428 347L428 306L376 306Z","47":"M596 338L600 335L598 332L600 330L598 330L601 329L601 326L603 327L604 324L602 323L607 319L606 317L608 314L606 312L609 312L609 306L635 306L635 302L746 304L745 310L741 310L739 314L734 314L730 318L729 316L723 322L707 327L704 332L700 333L700 338L596 338Z","56":"M237 112L358 112L358 206L237 206L237 112Z","18":"M634 276L637 270L636 268L639 267L645 257L642 248L644 244L644 190L648 192L656 189L691 189L691 256L680 258L680 262L673 268L670 275L664 269L659 277L656 274L651 278L643 274L643 277L638 275L637 279L634 276Z","25":"M943 200L946 197L948 200L943 200ZM933 196L936 194L933 196ZM933 198L937 195L939 197L939 198L933 198ZM887 181L891 166L925 167L932 162L934 167L937 168L932 171L929 177L934 177L937 183L935 183L941 190L947 188L946 182L943 182L946 182L948 190L947 194L947 191L936 195L937 190L935 189L929 195L924 188L923 183L899 183L887 181Z","16":"M130 126L144 97L137 89L133 78L134 10L151 10L151 37L156 44L156 48L158 50L156 51L163 55L173 70L181 71L177 83L179 90L176 93L176 98L180 100L187 95L196 110L196 115L201 117L206 127L207 124L214 125L216 122L230 123L231 118L237 124L237 183L134 183L134 140L136 132L131 129L130 126Z","02":"M292 614L294 613L292 614ZM289 624L290 623L289 624ZM288 618L289 614L291 614L297 622L294 623L297 624L297 629L292 624L293 629L292 624L290 624L292 622L289 619L291 619L290 617L288 618ZM285 610L286 608L288 611L287 607L292 608L295 612L289 613L288 612L286 617L285 610ZM282 595L286 597L288 602L285 598L288 604L284 608L282 595ZM278 604L280 603L283 604L283 616L278 604ZM277 606L279 606L278 608L277 606ZM274 598L278 595L279 598L282 598L283 603L279 602L277 604L274 598ZM232 580L234 578L232 580ZM223 573L226 572L223 573ZM221 574L224 574L221 576L221 574ZM214 580L220 575L214 580ZM214 575L216 572L214 575ZM213 578L214 576L213 578ZM193 574L194 573L193 574ZM186 598L192 592L190 594L193 595L193 597L186 598ZM181 612L183 612L181 612ZM179 613L181 612L179 613ZM179 605L182 602L183 603L184 600L188 600L187 598L192 602L191 604L188 603L190 605L187 606L189 607L186 608L186 606L183 610L184 607L181 609L179 605ZM150 627L152 624L150 627ZM147 624L149 623L149 625L147 624ZM146 592L148 590L146 592ZM137 538L139 539L137 538ZM126 630L132 626L136 629L127 632L126 630ZM122 633L123 634L122 633ZM120 635L122 635L120 635ZM113 576L119 573L123 579L119 581L113 576ZM111 642L116 639L115 636L119 636L116 641L111 642ZM109 513L129 501L133 502L130 506L132 508L142 509L144 506L147 506L141 505L139 496L143 503L150 504L150 501L143 502L143 495L132 494L130 487L116 477L119 476L119 470L132 467L136 456L142 448L147 447L156 439L158 439L155 441L163 440L169 432L175 435L173 440L175 440L177 435L182 441L187 439L192 440L191 443L193 444L190 445L195 444L194 446L197 447L206 445L230 454L239 451L251 458L251 575L256 576L261 574L260 577L268 586L269 589L274 587L275 582L281 581L290 594L298 612L307 616L306 627L303 628L302 617L302 624L299 623L299 625L300 619L298 619L298 622L296 620L299 616L296 616L296 619L294 617L295 614L296 616L296 611L293 607L289 606L291 605L289 601L292 603L287 598L287 594L286 596L284 596L280 583L280 587L279 586L282 596L279 593L277 594L276 589L275 591L271 588L271 590L274 590L276 594L273 596L256 583L258 578L254 581L248 579L250 576L247 578L234 578L230 576L231 573L229 575L225 573L226 571L223 571L224 570L221 571L224 569L221 568L223 566L219 568L219 566L217 569L216 566L216 569L213 570L215 564L210 570L212 572L214 570L210 573L214 572L212 576L214 576L213 578L212 576L212 579L208 577L207 579L207 577L206 581L205 579L202 584L202 581L199 586L195 587L194 584L199 580L196 582L194 580L196 570L202 567L209 569L203 566L207 562L196 567L191 575L189 575L190 579L187 582L186 580L181 587L187 590L181 597L170 605L169 608L160 613L161 615L160 617L159 616L158 618L154 618L154 621L152 619L145 623L143 621L141 626L139 626L138 624L138 627L135 626L134 628L134 626L141 619L146 617L147 620L150 620L148 618L150 615L159 610L160 606L164 603L164 594L168 589L161 592L160 588L157 594L150 588L142 593L140 592L142 590L141 586L143 583L139 576L131 580L126 572L123 573L126 567L122 566L120 559L122 558L122 555L126 551L129 543L135 545L139 539L146 539L148 536L144 529L147 525L145 522L137 530L135 526L135 529L133 527L125 528L119 527L115 519L118 518L109 513ZM104 646L108 640L111 640L104 646ZM97 606L99 606L97 606ZM95 648L96 647L95 648ZM90 540L91 536L106 542L101 546L96 541L92 542L90 540ZM86 651L87 650L86 651ZM83 573L88 575L83 573ZM78 652L84 652L78 652ZM72 653L79 650L78 652L72 653ZM63 656L64 653L67 654L63 656ZM59 655L63 654L59 655ZM57 654L60 654L58 656L57 654ZM45 653L46 653L45 653ZM40 656L45 658L40 656ZM33 654L35 652L33 654ZM13 649L15 649L13 649ZM8 645L13 646L8 645ZM300 627L302 627L300 627ZM299 626L300 624L301 626L299 626Z","32":"M82 245L82 183L185 183L185 313L184 316L180 314L173 315L175 338L82 252L82 245Z","17":"M575 225L577 217L582 214L585 208L585 204L582 201L583 197L593 194L598 188L598 181L590 171L639 172L639 177L644 190L644 244L642 248L645 257L639 267L636 268L637 270L633 281L635 285L628 287L628 294L619 290L616 296L612 294L610 280L595 269L599 255L594 252L590 254L589 246L578 235L575 225Z","50":"M888 135L890 125L889 111L922 111L919 118L920 124L912 128L912 134L906 146L903 163L905 166L891 166L891 147L890 145L888 146L888 135Z","27":"M476 11L512 10L512 0L516 0L518 2L521 17L535 20L536 23L550 20L556 22L554 24L559 26L560 31L562 27L566 27L574 35L586 30L588 34L599 33L603 37L610 36L588 46L565 67L566 69L562 70L562 85L552 94L551 98L556 101L553 118L577 136L580 141L580 148L490 148L490 104L483 97L487 91L488 85L484 71L483 47L478 33L479 18L476 11Z","38":"M358 14L358 10L476 10L479 18L478 33L483 47L484 71L487 79L488 89L358 88L358 14Z","19":"M486 166L490 157L487 148L580 148L583 154L581 158L583 166L589 168L595 178L598 181L599 185L595 193L583 197L582 201L585 207L582 214L577 217L577 220L571 215L502 216L495 184L486 166Z","33":"M903 163L906 146L912 134L912 129L920 124L919 118L922 106L928 104L930 151L935 159L933 163L925 167L905 166L903 163Z","10":"M847 237L849 233L853 233L850 238L851 241L855 253L859 256L860 264L849 263L847 237Z","11":"M824 253L825 252L828 254L825 256L824 253Z","09":"M883 204L887 201L887 182L916 183L915 199L897 200L884 207L883 204Z","30":"M151 23L151 10L358 10L358 112L237 112L237 124L231 118L230 123L216 122L214 125L207 124L206 127L201 117L196 115L196 110L187 95L180 100L176 98L176 93L179 90L177 83L181 71L173 70L163 55L156 51L158 50L151 37L151 23Z","04":"M172 390L174 385L178 383L177 379L174 378L174 374L177 368L177 361L184 354L175 341L176 334L173 315L179 314L184 316L185 295L272 295L272 414L237 414L172 390Z","31":"M358 202L358 160L454 160L463 165L466 163L475 163L491 172L492 179L496 188L496 194L500 199L500 213L509 229L393 229L393 206L358 206L358 202Z","53":"M39 53L40 49L41 52L39 53ZM38 45L39 44L39 47L38 45ZM36 22L38 23L36 22ZM36 55L37 56L36 55ZM35 17L37 20L35 17ZM35 21L36 22L35 21ZM34 30L37 26L39 29L35 30L37 31L38 36L39 34L41 35L41 39L34 30ZM31 24L32 21L33 25L34 23L34 25L31 24ZM30 21L32 21L30 21ZM30 20L31 18L35 19L30 20ZM27 21L29 20L31 25L27 21ZM1 32L2 26L14 32L25 33L29 31L32 37L35 33L37 39L34 44L33 41L28 53L33 51L30 53L29 51L38 40L37 38L39 39L40 43L37 44L36 48L38 47L39 49L38 55L36 55L36 53L34 58L33 52L33 55L33 59L35 60L38 54L40 55L42 53L40 45L44 36L41 30L40 32L42 35L39 33L39 30L41 29L38 25L36 25L36 23L40 24L38 21L40 21L39 16L36 17L35 10L134 10L133 78L136 87L100 87L63 97L56 94L43 98L36 96L30 84L24 83L18 79L12 80L12 71L14 78L14 71L16 69L12 68L11 64L16 63L11 61L10 64L6 43L1 32Z","72":"M556 621L559 623L556 621ZM548 629L558 629L548 629ZM492 621L498 616L531 619L530 617L547 620L548 626L543 627L540 633L529 636L509 633L504 636L499 634L495 636L496 626L492 621ZM470 631L473 630L470 631Z","48":"M513 459L520 454L513 459ZM478 483L479 482L478 483ZM475 508L478 518L475 508ZM473 502L474 493L479 483L474 496L475 508L473 502ZM313 402L314 400L375 400L376 306L428 306L428 347L434 351L439 351L439 350L442 355L455 358L461 356L463 362L469 359L473 363L477 361L478 365L481 360L484 363L487 361L491 366L495 363L505 360L510 362L511 360L525 369L531 368L531 401L535 405L541 420L537 430L537 440L533 445L535 447L519 453L524 450L519 450L520 445L517 448L515 447L517 453L508 463L492 472L479 483L482 478L490 474L490 472L486 474L483 471L484 476L481 478L482 475L481 478L480 476L476 479L480 478L479 482L477 484L471 483L476 486L473 494L471 494L472 492L470 494L468 492L467 495L473 495L473 507L475 517L478 518L478 520L473 522L469 518L460 518L444 511L438 499L437 489L423 475L417 459L407 450L404 445L388 443L387 446L382 446L379 456L372 461L350 448L343 429L335 424L313 402Z","39":"M691 249L691 190L715 189L723 194L727 194L722 196L728 195L731 198L739 194L744 195L752 189L765 184L765 215L763 216L764 222L760 236L753 243L749 242L745 246L744 253L741 254L739 251L734 264L730 265L724 257L720 260L713 258L711 260L701 256L697 249L691 249Z","55":"M654 103L656 102L655 104L654 103ZM593 62L594 60L593 62ZM590 64L593 63L590 64ZM588 67L591 66L588 67ZM551 96L554 90L562 85L562 70L565 68L570 70L586 63L588 65L585 72L589 70L588 69L598 74L599 79L633 88L634 92L639 94L638 103L642 103L640 107L643 110L639 113L636 123L643 116L647 116L649 108L653 104L640 139L637 154L639 172L590 171L589 168L583 166L581 158L583 154L580 151L579 140L569 131L567 127L553 118L556 101L551 96Z","41":"M3 164L11 138L14 105L13 81L16 83L22 80L24 83L28 82L34 88L35 96L43 98L51 94L59 94L62 97L71 93L75 94L100 87L136 87L142 93L144 97L130 126L131 129L136 132L134 140L134 183L10 183L7 181L6 169L3 164Z","28":"M573 416L575 415L574 412L576 413L575 410L577 409L575 408L579 405L578 404L580 404L584 398L581 396L584 397L586 393L582 391L584 390L584 387L581 388L583 380L580 381L583 371L580 371L582 367L580 366L583 366L581 365L584 364L583 359L585 360L586 357L585 356L587 356L585 354L591 351L593 341L596 341L596 338L632 338L634 340L628 403L629 434L613 433L609 437L604 428L606 421L573 421L573 416Z","37":"M848 318L850 321L848 318ZM848 334L852 332L852 322L852 333L848 334ZM843 337L847 334L843 337ZM838 341L843 337L838 341ZM834 346L838 342L834 346ZM832 345L834 346L832 345ZM824 346L832 345L824 346ZM700 338L700 333L704 332L707 327L723 322L729 316L730 318L734 314L739 314L741 310L745 310L745 304L846 305L851 321L843 305L847 315L845 312L845 313L840 310L842 314L836 313L838 315L833 317L831 311L831 318L842 317L843 324L844 318L846 318L848 325L845 325L841 331L834 330L833 327L835 326L832 327L833 330L825 327L835 332L830 339L825 335L827 339L830 340L835 337L836 339L837 337L839 338L835 344L833 343L833 344L824 345L816 351L810 362L799 362L780 342L760 342L761 340L758 336L756 337L756 335L733 334L720 338L700 338Z","51":"M843 290L847 278L849 277L848 276L857 273L852 278L846 292L844 293L843 290ZM711 304L720 301L727 293L740 284L741 288L745 291L769 284L770 279L780 261L787 264L792 255L794 257L802 248L803 241L812 249L814 244L816 245L818 246L817 249L825 254L821 265L825 265L827 269L833 270L839 276L839 282L835 281L827 272L834 282L838 283L839 287L835 287L837 289L835 290L839 294L836 296L832 291L827 290L832 291L832 294L835 298L837 297L837 299L838 296L844 297L846 305L711 304Z","54":"M729 270L729 264L734 264L737 260L736 256L739 251L741 254L744 253L745 245L749 242L753 243L759 238L764 222L763 215L765 215L765 235L783 235L783 247L790 241L792 242L796 237L801 240L806 236L813 240L812 249L803 241L802 248L794 257L792 255L787 264L780 261L769 280L769 284L766 286L759 286L759 289L753 290L751 288L745 291L741 288L741 284L734 281L729 270Z","22":"M621 440L621 446L621 440ZM613 440L615 438L615 441L613 440ZM601 457L602 455L601 457ZM566 449L572 449L570 451L566 449ZM531 386L531 380L581 380L581 382L582 380L581 388L584 387L584 390L582 391L586 393L584 397L581 396L584 397L580 404L578 404L579 405L575 408L577 409L575 410L576 413L574 412L575 415L573 416L573 421L606 421L604 428L609 437L604 441L607 444L610 439L612 443L615 441L612 444L614 446L612 445L611 448L610 446L607 450L609 453L618 456L616 461L614 459L611 462L613 457L612 458L604 454L608 454L604 451L601 452L600 457L597 459L594 454L587 459L579 456L580 453L582 456L580 452L575 450L573 446L569 447L570 444L563 446L567 449L561 450L546 445L535 447L533 445L537 440L537 430L541 420L535 405L531 401L531 386Z","36":"M874 218L877 215L874 218ZM778 178L794 165L790 154L800 151L813 152L817 154L830 152L840 146L838 139L842 136L840 137L840 134L839 137L838 131L845 127L856 115L864 111L889 111L888 146L890 145L891 147L891 166L887 181L887 201L883 204L884 207L881 210L887 209L887 208L902 207L908 203L908 206L911 207L915 205L894 214L879 217L877 215L880 206L861 195L860 188L855 183L778 183L778 178Z","26":"M707 88L710 84L714 87L713 89L707 88ZM695 92L699 93L697 94L695 92ZM677 97L679 93L679 97L677 97ZM669 108L671 110L669 108ZM658 73L660 76L658 73ZM656 189L660 185L666 172L667 161L661 145L663 140L662 135L666 128L666 119L669 118L669 114L674 113L678 107L677 115L677 117L680 112L679 118L681 105L689 102L686 98L688 93L692 92L701 96L704 100L714 103L718 111L716 110L714 112L718 119L717 128L713 130L712 135L708 136L706 142L711 146L717 139L715 138L723 134L727 136L733 160L731 169L728 171L729 167L726 168L715 189L656 189ZM614 40L629 31L620 39L614 40ZM594 73L619 62L632 50L639 50L641 52L637 52L630 60L627 68L633 63L631 66L634 64L639 65L647 74L653 74L659 77L668 70L689 68L688 75L694 75L695 77L703 74L703 81L700 82L707 87L698 89L694 86L692 91L688 87L679 85L676 88L666 88L660 97L658 95L661 90L657 90L654 95L654 89L643 109L640 107L642 103L638 103L640 95L634 92L634 89L599 79L598 74L594 73Z","20":"M393 229L509 229L513 232L516 231L517 235L513 239L518 247L522 248L521 295L393 296L393 229Z","12":"M770 531L771 528L770 531ZM755 544L758 543L755 544ZM743 547L749 542L752 545L743 547ZM736 508L739 510L736 508ZM686 448L693 445L686 448ZM684 447L687 447L684 447ZM642 423L643 421L688 421L690 427L736 429L737 434L739 433L741 424L750 427L753 445L764 469L764 478L774 504L772 524L769 527L767 534L770 532L767 536L763 540L766 534L755 536L752 525L744 521L742 511L740 509L738 510L736 506L738 507L739 501L737 501L737 504L735 505L727 489L733 484L728 480L730 484L727 488L725 483L729 469L728 462L726 457L721 458L711 442L702 439L698 441L699 443L682 447L681 442L666 434L644 435L647 432L646 428L642 423Z","34":"M851 237L866 226L857 215L860 209L858 207L864 199L866 198L880 206L873 218L878 219L876 235L864 252L861 253L863 248L858 247L851 241L851 237Z","24":"M843 274L844 273L843 274ZM783 245L783 235L847 235L849 263L860 264L860 266L857 273L845 276L847 272L844 271L847 268L845 268L846 266L844 268L843 265L843 269L839 265L839 260L843 261L840 257L838 259L839 255L841 257L840 253L837 255L837 253L838 251L841 252L841 249L840 251L839 248L844 243L844 238L840 244L839 241L839 245L837 243L836 247L833 246L837 251L834 257L838 273L830 269L829 266L827 267L826 264L822 265L822 261L828 254L818 250L818 246L813 244L812 238L806 236L799 240L796 237L792 242L790 241L783 247L783 245Z","45":"M716 345L720 338L733 334L756 335L756 337L758 336L761 340L760 342L780 342L799 362L792 367L785 380L782 380L774 388L766 390L766 394L762 394L763 396L758 400L755 398L754 391L750 388L748 380L730 360L725 350L716 345Z","23":"M973 132L975 132L973 132ZM970 134L971 136L970 134ZM969 131L970 129L972 131L970 133L969 131ZM966 134L968 134L966 134ZM966 129L967 126L966 129ZM966 133L968 131L966 133ZM929 104L931 103L932 106L933 101L936 102L935 99L943 90L942 82L946 77L947 70L961 50L964 51L964 55L966 57L978 53L985 60L985 95L992 97L991 105L993 109L996 108L1000 116L995 121L992 119L989 123L984 122L984 126L981 124L981 128L978 123L976 125L979 128L976 131L974 124L974 127L974 125L972 126L973 130L968 128L968 123L965 126L962 136L960 138L957 137L953 141L953 138L950 143L949 141L946 142L948 139L944 141L944 146L941 147L935 158L930 151L929 104Z","15":"M453 643L454 640L460 644L455 648L453 643ZM450 636L453 637L450 636ZM446 635L449 634L446 635ZM441 632L444 633L441 632ZM432 629L435 628L432 629Z","44":"M924 196L928 191L928 195L927 196L926 192L926 195L924 196ZM923 196L924 193L923 196ZM919 203L920 201L919 203ZM915 199L916 183L923 183L926 191L923 188L922 198L915 199Z"},"usps":{"35":"NM","46":"SD","06":"CA","21":"KY","01":"AL","13":"GA","05":"AR","42":"PA","29":"MO","08":"CO","49":"UT","40":"OK","47":"TN","56":"WY","18":"IN","25":"MA","16":"ID","02":"AK","32":"NV","17":"IL","50":"VT","27":"MN","38":"ND","19":"IA","33":"NH","10":"DE","11":"DC","09":"CT","30":"MT","04":"AZ","31":"NE","53":"WA","72":"PR","48":"TX","39":"OH","55":"WI","41":"OR","28":"MS","37":"NC","51":"VA","54":"WV","22":"LA","36":"NY","26":"MI","20":"KS","12":"FL","34":"NJ","24":"MD","45":"SC","23":"ME","15":"HI","44":"RI"}}}</script>
+<script>
+const BASE = JSON.parse(document.getElementById('payload').textContent);
+const VI = new Map(BASE.vars.map((v, i) => [v, i]));
+const G = BASE.geos.slice(), VALS = BASE.values.slice(), MOES = BASE.moes.slice();
+const idIndex = new Map(G.map((g, i) => [g.id, i]));
+const US = idIndex.get('0100000US');
+const D = { labels: BASE.labels };
+const TOPCODE = 250001;
+
+const val = (g, v) => { const i = VI.get(v); return i == null ? null : VALS[g][i]; };
+const moe = (g, v) => { const i = VI.get(v); return i == null ? null : MOES[g][i]; };
+const usd = n => n == null ? null : '$' + Math.round(n).toLocaleString('en-US');
+const money = n => n == null ? '\u2014' : usd(n);
+const capped = n => n == null ? '\u2014' : (n >= TOPCODE ? '\u2265' + usd(n) : usd(n));
+const pct = (n, d = 1) => n == null ? '\u2014' : n.toFixed(d) + '%';
+const short = n => n >= 1000 ? '$' + Math.round(n / 1000) + 'k' : '$' + Math.round(n);
+const compact = n => n == null ? '\u2014'
+  : n >= 1e6 ? '$' + (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + 'M'
+  : n >= 1000 ? '$' + Math.round(n / 1000) + 'k' : '$' + Math.round(n);
+
+const stateRows = G.map((g, i) => i).filter(i => G[i].sl === '040')
+  .sort((a, b) => G[a].name.localeCompare(G[b].name));
+const loadedGeo = new Map();   // fips -> {w,h,outline,counties,zctas}
+const state = { mode: 'us', fips: null, sel: US, cmp: null, county: '', metric: 'mean', q: '' };
+
+const METRICS = {
+  mean: { label: 'Mean household income',
+    hint: 'Aggregate household income divided by households. Not topcoded, so it separates the top of the range.',
+    get: g => { const a = val(g, 'B19025_001'), h = val(g, 'B19001_001'); return a && h ? a / h : null; },
+    fmt: money },
+  median: { label: 'Median household income',
+    hint: 'The Census Bureau censors this at $250,001; areas at the cap share one class.',
+    get: g => val(g, 'B19013_001'), fmt: capped },
+  top5: { label: 'Mean income, top 5%',
+    hint: 'Average income of the richest 5% of households. Not topcoded.',
+    get: g => val(g, 'B19081_006'), fmt: money }
+};
+const metric = () => METRICS[state.metric];
+const mval = g => metric().get(g);
+
+/* ---- dynamic quintile bins over whatever units the map is showing ---- */
+let BINS = [];
+const roundTo = (x, s) => Math.round(x / s) * s;
+function computeBins(units) {
+  const vals = units.map(mval).filter(v => v != null).sort((a, b) => a - b);
+  if (vals.length < 5) { BINS = []; return; }
+  const step = state.metric === 'top5' ? 25000 : 5000;
+  const cuts = [0.2, 0.4, 0.6, 0.8].map(q => roundTo(vals[Math.floor(vals.length * q)], step));
+  const uniq = [...new Set(cuts)];
+  const edges = [0, ...uniq, Infinity];
+  BINS = [];
+  for (let i = 0; i + 1 < edges.length; i++) {
+    const lo = edges[i], hi = edges[i + 1];
+    BINS.push({ lo, hi, cls: 'q' + (i + 1),
+      label: hi === Infinity ? compact(lo) + ' or more'
+        : lo === 0 ? 'Under ' + compact(hi) : compact(lo) + ' - ' + compact(hi) });
+  }
+}
+const binOf = v => { if (v == null || !BINS.length) return null;
+  const b = BINS.find(b => v >= b.lo && v < b.hi); return b ? b.cls : null; };
+
+/* ---------------- tooltip ---------------- */
+const tip = document.getElementById('tip');
+function showTip(e, html) {
+  tip.innerHTML = html; tip.style.opacity = '1';
+  const r = tip.getBoundingClientRect();
+  let x = e.clientX + 14, y = e.clientY + 14;
+  if (x + r.width > innerWidth - 8) x = e.clientX - r.width - 14;
+  if (y + r.height > innerHeight - 8) y = e.clientY - r.height - 14;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+}
+const hideTip = () => { tip.style.opacity = '0'; };
+
+/* ---------------- figure machinery (shared with the Bay Area page) ---------------- */
+const cmpOK = () => state.cmp != null && state.cmp !== state.sel;
+function ticks(max, fmt) {
+  return '<div class="ticks">' + [0, .25, .5, .75, 1].map(s =>
+    `<span style="left:${s * 100}%">${fmt(max * s)}</span>`).join('') + '</div>';
+}
+function barChart(rows, opts) {
+  const max = Math.max(...rows.flatMap(r => [r.value, r.compare].filter(v => v != null)), 1);
+  const fmt = opts.fmt;
+  const body = rows.map((r, i) => {
+    const w = r.value == null ? 0 : Math.max(0.4, (r.value / max) * 100);
+    const mk = r.compare == null ? '' :
+      `<i class="marker" style="left:calc(${(r.compare / max) * 100}% - 1px)"></i>`;
+    const v = r.value == null ? '<div class="rval none">no estimate</div>'
+      : `<div class="rval">${fmt(r.value)}</div>`;
+    return `<div class="row" data-i="${i}" tabindex="0">
+      <div class="rlabel">${r.label}</div>
+      <div class="plot"><div class="grid"><i style="left:25%"></i><i style="left:50%"></i><i style="left:75%"></i><i style="left:100%"></i></div>
+      ${r.value == null ? '' : `<div class="bar${r.est ? ' est' : ''}" style="width:${w}%"></div>`}${mk}</div>
+      ${v}</div>`;
+  }).join('');
+  return `<div class="chart" style="--labelw:${opts.labelw || 150}px;--valw:${opts.valw || 104}px">${body}</div>` +
+    `<div class="axis"><div></div>${ticks(max, opts.axisFmt || fmt)}<div></div></div>`;
+}
+function tableView(rows, opts) {
+  const head = `<tr><th>${opts.head || 'Category'}</th><th>${G[state.sel].name}</th>` +
+    (opts.compare && cmpOK() ? `<th>${G[state.cmp].name}</th>` : '') + '</tr>';
+  const body = rows.map(r => `<tr><td>${r.label}</td><td class="num">${r.value == null ? 'no estimate' : opts.fmt(r.value)}${r.moe ? ' \u00b1' + Math.round(r.moe).toLocaleString('en-US') : ''}</td>` +
+    (opts.compare && cmpOK() ? `<td class="num">${r.compare == null ? 'no estimate' : opts.fmt(r.compare)}</td>` : '') + '</tr>').join('');
+  return `<div class="tablewrap"><table><thead>${head}</thead><tbody>${body}</tbody></table></div>`;
+}
+function bindRows(el, rows, opts) {
+  el.querySelectorAll('.row').forEach(row => {
+    const r = rows[+row.dataset.i];
+    const html = `<div class="t">${r.label}</div>
+      <div class="l"><span>${G[state.sel].name}</span><b>${r.value == null ? 'no estimate' : opts.fmt(r.value)}</b></div>` +
+      (r.moe ? `<div class="l"><span>90% margin</span><b>\u00b1${Math.round(r.moe).toLocaleString('en-US')}</b></div>` : '') +
+      (opts.compare && cmpOK() ? `<div class="l"><span>${G[state.cmp].name}</span><b>${r.compare == null ? 'no estimate' : opts.fmt(r.compare)}</b></div>` : '');
+    row.addEventListener('mousemove', e => showTip(e, html));
+    row.addEventListener('mouseleave', hideTip);
+    row.addEventListener('focus', () => {
+      const b = row.getBoundingClientRect();
+      showTip({ clientX: b.left + 40, clientY: b.bottom }, html);
+    });
+    row.addEventListener('blur', hideTip);
+  });
+}
+function figure(n, title, universe, rows, opts) {
+  const legend = opts.compare && cmpOK() ? `<div class="legend">
+      <span><i class="swatch"></i>${G[state.sel].name}</span>
+      <span><i class="swatch tick"></i>${G[state.cmp].name}</span></div>` : '';
+  const el = document.createElement('figure');
+  el.className = 'panel';
+  el.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure ${n}</div>
+      <figcaption><h3>${title}</h3><div class="universe">${universe}</div></figcaption></div>
+      <button class="toggle" type="button">Table</button></div>
+      ${legend}<div class="view-chart">${barChart(rows, opts)}</div>
+      <div class="view-table hidden">${tableView(rows, opts)}</div>
+      ${opts.note ? `<p class="note">${opts.note}</p>` : ''}`;
+  const btn = el.querySelector('.toggle');
+  btn.addEventListener('click', () => {
+    const showTable = el.querySelector('.view-chart').classList.toggle('hidden');
+    el.querySelector('.view-table').classList.toggle('hidden', !showTable);
+    el.querySelectorAll('.legend').forEach(l => l.classList.toggle('hidden', showTable));
+    btn.textContent = showTable ? 'Chart' : 'Table';
+  });
+  bindRows(el, rows, opts);
+  return el;
+}
+
+/* ---------------- Figure 1: merged bins + Pareto tail ---------------- */
+const OBS_BINS = [
+  { label: 'Under $25k', vars: ['B19001_002', 'B19001_003', 'B19001_004', 'B19001_005'] },
+  { label: '$25k - $50k', vars: ['B19001_006', 'B19001_007', 'B19001_008', 'B19001_009', 'B19001_010'] },
+  { label: '$50k - $75k', vars: ['B19001_011', 'B19001_012'] },
+  { label: '$75k - $100k', vars: ['B19001_013'] },
+  { label: '$100k - $125k', vars: ['B19001_014'] },
+  { label: '$125k - $150k', vars: ['B19001_015'] },
+  { label: '$150k - $200k', vars: ['B19001_016'] }
+];
+const EST_BINS = [
+  { label: '$200k - $300k', lo: 200000, hi: 300000 },
+  { label: '$300k - $500k', lo: 300000, hi: 500000 },
+  { label: '$500k or more', lo: 500000, hi: Infinity }
+];
+function paretoAlphaRaw(g) {
+  const N = val(g, 'B19001_001'), n200 = val(g, 'B19001_017'), t5 = val(g, 'B19081_006');
+  if (!N || n200 == null || t5 == null) return null;
+  const p = n200 / N;
+  if (p <= 0.055 || t5 <= 260000) return null;
+  const f = a => 200000 * Math.pow(p / 0.05, 1 / a) * a / (a - 1) - t5;
+  let lo = 1.05, hi = 8;
+  if (f(hi) > 0) return hi;
+  if (f(lo) < 0) return lo;
+  for (let k = 0; k < 50; k++) {
+    const mid = (lo + hi) / 2;
+    if (f(mid) > 0) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+}
+function paretoAlpha(g) {
+  let a = paretoAlphaRaw(g);
+  if (a == null) {
+    for (const up of [G[g].cty, G[g].st, '0100000US']) {
+      const i = up ? idIndex.get(up) : null;
+      if (i != null) { a = paretoAlphaRaw(i); if (a != null) break; }
+    }
+  }
+  return a == null ? 2.5 : a;
+}
+function binRows(g) {
+  const N = val(g, 'B19001_001');
+  if (!N) return null;
+  const rows = OBS_BINS.map(b => {
+    let n = 0, miss = false;
+    b.vars.forEach(v => { const x = val(g, v); if (x == null) miss = true; else n += x; });
+    return { label: b.label, share: miss ? null : (n / N) * 100 };
+  });
+  const n200 = val(g, 'B19001_017');
+  if (n200 != null) {
+    const a = paretoAlpha(g), p200 = (n200 / N) * 100;
+    const frac = x => Math.pow(x / 200000, -a);
+    EST_BINS.forEach(b => rows.push({
+      label: b.label, est: true,
+      share: p200 * (frac(b.lo) - (b.hi === Infinity ? 0 : frac(b.hi)))
+    }));
+  }
+  return rows;
+}
+function figure1() {
+  const tot = val(state.sel, 'B19001_001');
+  const mine = binRows(state.sel), theirs = cmpOK() ? binRows(state.cmp) : null;
+  const rows = (mine || []).map((r, i) => ({
+    label: r.label + (r.est ? ' \u00b7 est.' : ''), est: r.est,
+    value: r.share, compare: theirs && theirs[i] ? theirs[i].share : null
+  }));
+  return figure(1, 'Household income distribution',
+    `Share of ${tot ? tot.toLocaleString('en-US') : ''} households in each income band`, rows,
+    { fmt: v => pct(v), axisFmt: v => v.toFixed(0) + '%', compare: true, labelw: 148, head: 'Income band',
+      note: 'The Census Bureau stops counting at $200,000+. The three bands marked est. split that ' +
+        'bracket with a Pareto tail fit calibrated to the mean income of the top 5% of households ' +
+        '(which is published uncapped); they are model estimates, not counts.' });
+}
+
+/* ---------------- ranks & header ---------------- */
+function peers(g) {
+  const sl = G[g].sl;
+  if (sl === '860') return G.map((x, i) => i).filter(i => G[i].sl === '860' && G[i].cty === G[g].cty);
+  if (sl === '050') return G.map((x, i) => i).filter(i => G[i].sl === '050' && G[i].st === G[g].st);
+  if (sl === '040') return stateRows;
+  return [];
+}
+function peerNoun(g) {
+  return { '860': 'ZIPs in the county', '050': 'counties in the state', '040': 'states' }[G[g].sl] || 'peers';
+}
+function rankOf(g, varname) {
+  const v = varname ? val(g, varname) : mval(g);
+  const pool = peers(g).map(i => (varname ? val(i, varname) : mval(i))).filter(x => x != null);
+  if (v == null || pool.length < 4) return null;
+  return Math.round((pool.filter(x => x < v).length / pool.length) * 100);
+}
+function refGeos() {
+  const g = G[state.sel], out = [];
+  if (g.sl === '860') {
+    const c = idIndex.get(g.cty); if (c != null) out.push(c);
+    if (c != null) { const st = idIndex.get(G[c].st); if (st != null) out.push(st); }
+  } else if (g.sl === '050') {
+    const st = idIndex.get(g.st); if (st != null) out.push(st);
+  }
+  out.push(US);
+  return [...new Set(out.filter(i => i !== state.sel))];
+}
+function renderHead() {
+  const s = state.sel, g = G[s];
+  document.getElementById('vintage').textContent = BASE.vintage + ' \u00b7 released ' + BASE.released;
+  document.getElementById('geo-title').textContent = g.name;
+  const bits = [];
+  if (g.sl === '860') {
+    if (g.pl) bits.push(g.pl);
+    const c = idIndex.get(g.cty);
+    if (c != null) bits.push(G[c].name + ', ' + (idIndex.get(G[c].st) != null ? G[idIndex.get(G[c].st)].name : ''));
+    if (g.spans > 1) bits.push('spans ' + g.spans + ' counties');
+    const r = rankOf(s, 'B19013_001');
+    if (r != null) bits.push('higher median than ' + r + '% of ZIPs in the county');
+  } else if (g.sl === '050') {
+    const st = idIndex.get(g.st);
+    if (st != null) bits.push('County in ' + G[st].name);
+    const r = rankOf(s, 'B19013_001');
+    if (r != null) bits.push('higher median than ' + r + '% of counties in the state');
+  } else if (g.sl === '040') {
+    const r = rankOf(s, 'B19013_001');
+    bits.push('State');
+    if (r != null) bits.push('higher median than ' + r + '% of states');
+  } else bits.push('National benchmark');
+  document.getElementById('geo-sub').textContent = bits.filter(Boolean).join(' \u00b7 ');
+
+  const med = val(s, 'B19013_001'), m = moe(s, 'B19013_001');
+  document.getElementById('hero-value').textContent = capped(med);
+  const wide = m && med && m / med > 0.15;
+  document.getElementById('hero-moe').textContent = m ? '\u00b1' + usd(m) + ' (90% margin)' : '';
+  document.getElementById('hero-caution').textContent = wide ? 'small sample, read with care' : '';
+
+  document.getElementById('chips').innerHTML = refGeos().map(i => {
+    const rv = val(i, 'B19013_001');
+    if (rv == null || med == null) return '';
+    const d = ((med - rv) / rv) * 100;
+    return `<div class="chip">${G[i].name} <b>${capped(rv)}</b>
+      <span class="delta ${d >= 0 ? 'up' : 'down'}">${d >= 0 ? '+' : ''}${d.toFixed(0)}%</span></div>`;
+  }).join('');
+}
+function renderCompare() {
+  const sel = document.getElementById('cmp');
+  let opts = refGeos();
+  if (state.sel === US) opts = stateRows;
+  if (!opts.includes(state.cmp) || state.cmp === state.sel) state.cmp = opts[0] ?? null;
+  sel.innerHTML = opts.map(i =>
+    `<option value="${i}" ${i === state.cmp ? 'selected' : ''}>${G[i].name}</option>`).join('');
+}
+
+/* ---------------- scoping & rail ---------------- */
+function scopedUnits() {
+  if (state.mode === 'us') return stateRows;
+  const stId = '0400000US' + state.fips;
+  let list = G.map((g, i) => i).filter(i => G[i].sl === '860' &&
+    G[i].cty && G[i].cty.slice(9, 11) === state.fips);
+  if (state.county) list = list.filter(i => G[i].cty === state.county);
+  return list;
+}
+function renderSelectors() {
+  const ss = document.getElementById('state-sel');
+  ss.innerHTML = '<option value="">United States</option>' + stateRows.map(i =>
+    `<option value="${G[i].fips}" ${G[i].fips === state.fips ? 'selected' : ''}>${G[i].name}</option>`).join('');
+  const cs = document.getElementById('county-sel');
+  if (state.mode === 'us') {
+    cs.innerHTML = '<option value="">All counties</option>'; cs.disabled = true;
+  } else {
+    cs.disabled = false;
+    const counties = G.map((g, i) => i)
+      .filter(i => G[i].sl === '050' && G[i].st === '0400000US' + state.fips)
+      .sort((a, b) => G[a].name.localeCompare(G[b].name));
+    cs.innerHTML = '<option value="">All counties</option>' + counties.map(i =>
+      `<option value="${G[i].id}" ${G[i].id === state.county ? 'selected' : ''}>${G[i].name}</option>`).join('');
+  }
+  const search = document.getElementById('search');
+  search.placeholder = state.mode === 'us' ? 'Filter states' : 'Filter ZIP codes';
+}
+function renderRail() {
+  const q = state.q.trim().toLowerCase();
+  let list = scopedUnits();
+  if (q) list = list.filter(i => (G[i].name + ' ' + (G[i].pl || '')).toLowerCase().includes(q));
+  list = list.slice().sort((a, b) => (mval(b) ?? -1) - (mval(a) ?? -1));
+  const max = Math.max(...list.map(i => mval(i) ?? 0), 1);
+  const noun = state.mode === 'us' ? 'states' : 'ZIP codes';
+  const where = state.mode === 'us' ? ''
+    : state.county && idIndex.get(state.county) != null ? ' in ' + G[idIndex.get(state.county)].name
+    : ' in ' + (idIndex.get('0400000US' + state.fips) != null ? G[idIndex.get('0400000US' + state.fips)].name : '');
+  document.getElementById('rail-count').textContent =
+    list.length + ' ' + noun + where + ' \u00b7 ranked by ' + metric().label.toLowerCase();
+  document.getElementById('rail-list').innerHTML = list.map((i, n) => {
+    const v = mval(i);
+    const sub = G[i].sl === '860'
+      ? [G[i].pl || '', G[i].spans > 1 ? G[i].spans + ' counties' : ''].filter(Boolean)
+      : [];
+    return `<button class="geo" type="button" data-geo="${i}" aria-current="${i === state.sel}">
+      <span class="geo-top"><span class="geo-name">${n + 1}. ${G[i].name}</span>
+      <span class="geo-val">${metric().fmt(v)}</span></span>
+      <span class="geo-bar"><span style="width:${v == null ? 0 : (v / max) * 100}%"></span></span>
+      ${sub.length ? '<span class="geo-sub">' + sub.map(x => '<span>' + x + '</span>').join('') + '</span>' : ''}
+    </button>`;
+  }).join('') || '<p class="note" style="padding:10px">Nothing matches that filter.</p>';
+  document.getElementById('quick').innerHTML =
+    [state.mode === 'state' ? idIndex.get('0400000US' + state.fips) : null, US]
+      .filter(i => i != null)
+      .map(i => `<button type="button" data-geo="${i}" aria-current="${i === state.sel}">${G[i].name}</button>`).join('');
+}
+
+/* ---------------- figures ---------------- */
+function renderFigures() {
+  const s = state.sel, c = cmpOK() ? state.cmp : null;
+  const wrap = document.getElementById('figures');
+  wrap.innerHTML = '';
+  wrap.appendChild(figure1());
+
+  const PCTL = [['B19080_001', '20th percentile'], ['B19080_002', '40th percentile'],
+    ['B19080_003', '60th percentile'], ['B19080_004', '80th percentile'],
+    ['B19080_005', '95th percentile (top 5% floor)']];
+  const p = PCTL.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v), compare: c == null ? null : val(c, v) }));
+  wrap.appendChild(figure(2, 'Income percentiles', 'Household income thresholds', p, {
+    fmt: capped, axisFmt: short, compare: true, labelw: 168, head: 'Threshold',
+    note: p.some(r => r.value >= TOPCODE)
+      ? 'Topcoded: the Census Bureau censors household income percentiles at $250,001, so the upper thresholds shown here are floors, not estimates.' : ''
+  }));
+
+  const QUINT = [['B19081_001', 'Lowest quintile'], ['B19081_002', 'Second quintile'],
+    ['B19081_003', 'Third quintile'], ['B19081_004', 'Fourth quintile'],
+    ['B19081_005', 'Highest quintile'], ['B19081_006', 'Top 5 percent']];
+  const q = QUINT.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v), compare: c == null ? null : val(c, v) }));
+  wrap.appendChild(figure(3, 'Mean income by quintile',
+    'Average household income within each fifth of the distribution', q,
+    { fmt: money, axisFmt: short, compare: true, labelw: 140, head: 'Quintile' }));
+
+  const SHARE = [['B19082_001', 'Lowest'], ['B19082_002', 'Second'], ['B19082_003', 'Third'],
+    ['B19082_004', 'Fourth'], ['B19082_005', 'Highest']];
+  const sh = SHARE.map(([v, l], i) => ({ label: l + ' fifth', value: val(s, v), compare: c == null ? null : val(c, v), q: i + 1 }));
+  const top5 = val(s, 'B19082_006');
+  const fig4 = document.createElement('figure');
+  fig4.className = 'panel';
+  const segs = sh.map(r => {
+    const w = r.value ?? 0;
+    return `<div style="width:${w}%;background:var(--q${r.q})" data-lab="${r.label}" data-val="${pct(w)}" data-cmp="${pct(r.compare)}">
+      ${w >= 10 ? `<b>${w.toFixed(1)}%</b>` : ''}</div>`;
+  }).join('');
+  fig4.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 4</div>
+      <figcaption><h3>Share of all income, by fifth</h3>
+      <div class="universe">How ${G[s].name}'s total household income splits across its own income fifths</div></figcaption></div>
+      <button class="toggle" type="button">Table</button></div>
+    <div class="view-chart"><div class="stack">${segs}</div>
+      <div class="stack-key">${sh.map(r => `<span><i class="swatch" style="background:var(--q${r.q})"></i>${r.label} &middot; ${pct(r.value)}</span>`).join('')}</div>
+      ${top5 != null ? `<div class="readout"><div><span class="k">Top 5% of households take</span><span class="v">${pct(top5)}</span></div>
+      <div><span class="k">Bottom 40% take</span><span class="v">${pct((sh[0].value ?? 0) + (sh[1].value ?? 0))}</span></div></div>` : ''}</div>
+    <div class="view-table hidden">${tableView(sh.concat([{ label: 'Top 5 percent', value: top5, compare: c == null ? null : val(c, 'B19082_006') }]), { fmt: v => pct(v), compare: true, head: 'Fifth' })}</div>`;
+  fig4.querySelector('.toggle').addEventListener('click', e => {
+    const showTable = fig4.querySelector('.view-chart').classList.toggle('hidden');
+    fig4.querySelector('.view-table').classList.toggle('hidden', !showTable);
+    e.target.textContent = showTable ? 'Chart' : 'Table';
+  });
+  fig4.querySelectorAll('.stack div').forEach(d => {
+    const html = `<div class="t">${d.dataset.lab}</div>
+      <div class="l"><span>${G[s].name}</span><b>${d.dataset.val}</b></div>` +
+      (c == null ? '' : `<div class="l"><span>${G[c].name}</span><b>${d.dataset.cmp}</b></div>`);
+    d.addEventListener('mousemove', e => showTip(e, html));
+    d.addEventListener('mouseleave', hideTip);
+  });
+  wrap.appendChild(fig4);
+
+  const gini = val(s, 'B19083_001'), lo = 0.30, hi = 0.60;
+  const posOf = v => Math.max(0, Math.min(1, (v - lo) / (hi - lo))) * 100;
+  const gRank = rankOf(s, 'B19083_001');
+  const marks = refGeos().filter(i => val(i, 'B19083_001') != null).slice(0, 3);
+  const fig5 = document.createElement('figure');
+  fig5.className = 'panel';
+  fig5.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 5</div>
+      <figcaption><h3>Income inequality (Gini index)</h3>
+      <div class="universe">0 = every household earns the same; 1 = one household earns everything</div></figcaption></div></div>
+    <div class="meter"><div class="meter-track">
+      <div class="meter-fill" style="width:${gini == null ? 0 : posOf(gini)}%"></div>
+      ${marks.map(i => `<i class="meter-mark" style="left:calc(${posOf(val(i, 'B19083_001'))}% - 1px)"></i>`).join('')}
+    </div><div class="meter-scale"><span>0.30 more equal</span><span>0.60 less equal</span></div></div>
+    <div class="legend"><span><i class="swatch"></i>${G[s].name}</span>
+      ${marks.map(i => `<span><i class="swatch tick"></i>${G[i].name} &middot; ${val(i, 'B19083_001').toFixed(4)}</span>`).join('')}</div>
+    <div class="readout">
+      <div><span class="k">Gini index</span><span class="v">${gini == null ? '\u2014' : gini.toFixed(4)}</span></div>
+      ${gRank == null ? '' : `<div><span class="k">Rank among ${peerNoun(s)}</span><span class="v">${gRank}th pctl</span></div>`}
+    </div>`;
+  wrap.appendChild(fig5);
+
+  const t5 = val(s, 'B19081_006'), med = val(s, 'B19013_001'), shr = val(s, 'B19082_006');
+  const rows6 = [{ label: G[s].name, value: t5, moe: moe(s, 'B19081_006') }]
+    .concat(refGeos().map(i => ({ label: G[i].name, value: val(i, 'B19081_006') })));
+  const rank6 = rankOf(s, 'B19081_006');
+  const mult = t5 && med ? t5 / med : null;
+  const fig6 = document.createElement('figure');
+  fig6.className = 'panel';
+  const opts6 = { fmt: money, axisFmt: compact, labelw: 168, head: 'Geography' };
+  fig6.innerHTML = `<div class="fig-head"><div class="txt"><div class="eyebrow">Figure 6</div>
+      <figcaption><h3>The top of the distribution</h3>
+      <div class="universe">Mean income of the richest 5% of households. This measure is not topcoded,
+        so unlike the median it keeps separating places above $250,000.</div></figcaption></div>
+      <button class="toggle" type="button">Table</button></div>
+    <div class="readout">
+      <div><span class="k">Mean income, top 5%</span><span class="v">${money(t5)}</span></div>
+      ${mult == null ? '' : `<div><span class="k">Times the median household</span>
+        <span class="v">${med >= TOPCODE ? '\u2264' : ''}${mult.toFixed(1)}x</span></div>`}
+      ${shr == null ? '' : `<div><span class="k">Share of all income</span><span class="v">${pct(shr)}</span></div>`}
+      ${rank6 == null ? '' : `<div><span class="k">Rank among ${peerNoun(s)}</span><span class="v">${rank6}th pctl</span></div>`}
+    </div>
+    <div class="view-chart">${barChart(rows6, opts6)}</div>
+    <div class="view-table hidden">${tableView(rows6, opts6)}</div>
+    ${med >= TOPCODE ? `<p class="note">The multiple is an upper bound: this geography's median is at the
+      $250,001 topcode, so the true median is higher and the true multiple lower.</p>` : ''}`;
+  fig6.querySelector('.toggle').addEventListener('click', e => {
+    const showTable = fig6.querySelector('.view-chart').classList.toggle('hidden');
+    fig6.querySelector('.view-table').classList.toggle('hidden', !showTable);
+    e.target.textContent = showTable ? 'Chart' : 'Table';
+  });
+  bindRows(fig6, rows6, opts6);
+  wrap.appendChild(fig6);
+
+  const RACE = [
+    ['B19013A_001', 'White alone'], ['B19013H_001', 'White alone, not Hispanic'],
+    ['B19013B_001', 'Black or African American alone'], ['B19013C_001', 'American Indian / Alaska Native alone'],
+    ['B19013D_001', 'Asian alone'], ['B19013E_001', 'Native Hawaiian / Pacific Islander alone'],
+    ['B19013F_001', 'Some other race alone'], ['B19013G_001', 'Two or more races'],
+    ['B19013I_001', 'Hispanic or Latino (any race)']
+  ];
+  const race = RACE.map(([v, l]) => ({ label: l, value: val(s, v), moe: moe(s, v) }));
+  wrap.appendChild(figure(7, 'Median household income by race and ethnicity',
+    'Median income of households, by race or ethnicity of the householder', race, {
+      fmt: capped, axisFmt: short, labelw: 210, head: 'Group',
+      note: race.some(r => r.value == null)
+        ? 'Blank rows are Census-suppressed: too few sampled households of that group in this geography to publish an estimate. Suppression is not a zero.' : ''
+    }));
+}
+
+/* ---------------- map ---------------- */
+const svg = document.getElementById('map');
+let FRAME = { w: BASE.map.w, h: BASE.map.h };
+let VB = { x: 0, y: 0, w: FRAME.w, h: FRAME.h };
+function applyVB() {
+  svg.setAttribute('viewBox', `${VB.x} ${VB.y} ${VB.w} ${VB.h}`);
+  const k = VB.w / FRAME.w;
+  svg.style.setProperty('--tw', (k > 0.5 ? 0.4 : k > 0.15 ? 0.7 : 1) + 'px');
+}
+function fitAll() { VB = { x: 0, y: 0, w: FRAME.w, h: FRAME.h }; fitAspect(); }
+function fitAspect() {
+  const r = svg.getBoundingClientRect(), aspect = (r.width || 900) / (r.height || 460);
+  let { x, y, w, h } = VB;
+  if (w / h < aspect) { const nw = h * aspect; x -= (nw - w) / 2; w = nw; }
+  else { const nh = w / aspect; y -= (nh - h) / 2; h = nh; }
+  VB = { x, y, w, h }; applyVB();
+}
+async function loadState(fips) {
+  if (loadedGeo.has(fips)) return;
+  const d = await fetch('data/' + BASE.map.usps[fips] + '.json').then(r => r.json());
+  d.geos.forEach((g, i) => {
+    if (!idIndex.has(g.id)) {
+      idIndex.set(g.id, G.length);
+      G.push(g); VALS.push(d.values[i]); MOES.push(d.moes[i]);
+    }
+  });
+  loadedGeo.set(fips, { w: d.w, h: d.h, outline: d.outline, counties: d.counties, zctas: d.zctas });
+}
+function buildMap() {
+  if (state.mode === 'us') {
+    FRAME = { w: BASE.map.w, h: BASE.map.h };
+    svg.innerHTML = Object.entries(BASE.map.states).map(([fp, d]) => {
+      const gi = idIndex.get('0400000US' + fp);
+      return `<path class="tract" data-fips="${fp}" ${gi == null ? '' : `data-geo="${gi}"`} d="${d}"></path>`;
+    }).join('') +
+      '<path class="outline" id="hover-outline" d=""></path>' +
+      '<path class="outline" id="sel-outline" d=""></path>';
+  } else {
+    const geo = loadedGeo.get(state.fips);
+    FRAME = { w: geo.w, h: geo.h };
+    svg.innerHTML = Object.entries(geo.zctas).map(([z, d]) => {
+      const gi = idIndex.get('860Z200US' + z);
+      return `<path class="tract" data-fips="" ${gi == null ? '' : `data-geo="${gi}"`} d="${d}"></path>`;
+    }).join('') +
+      Object.values(geo.counties).map(d => `<path class="outline countyline" d="${d}"></path>`).join('') +
+      `<path class="outline placeline" d="${geo.outline}"></path>` +
+      '<path class="outline" id="hover-outline" d=""></path>' +
+      '<path class="outline" id="sel-outline" d=""></path>';
+  }
+  fitAll();
+  paintMap();
+  syncMap();
+}
+function paintMap() {
+  const m = metric();
+  computeBins(scopedUnits().length ? scopedUnits() : []);
+  svg.querySelectorAll('.tract').forEach(p => {
+    const gi = p.dataset.geo === '' || p.dataset.geo == null ? null : +p.dataset.geo;
+    const bin = gi == null ? null : binOf(m.get(gi));
+    p.setAttribute('fill', bin ? `var(--${bin})` : 'var(--line)');
+  });
+  const anyNull = scopedUnits().some(i => m.get(i) == null);
+  document.getElementById('maplegend').innerHTML =
+    BINS.map(b => `<span><i style="background:var(--${b.cls})"></i>${b.label}</span>`).join('') +
+    (anyNull ? '<span><i style="background:var(--line)"></i>No estimate</span>' : '') +
+    `<span><i style="background:var(--ink);height:3px"></i>Selected ${state.mode === 'us' ? 'state' : 'ZIP'}</span>`;
+  document.getElementById('map-title').textContent =
+    m.label + (state.mode === 'us' ? ' by state' : ' by ZIP code');
+  document.getElementById('metric-hint').textContent =
+    m.hint + ' Classes are quintiles of the areas in view.';
+}
+function syncMap() {
+  const selP = svg.querySelector(`.tract[data-geo="${state.sel}"]`);
+  const so = document.getElementById('sel-outline');
+  if (so) so.setAttribute('d', selP ? selP.getAttribute('d') : '');
+  if (state.mode === 'state' && state.county) {
+    svg.querySelectorAll('.tract').forEach(p => {
+      const gi = p.dataset.geo === '' ? null : +p.dataset.geo;
+      p.classList.toggle('out', gi == null || G[gi].cty !== state.county);
+    });
+  } else svg.querySelectorAll('.tract').forEach(p => p.classList.remove('out'));
+  const row = document.querySelector(`.geo[data-geo="${state.sel}"]`);
+  if (row) row.scrollIntoView({ block: 'nearest' });
+}
+function svgPoint(e) {
+  const r = svg.getBoundingClientRect();
+  return { x: VB.x + ((e.clientX - r.left) / r.width) * VB.w,
+           y: VB.y + ((e.clientY - r.top) / r.height) * VB.h };
+}
+function zoomBy(factor, at) {
+  const w = Math.min(FRAME.w * 1.6, Math.max(FRAME.w / 220, VB.w * factor));
+  const k = w / VB.w;
+  VB = { x: at.x - (at.x - VB.x) * k, y: at.y - (at.y - VB.y) * k, w, h: VB.h * k };
+  applyVB();
+}
+svg.addEventListener('wheel', e => {
+  e.preventDefault();
+  zoomBy(e.deltaY > 0 ? 1.18 : 1 / 1.18, svgPoint(e));
+}, { passive: false });
+let drag = null;
+svg.addEventListener('pointerdown', e => {
+  drag = { x: e.clientX, y: e.clientY, vx: VB.x, vy: VB.y, moved: 0 };
+  svg.setPointerCapture(e.pointerId); svg.classList.add('dragging');
+});
+svg.addEventListener('pointermove', e => {
+  const hit = e.target.closest('.tract');
+  if (hit && !drag) {
+    document.getElementById('hover-outline').setAttribute('d', hit.getAttribute('d'));
+    const gi = hit.dataset.geo === '' || hit.dataset.geo == null ? null : +hit.dataset.geo;
+    if (gi != null) {
+      showTip(e, `<div class="t">${G[gi].name}${G[gi].pl ? ' \u00b7 ' + G[gi].pl : ''}</div>
+        <div class="l"><span>${metric().label}</span><b>${metric().fmt(mval(gi))}</b></div>
+        <div class="l"><span>Median household</span><b>${capped(val(gi, 'B19013_001'))}</b></div>
+        <div class="l"><span>Mean, top 5%</span><b>${money(val(gi, 'B19081_006'))}</b></div>`);
+    }
+  } else if (!hit && !drag) { hideTip(); document.getElementById('hover-outline').setAttribute('d', ''); }
+  if (!drag) return;
+  const r = svg.getBoundingClientRect();
+  drag.moved = Math.max(drag.moved, Math.abs(e.clientX - drag.x) + Math.abs(e.clientY - drag.y));
+  VB.x = drag.vx - (e.clientX - drag.x) * (VB.w / r.width);
+  VB.y = drag.vy - (e.clientY - drag.y) * (VB.h / r.height);
+  applyVB();
+});
+svg.addEventListener('pointerup', async e => {
+  const wasDrag = drag && drag.moved > 4;
+  drag = null; svg.classList.remove('dragging');
+  if (wasDrag) return;
+  const hit = e.target.closest('.tract');
+  if (!hit) return;
+  if (state.mode === 'us' && hit.dataset.fips) { await enterState(hit.dataset.fips); return; }
+  if (hit.dataset.geo !== '' && hit.dataset.geo != null) { state.sel = +hit.dataset.geo; render(); }
+});
+svg.addEventListener('pointerleave', () => {
+  drag = null; svg.classList.remove('dragging'); hideTip();
+  const h = document.getElementById('hover-outline');
+  if (h) h.setAttribute('d', '');
+});
+document.querySelectorAll('[data-zoom]').forEach(b => b.addEventListener('click', () =>
+  zoomBy(b.dataset.zoom === 'in' ? 1 / 1.4 : 1.4, { x: VB.x + VB.w / 2, y: VB.y + VB.h / 2 })));
+document.getElementById('fit-reset').addEventListener('click', fitAll);
+document.getElementById('back-us').addEventListener('click', () => {
+  state.mode = 'us'; state.fips = null; state.county = '';
+  state.sel = US; render(); buildMap();
+});
+
+/* ---------------- wiring ---------------- */
+async function enterState(fips) {
+  document.getElementById('rail-count').textContent = 'loading...';
+  await loadState(fips);
+  state.mode = 'state'; state.fips = fips; state.county = '';
+  state.sel = idIndex.get('0400000US' + fips);
+  render(); buildMap();
+}
+function render() {
+  renderSelectors(); renderCompare(); renderHead(); renderRail(); renderFigures();
+  paintMap(); syncMap();
+  document.getElementById('back-us').style.display = state.mode === 'us' ? 'none' : '';
+}
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-geo]');
+  if (g && !e.target.closest('svg')) { state.sel = +g.dataset.geo; render(); }
+});
+document.getElementById('state-sel').addEventListener('change', e => {
+  if (e.target.value) enterState(e.target.value);
+  else { state.mode = 'us'; state.fips = null; state.county = ''; state.sel = US; render(); buildMap(); }
+});
+document.getElementById('county-sel').addEventListener('change', e => {
+  state.county = e.target.value;
+  if (state.county) state.sel = idIndex.get(state.county);
+  render();
+});
+document.getElementById('cmp').addEventListener('change', e => {
+  state.cmp = +e.target.value; renderHead(); renderFigures();
+});
+document.getElementById('metric-sel').addEventListener('change', e => {
+  state.metric = e.target.value; paintMap(); renderRail(); syncMap();
+});
+document.getElementById('search').addEventListener('input', e => { state.q = e.target.value; renderRail(); });
+document.getElementById('metric-sel').innerHTML = Object.entries(METRICS)
+  .map(([k, m]) => `<option value="${k}" ${k === state.metric ? 'selected' : ''}>${m.label}</option>`).join('');
+render();
+buildMap();
+</script>
+</body>
+</html>
