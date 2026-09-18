@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BTC Accumulation Score</title>
+<style>
+:root{--bg:#0a0a0a;--card:#171717;--card2:#202020;--text:#f4f4f4;--muted:#a9a9a9;--line:#303030;--accent:#f7931a;--blue:#4a9eff;--green:#3ddc97;--yellow:#f6c85f;--red:#ff6b6b}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:20px}.wrap{max-width:1180px;margin:auto}h1{margin:0;font-size:2.05rem}.sub{color:var(--muted);margin:.45rem 0 1.5rem}.top{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-bottom:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}.gauge{width:180px;height:180px;border-radius:50%;margin:6px auto 14px;display:grid;place-items:center;position:relative;background:conic-gradient(var(--accent) 0deg,#2a2a2a 0deg)}.gauge:after{content:"";width:138px;height:138px;border-radius:50%;background:var(--card);position:absolute}.gauge-content{position:relative;z-index:2;text-align:center}.score{font-size:3rem;font-weight:800}.of{color:var(--muted);font-size:.9rem}.state{font-weight:800;letter-spacing:.08em;text-align:center;font-size:1.05rem}.summary{font-size:1.05rem;line-height:1.55}.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#2a2a2a;color:#ddd;font-size:.8rem;margin:2px 4px 2px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.metric h3{margin:0 0 7px;font-size:1rem}.metric .hint{color:var(--muted);font-size:.82rem;line-height:1.4;margin-bottom:12px}.row{display:grid;grid-template-columns:1fr 105px;gap:12px;align-items:center;margin:10px 0}.row label{color:#d8d8d8;font-size:.9rem}input[type=number]{width:100%;background:#0f0f0f;color:#fff;border:1px solid #3a3a3a;border-radius:8px;padding:9px 10px;font-size:.95rem}input[type=checkbox]{transform:scale(1.25)}.bar{height:9px;background:#2a2a2a;border-radius:999px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:var(--blue);width:0}.points{font-weight:800;color:var(--blue);font-size:1.3rem}.points small{font-size:.75rem;color:var(--muted);font-weight:500}.portfolio{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.kv{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px}.kv b{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}.kv span{font-size:1.15rem;font-weight:750}.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.legend div{padding:10px;border-radius:9px;background:#1e1e1e;font-size:.83rem}.footer{color:var(--muted);font-size:.78rem;line-height:1.5;margin:18px 2px 0}.danger{color:var(--red)}.good{color:var(--green)}.warn{color:var(--yellow)}.source-links a{color:#9dc7ff;text-decoration:none}.source-links a:hover{text-decoration:underline}.btn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:9px 12px;cursor:pointer}.btn:hover{background:#333}@media(max-width:800px){.top,.grid{grid-template-columns:1fr}.portfolio{grid-template-columns:repeat(2,1fr)}.legend{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>₿ BTC Accumulation Score</h1>
+  <div class="sub">A portfolio-aware framework for an existing BTC holder with a 5+ year horizon. Lower valuation + holder stress + improving absorption = higher add score.</div>
+
+  <div class="top">
+    <section class="card">
+      <div id="gauge" class="gauge"><div class="gauge-content"><div id="score" class="score">—</div><div class="of">/ 100</div></div></div>
+      <div id="state" class="state">—</div>
+    </section>
+    <section class="card">
+      <div id="summary" class="summary"></div>
+      <div style="margin-top:14px">
+        <span class="pill">Valuation 30</span><span class="pill">STH stress 20</span><span class="pill">SOPR 15</span><span class="pill">Capital absorption 20</span><span class="pill">Liquidity/ETF 15</span>
+      </div>
+      <div class="portfolio" style="margin-top:16px">
+        <div class="kv"><b>Current BTC allocation</b><span><input id="alloc" type="number" step="0.1" value="5.0">%</span></div>
+        <div class="kv"><b>Target allocation</b><span><input id="target" type="number" step="0.1" value="5.0">%</span></div>
+        <div class="kv"><b>Maximum allocation</b><span><input id="maxAlloc" type="number" step="0.1" value="10.0">%</span></div>
+        <div class="kv"><b>Thesis intact</b><span><input id="thesis" type="checkbox" checked></span></div>
+      </div>
+    </section>
+  </div>
+
+  <div class="grid">
+    <section class="card metric">
+      <h3>1. MVRV regime <span id="p1" class="points"></span></h3>
+      <div class="hint">Use a rolling 4-year MVRV percentile if available. This explicitly adjusts for cycle compression; a lower percentile means aggregate holder profitability is unusually subdued versus the current regime.</div>
+      <div class="row"><label>4Y MVRV percentile (%)</label><input id="mvrvPct" type="number" min="0" max="100" step="1" value="35"></div>
+      <div class="row"><label>Raw MVRV (context only)</label><input id="mvrvRaw" type="number" min="0" step="0.01" value="1.45"></div>
+      <div class="bar"><span id="b1"></span></div>
+    </section>
+
+    <section class="card metric">
+      <h3>2. Short-term holder stress <span id="p2" class="points"></span></h3>
+      <div class="hint">STH-MVRV near/below 1 means recent buyers are at breakeven or underwater. That can improve entry quality, provided the broader thesis remains intact.</div>
+      <div class="row"><label>STH-MVRV</label><input id="sth" type="number" min="0" step="0.01" value="1.06"></div>
+      <div class="bar"><span id="b2"></span></div>
+    </section>
+
+    <section class="card metric">
+      <h3>3. SOPR / realized behavior <span id="p3" class="points"></span></h3>
+      <div class="hint">SOPR around 1 after loss realization often indicates selling near breakeven. Large sustained values above 1 indicate profit taking rather than distress.</div>
+      <div class="row"><label>Adjusted SOPR</label><input id="sopr" type="number" min="0" step="0.001" value="0.993"></div>
+      <div class="bar"><span id="b3"></span></div>
+    </section>
+
+    <section class="card metric">
+      <h3>4. Capital absorption <span id="p4" class="points"></span></h3>
+      <div class="hint">Combines new aggregate cost basis with long-term holder supply trend. Best setup: price stress while realized cap stabilizes/grows and LTH supply rises.</div>
+      <div class="row"><label>Realized cap, 30d change (%)</label><input id="rcap" type="number" step="0.1" value="1.1"></div>
+      <div class="row"><label>LTH supply, 30d change (%)</label><input id="lth" type="number" step="0.1" value="-0.2"></div>
+      <div class="bar"><span id="b4"></span></div>
+    </section>
+
+    <section class="card metric">
+      <h3>5. Liquidity + ETF flows <span id="p5" class="points"></span></h3>
+      <div class="hint">Avoids aggressively buying into a deterioration that is still accelerating. Improving liquidity and institutional absorption raise conviction.</div>
+      <div class="row"><label>U.S. spot ETF 5d net flow ($M)</label><input id="etf" type="number" step="10" value="-440"></div>
+      <div class="row"><label>TBL liquidity index 7d change</label><input id="liq" type="number" step="0.1" value="-1.8"></div>
+      <div class="bar"><span id="b5"></span></div>
+    </section>
+
+    <section class="card">
+      <h3 style="margin-top:0">Decision bands</h3>
+      <div class="legend">
+        <div><b>&lt;55</b><br>HOLD</div>
+        <div><b>55–74</b><br>ADD</div>
+        <div><b>75–100</b><br>AGGRESSIVE ADD</div>
+        <div><b>Allocation &gt; max</b><br>REBALANCE WATCH</div>
+      </div>
+      <div style="margin-top:14px"><button id="reset" class="btn">Reset snapshot</button></div>
+      <div class="footer source-links">
+        Suggested source checks: <a href="https://thebitcoinlayer.com/overview?tab=bitcoin" target="_blank">The Bitcoin Layer</a>,
+        <a href="https://studio.glassnode.com/" target="_blank">Glassnode</a>,
+        <a href="https://farside.co.uk/btc/" target="_blank">Farside ETF flows</a>.
+        Inputs are editable because some on-chain series are proprietary and a static GitHub Pages app should not embed private API keys.
+      </div>
+    </section>
+  </div>
+
+  <div class="footer">
+    <b>Thesis veto:</b> a high score is not a buy signal if Bitcoin's monetary policy, settlement security, custody/access infrastructure, or durable adoption thesis has structurally deteriorated. This tool is a decision framework, not a price oracle or financial advice.
+  </div>
+</div>
+<script>
+const defaults={mvrvPct:35,mvrvRaw:1.45,sth:1.06,sopr:0.993,rcap:1.1,lth:-0.2,etf:-440,liq:-1.8,alloc:5,target:5,maxAlloc:10,thesis:true};
+const ids=Object.keys(defaults);
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const lerp=(x,x0,x1,y0,y1)=>x<=x0?y0:x>=x1?y1:y0+(x-x0)*(y1-y0)/(x1-x0);
+function scoreMvrv(p){return clamp(30*(1-clamp(p,0,100)/100),0,30)}
+function scoreSTH(x){if(x<=0.90)return 20;if(x<=0.95)return lerp(x,.90,.95,20,18);if(x<=1.00)return lerp(x,.95,1.00,18,15);if(x<=1.08)return lerp(x,1.00,1.08,15,10);if(x<=1.20)return lerp(x,1.08,1.20,10,5);if(x<=1.35)return lerp(x,1.20,1.35,5,1);return 0}
+function scoreSOPR(x){if(x>=1.08)return 0;if(x>=1.03)return lerp(x,1.03,1.08,5,0);if(x>=1.005)return lerp(x,1.005,1.03,10,5);if(x>=0.985)return 15;if(x>=0.95)return lerp(x,.95,.985,11,15);if(x>=0.90)return lerp(x,.90,.95,7,11);return 5}
+function scoreCapital(rc,lth){let a=rc<=-3?0:rc<0?lerp(rc,-3,0,0,5):rc<1?lerp(rc,0,1,5,8):rc<3?lerp(rc,1,3,8,10):10;let b=lth<=-2?0:lth<0?lerp(lth,-2,0,0,5):lth<1?lerp(lth,0,1,5,8):lth<2?lerp(lth,1,2,8,10):10;return clamp(a+b,0,20)}
+function scoreLiquidity(etf,liq){let e=etf<=-1000?0:etf<0?lerp(etf,-1000,0,0,4):etf<500?lerp(etf,0,500,4,7):8;let l=liq<=-3?0:liq<0?lerp(liq,-3,0,0,2):liq<2?lerp(liq,0,2,2,5):7;return clamp(e+l,0,15)}
+function val(id){return parseFloat(document.getElementById(id).value)||0}
+function setBar(id,v,max){document.getElementById(id).style.width=(100*v/max).toFixed(1)+'%'}
+function action(score,alloc,target,maxAlloc,thesis){if(!thesis)return ['REASSESS THESIS','danger','Score suspended because thesis veto is active.'];if(alloc>maxAlloc)return ['REBALANCE WATCH','danger',`BTC is ${alloc.toFixed(1)}% of portfolio, above your ${maxAlloc.toFixed(1)}% maximum. Valuation can be attractive while concentration risk is still too high.`];if(score>=75){let room=Math.max(0,maxAlloc-alloc);return ['AGGRESSIVE ADD','good',`High-conviction accumulation setup. You still have ${room.toFixed(1)} percentage points of room before your maximum allocation.`]}
+if(score>=55){if(alloc>=target)return ['HOLD / LIGHT ADD','warn',`Valuation is favorable, but you are already at/above your ${target.toFixed(1)}% target. Preserve dry powder for a stronger dislocation.`];return ['ADD','warn',`Favorable-but-not-capitulation setup. Incremental buying is reasonable while remaining below your ${target.toFixed(1)}% target.`]}
+return ['HOLD','',`No strong accumulation signal. Existing exposure already gives you upside participation; wait for a better asymmetry.`]}
+function render(){const s1=scoreMvrv(val('mvrvPct')),s2=scoreSTH(val('sth')),s3=scoreSOPR(val('sopr')),s4=scoreCapital(val('rcap'),val('lth')),s5=scoreLiquidity(val('etf'),val('liq'));const total=Math.round(s1+s2+s3+s4+s5);[['p1',s1,30],['p2',s2,20],['p3',s3,15],['p4',s4,20],['p5',s5,15]].forEach(([id,s,m],i)=>{document.getElementById(id).innerHTML=`${s.toFixed(1)} <small>/ ${m}</small>`;setBar('b'+(i+1),s,m)});document.getElementById('score').textContent=total;document.getElementById('gauge').style.background=`conic-gradient(var(--accent) ${3.6*total}deg,#2a2a2a 0deg)`;const [st,cls,msg]=action(total,val('alloc'),val('target'),val('maxAlloc'),document.getElementById('thesis').checked);const state=document.getElementById('state');state.textContent=st;state.className='state '+cls;document.getElementById('summary').innerHTML=`<b>${st}</b><br>${msg}<br><br><span style="color:var(--muted)">Component score: ${s1.toFixed(1)} + ${s2.toFixed(1)} + ${s3.toFixed(1)} + ${s4.toFixed(1)} + ${s5.toFixed(1)} = <b style="color:#fff">${total}/100</b>.</span>`;const snap={};ids.forEach(id=>snap[id]=id==='thesis'?document.getElementById(id).checked:document.getElementById(id).value);localStorage.setItem('btc-bas-v1',JSON.stringify(snap))}
+function load(){try{const s=JSON.parse(localStorage.getItem('btc-bas-v1')||'null');if(s){ids.forEach(id=>{if(s[id]!==undefined){if(id==='thesis')document.getElementById(id).checked=!!s[id];else document.getElementById(id).value=s[id]}})}}catch(e){}render()}
+ids.forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('reset').addEventListener('click',()=>{ids.forEach(id=>{if(id==='thesis')document.getElementById(id).checked=defaults[id];else document.getElementById(id).value=defaults[id]});localStorage.removeItem('btc-bas-v1');render()});load();
+</script>
+</body>
+</html>
