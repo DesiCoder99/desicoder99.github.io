@@ -6,13 +6,14 @@
 <title>BTC Accumulation Score</title>
 <style>
 :root{--bg:#0a0a0a;--card:#171717;--card2:#202020;--text:#f4f4f4;--muted:#a9a9a9;--line:#303030;--accent:#f7931a;--blue:#4a9eff;--green:#3ddc97;--yellow:#f6c85f;--red:#ff6b6b}
-*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:20px}.wrap{max-width:1180px;margin:auto}h1{margin:0;font-size:2.05rem}.sub{color:var(--muted);margin:.45rem 0 1.5rem}.top{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-bottom:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}.gauge{width:180px;height:180px;border-radius:50%;margin:6px auto 14px;display:grid;place-items:center;position:relative;background:conic-gradient(var(--accent) 0deg,#2a2a2a 0deg)}.gauge:after{content:"";width:138px;height:138px;border-radius:50%;background:var(--card);position:absolute}.gauge-content{position:relative;z-index:2;text-align:center}.score{font-size:3rem;font-weight:800}.of{color:var(--muted);font-size:.9rem}.state{font-weight:800;letter-spacing:.08em;text-align:center;font-size:1.05rem}.summary{font-size:1.05rem;line-height:1.55}.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#2a2a2a;color:#ddd;font-size:.8rem;margin:2px 4px 2px 0}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.metric h3{margin:0 0 7px;font-size:1rem}.metric .hint{color:var(--muted);font-size:.82rem;line-height:1.4;margin-bottom:12px}.row{display:grid;grid-template-columns:1fr 105px;gap:12px;align-items:center;margin:10px 0}.row label{color:#d8d8d8;font-size:.9rem}input[type=number]{width:100%;background:#0f0f0f;color:#fff;border:1px solid #3a3a3a;border-radius:8px;padding:9px 10px;font-size:.95rem}input[type=checkbox]{transform:scale(1.25)}.bar{height:9px;background:#2a2a2a;border-radius:999px;overflow:hidden;margin-top:12px}.bar>span{display:block;height:100%;background:var(--blue);width:0}.points{font-weight:800;color:var(--blue);font-size:1.3rem}.points small{font-size:.75rem;color:var(--muted);font-weight:500}.portfolio{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.kv{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px}.kv b{display:block;color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}.kv span{font-size:1.15rem;font-weight:750}.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}.legend div{padding:10px;border-radius:9px;background:#1e1e1e;font-size:.83rem}.footer{color:var(--muted);font-size:.78rem;line-height:1.5;margin:18px 2px 0}.danger{color:var(--red)}.good{color:var(--green)}.warn{color:var(--yellow)}.source-links a{color:#9dc7ff;text-decoration:none}.source-links a:hover{text-decoration:underline}.btn{background:#2a2a2a;color:#fff;border:1px solid #444;border-radius:8px;padding:9px 12px;cursor:pointer}.btn:hover{background:#333}@media(max-width:800px){.top,.grid{grid-template-columns:1fr}.portfolio{grid-template-columns:repeat(2,1fr)}.legend{grid-template-columns:1fr 1fr}}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);padding:20px}.wrap{max-width:1200px;margin:auto}h1{margin:0;font-size:2.05rem}.sub{color:var(--muted);margin:.45rem 0 1.25rem}.top{display:grid;grid-template-columns:280px 1fr;gap:18px;margin-bottom:18px}.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px}.gauge{width:180px;height:180px;border-radius:50%;margin:6px auto 14px;display:grid;place-items:center;position:relative;background:conic-gradient(var(--accent) 0deg,#2a2a2a 0deg)}.gauge:after{content:"";width:138px;height:138px;border-radius:50%;background:var(--card);position:absolute}.gauge-content{position:relative;z-index:2;text-align:center}.score{font-size:3rem;font-weight:800}.of{color:var(--muted);font-size:.9rem}.state{font-weight:800;letter-spacing:.08em;text-align:center;font-size:1.05rem}.summary{font-size:1.03rem;line-height:1.55}.pill{display:inline-block;padding:5px 9px;border-radius:999px;background:#2a2a2a;color:#ddd;font-size:.8rem;margin:2px 4px 2px 0}.portfolio{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}.kv{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:14px}.kv b{display:block;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}.kv input[type=number]{width:82px}.kv input[type=checkbox]{transform:scale(1.25)}input[type=number]{background:#0f0f0f;color:#fff;border:1px solid #3a3a3a;border-radius:8px;padding:8px 9px;font-size:.95rem}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}.metric h3{margin:0;font-size:1rem}.metric-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.metric-value{font-weight:800;color:var(--blue);white-space:nowrap}.hint{color:var(--muted);font-size:.82rem;line-height:1.45;margin:7px 0 10px}.chart{height:205px;border:1px solid #292929;background:#101010;border-radius:10px;overflow:hidden}.chart svg{width:100%;height:100%;display:block}.chart-note{display:flex;justify-content:space-between;gap:12px;color:var(--muted);font-size:.74rem;margin-top:7px}.bar{height:8px;background:#2a2a2a;border-radius:999px;overflow:hidden;margin-top:10px}.bar span{display:block;height:100%;background:var(--blue);width:0}.legend{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.legend div{padding:10px;border-radius:9px;background:#1e1e1e;font-size:.83rem}.footer{color:var(--muted);font-size:.78rem;line-height:1.5;margin:18px 2px 0}.danger{color:var(--red)}.good{color:var(--green)}.warn{color:var(--yellow)}a{color:#9dc7ff;text-decoration:none}a:hover{text-decoration:underline}.source{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#121212;border:1px solid #242424;border-radius:10px;padding:10px 12px;margin-bottom:18px;color:var(--muted);font-size:.78rem}.loading{color:var(--yellow)}.override{margin-top:18px}.override summary{cursor:pointer;color:var(--muted)}.override-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}.override label{font-size:.75rem;color:var(--muted);display:block}.override input{width:100%;margin-top:5px}.wide{grid-column:1/-1}@media(max-width:850px){.top,.grid{grid-template-columns:1fr}.portfolio{grid-template-columns:repeat(2,1fr)}.override-grid{grid-template-columns:repeat(2,1fr)}.legend{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <h1>₿ BTC Accumulation Score</h1>
-  <div class="sub">A portfolio-aware framework for an existing BTC holder with a 5+ year horizon. Lower valuation + holder stress + improving absorption = higher add score.</div>
+  <div class="sub">Context first: historical series drive the score; the latest point is only meaningful relative to its own regime.</div>
+  <div class="source"><span id="status" class="loading">Loading public on-chain history…</span><span>Coin Metrics + BGeometrics · browser-cached to respect free API limits</span></div>
 
   <div class="top">
     <section class="card">
@@ -20,98 +21,103 @@
       <div id="state" class="state">—</div>
     </section>
     <section class="card">
-      <div id="summary" class="summary"></div>
-      <div style="margin-top:14px">
-        <span class="pill">Valuation 30</span><span class="pill">STH stress 20</span><span class="pill">SOPR 15</span><span class="pill">Capital absorption 20</span><span class="pill">Liquidity/ETF 15</span>
-      </div>
-      <div class="portfolio" style="margin-top:16px">
-        <div class="kv"><b>Current BTC allocation</b><span><input id="alloc" type="number" step="0.1" value="5.0">%</span></div>
-        <div class="kv"><b>Target allocation</b><span><input id="target" type="number" step="0.1" value="5.0">%</span></div>
-        <div class="kv"><b>Maximum allocation</b><span><input id="maxAlloc" type="number" step="0.1" value="10.0">%</span></div>
-        <div class="kv"><b>Thesis intact</b><span><input id="thesis" type="checkbox" checked></span></div>
+      <div id="summary" class="summary">Waiting for historical data.</div>
+      <div style="margin-top:14px"><span class="pill">MVRV regime 30</span><span class="pill">STH stress 20</span><span class="pill">aSOPR 15</span><span class="pill">Capital absorption 20</span><span class="pill">Liquidity + ETF 15</span></div>
+      <div class="portfolio">
+        <div class="kv"><b>Current BTC allocation</b><input id="alloc" type="number" step="0.1" value="5.0">%</div>
+        <div class="kv"><b>Target allocation</b><input id="target" type="number" step="0.1" value="5.0">%</div>
+        <div class="kv"><b>Maximum allocation</b><input id="maxAlloc" type="number" step="0.1" value="10.0">%</div>
+        <div class="kv"><b>Thesis intact</b><input id="thesis" type="checkbox" checked></div>
       </div>
     </section>
   </div>
 
   <div class="grid">
     <section class="card metric">
-      <h3>1. MVRV regime <span id="p1" class="points"></span></h3>
-      <div class="hint">Use a rolling 4-year MVRV percentile if available. This explicitly adjusts for cycle compression; a lower percentile means aggregate holder profitability is unusually subdued versus the current regime.</div>
-      <div class="row"><label>4Y MVRV percentile (%)</label><input id="mvrvPct" type="number" min="0" max="100" step="1" value="35"></div>
-      <div class="row"><label>Raw MVRV (context only)</label><input id="mvrvRaw" type="number" min="0" step="0.01" value="1.45"></div>
-      <div class="bar"><span id="b1"></span></div>
+      <div class="metric-head"><h3>1. MVRV regime</h3><span id="v1" class="metric-value">—</span></div>
+      <div class="hint">Full-history MVRV. Scoring uses the latest value's percentile within the trailing four years, so old-cycle extremes do not dominate today's regime.</div>
+      <div id="c1" class="chart"></div><div class="chart-note"><span id="n1">—</span><span id="p1">— / 30</span></div><div class="bar"><span id="b1"></span></div>
     </section>
 
     <section class="card metric">
-      <h3>2. Short-term holder stress <span id="p2" class="points"></span></h3>
-      <div class="hint">STH-MVRV near/below 1 means recent buyers are at breakeven or underwater. That can improve entry quality, provided the broader thesis remains intact.</div>
-      <div class="row"><label>STH-MVRV</label><input id="sth" type="number" min="0" step="0.01" value="1.06"></div>
-      <div class="bar"><span id="b2"></span></div>
+      <div class="metric-head"><h3>2. Short-term holder MVRV</h3><span id="v2" class="metric-value">—</span></div>
+      <div class="hint">Four-year history. The 1.0 line is recent-holder breakeven; below it, the average short-term holder is underwater.</div>
+      <div id="c2" class="chart"></div><div class="chart-note"><span id="n2">—</span><span id="p2">— / 20</span></div><div class="bar"><span id="b2"></span></div>
     </section>
 
     <section class="card metric">
-      <h3>3. SOPR / realized behavior <span id="p3" class="points"></span></h3>
-      <div class="hint">SOPR around 1 after loss realization often indicates selling near breakeven. Large sustained values above 1 indicate profit taking rather than distress.</div>
-      <div class="row"><label>Adjusted SOPR</label><input id="sopr" type="number" min="0" step="0.001" value="0.993"></div>
-      <div class="bar"><span id="b3"></span></div>
+      <div class="metric-head"><h3>3. Adjusted SOPR</h3><span id="v3" class="metric-value">—</span></div>
+      <div class="hint">Four-year realized-profit history. Around 1 means coins are being spent near aggregate breakeven; sustained high values imply profit realization.</div>
+      <div id="c3" class="chart"></div><div class="chart-note"><span id="n3">—</span><span id="p3">— / 15</span></div><div class="bar"><span id="b3"></span></div>
     </section>
 
     <section class="card metric">
-      <h3>4. Capital absorption <span id="p4" class="points"></span></h3>
-      <div class="hint">Combines new aggregate cost basis with long-term holder supply trend. Best setup: price stress while realized cap stabilizes/grows and LTH supply rises.</div>
-      <div class="row"><label>Realized cap, 30d change (%)</label><input id="rcap" type="number" step="0.1" value="1.1"></div>
-      <div class="row"><label>LTH supply, 30d change (%)</label><input id="lth" type="number" step="0.1" value="-0.2"></div>
-      <div class="bar"><span id="b4"></span></div>
+      <div class="metric-head"><h3>4. Realized-cap absorption</h3><span id="v4" class="metric-value">—</span></div>
+      <div class="hint">30-day change in realized cap. Positive growth means the network's aggregate cost basis is expanding rather than contracting.</div>
+      <div id="c4" class="chart"></div><div class="chart-note"><span id="n4">—</span><span id="p4">— / 20</span></div><div class="bar"><span id="b4"></span></div>
     </section>
 
     <section class="card metric">
-      <h3>5. Liquidity + ETF flows <span id="p5" class="points"></span></h3>
-      <div class="hint">Avoids aggressively buying into a deterioration that is still accelerating. Improving liquidity and institutional absorption raise conviction.</div>
-      <div class="row"><label>U.S. spot ETF 5d net flow ($M)</label><input id="etf" type="number" step="10" value="-440"></div>
-      <div class="row"><label>TBL liquidity index 7d change</label><input id="liq" type="number" step="0.1" value="-1.8"></div>
-      <div class="bar"><span id="b5"></span></div>
+      <div class="metric-head"><h3>5a. ETF flow pulse</h3><span id="v5" class="metric-value">—</span></div>
+      <div class="hint">Five-day rolling spot-ETF net flow. The score uses its historical percentile, avoiding dependence on the provider's display units.</div>
+      <div id="c5" class="chart"></div><div class="chart-note"><span id="n5">—</span><span id="p5a">— / 8</span></div><div class="bar"><span id="b5a"></span></div>
     </section>
 
-    <section class="card">
+    <section class="card metric">
+      <div class="metric-head"><h3>5b. Stablecoin liquidity</h3><span id="v6" class="metric-value">—</span></div>
+      <div class="hint">30-day stablecoin-supply growth as a public crypto-liquidity proxy. Rising supply can indicate more deployable on-chain dollar liquidity.</div>
+      <div id="c6" class="chart"></div><div class="chart-note"><span id="n6">—</span><span id="p5b">— / 7</span></div><div class="bar"><span id="b5b"></span></div>
+    </section>
+
+    <section class="card wide">
       <h3 style="margin-top:0">Decision bands</h3>
-      <div class="legend">
-        <div><b>&lt;55</b><br>HOLD</div>
-        <div><b>55–74</b><br>ADD</div>
-        <div><b>75–100</b><br>AGGRESSIVE ADD</div>
-        <div><b>Allocation &gt; max</b><br>REBALANCE WATCH</div>
-      </div>
-      <div style="margin-top:14px"><button id="reset" class="btn">Reset snapshot</button></div>
-      <div class="footer source-links">
-        Suggested source checks: <a href="https://thebitcoinlayer.com/overview?tab=bitcoin" target="_blank">The Bitcoin Layer</a>,
-        <a href="https://studio.glassnode.com/" target="_blank">Glassnode</a>,
-        <a href="https://farside.co.uk/btc/" target="_blank">Farside ETF flows</a>.
-        Inputs are editable because some on-chain series are proprietary and a static GitHub Pages app should not embed private API keys.
-      </div>
+      <div class="legend"><div><b>&lt;55</b><br>HOLD</div><div><b>55–74</b><br>ADD</div><div><b>75–100</b><br>AGGRESSIVE ADD</div><div><b>Allocation &gt; max</b><br>REBALANCE WATCH</div></div>
+      <details class="override"><summary>Manual overrides / API fallback</summary><div class="override-grid">
+        <label>4Y MVRV percentile<input id="mvrvPct" type="number" min="0" max="100" step="1" value="35"></label>
+        <label>STH-MVRV<input id="sth" type="number" step="0.01" value="1.06"></label>
+        <label>aSOPR<input id="sopr" type="number" step="0.001" value="0.993"></label>
+        <label>Realized cap 30d %<input id="rcap" type="number" step="0.1" value="1.1"></label>
+        <label>ETF 5d flow percentile<input id="etfPct" type="number" min="0" max="100" step="1" value="40"></label>
+        <label>Stablecoin supply 30d %<input id="stableGrowth" type="number" step="0.1" value="0"></label>
+      </div></details>
     </section>
   </div>
 
-  <div class="footer">
-    <b>Thesis veto:</b> a high score is not a buy signal if Bitcoin's monetary policy, settlement security, custody/access infrastructure, or durable adoption thesis has structurally deteriorated. This tool is a decision framework, not a price oracle or financial advice.
-  </div>
+  <div class="footer">Sources: <a href="https://community-api.coinmetrics.io/" target="_blank">Coin Metrics Community API</a> for full-history MVRV; <a href="https://bitcoin-data.com/bguser/free-features.html" target="_blank">BGeometrics / bitcoin-data.com</a> for four-year STH-MVRV, aSOPR, realized cap, ETF flows, and stablecoin supply. BGeometrics states that MVRV/SOPR-family free endpoints may be delayed by about seven days. Stablecoin growth is a liquidity proxy, not a standalone trading signal. <b>Thesis veto:</b> a high score is not a buy signal if Bitcoin's monetary policy, settlement security, custody/access, or durable adoption thesis has structurally deteriorated.</div>
 </div>
 <script>
-const defaults={mvrvPct:35,mvrvRaw:1.45,sth:1.06,sopr:0.993,rcap:1.1,lth:-0.2,etf:-440,liq:-1.8,alloc:5,target:5,maxAlloc:10,thesis:true};
-const ids=Object.keys(defaults);
-const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-const lerp=(x,x0,x1,y0,y1)=>x<=x0?y0:x>=x1?y1:y0+(x-x0)*(y1-y0)/(x1-x0);
-function scoreMvrv(p){return clamp(30*(1-clamp(p,0,100)/100),0,30)}
-function scoreSTH(x){if(x<=0.90)return 20;if(x<=0.95)return lerp(x,.90,.95,20,18);if(x<=1.00)return lerp(x,.95,1.00,18,15);if(x<=1.08)return lerp(x,1.00,1.08,15,10);if(x<=1.20)return lerp(x,1.08,1.20,10,5);if(x<=1.35)return lerp(x,1.20,1.35,5,1);return 0}
-function scoreSOPR(x){if(x>=1.08)return 0;if(x>=1.03)return lerp(x,1.03,1.08,5,0);if(x>=1.005)return lerp(x,1.005,1.03,10,5);if(x>=0.985)return 15;if(x>=0.95)return lerp(x,.95,.985,11,15);if(x>=0.90)return lerp(x,.90,.95,7,11);return 5}
-function scoreCapital(rc,lth){let a=rc<=-3?0:rc<0?lerp(rc,-3,0,0,5):rc<1?lerp(rc,0,1,5,8):rc<3?lerp(rc,1,3,8,10):10;let b=lth<=-2?0:lth<0?lerp(lth,-2,0,0,5):lth<1?lerp(lth,0,1,5,8):lth<2?lerp(lth,1,2,8,10):10;return clamp(a+b,0,20)}
-function scoreLiquidity(etf,liq){let e=etf<=-1000?0:etf<0?lerp(etf,-1000,0,0,4):etf<500?lerp(etf,0,500,4,7):8;let l=liq<=-3?0:liq<0?lerp(liq,-3,0,0,2):liq<2?lerp(liq,0,2,2,5):7;return clamp(e+l,0,15)}
-function val(id){return parseFloat(document.getElementById(id).value)||0}
-function setBar(id,v,max){document.getElementById(id).style.width=(100*v/max).toFixed(1)+'%'}
-function action(score,alloc,target,maxAlloc,thesis){if(!thesis)return ['REASSESS THESIS','danger','Score suspended because thesis veto is active.'];if(alloc>maxAlloc)return ['REBALANCE WATCH','danger',`BTC is ${alloc.toFixed(1)}% of portfolio, above your ${maxAlloc.toFixed(1)}% maximum. Valuation can be attractive while concentration risk is still too high.`];if(score>=75){let room=Math.max(0,maxAlloc-alloc);return ['AGGRESSIVE ADD','good',`High-conviction accumulation setup. You still have ${room.toFixed(1)} percentage points of room before your maximum allocation.`]}
-if(score>=55){if(alloc>=target)return ['HOLD / LIGHT ADD','warn',`Valuation is favorable, but you are already at/above your ${target.toFixed(1)}% target. Preserve dry powder for a stronger dislocation.`];return ['ADD','warn',`Favorable-but-not-capitulation setup. Incremental buying is reasonable while remaining below your ${target.toFixed(1)}% target.`]}
-return ['HOLD','',`No strong accumulation signal. Existing exposure already gives you upside participation; wait for a better asymmetry.`]}
-function render(){const s1=scoreMvrv(val('mvrvPct')),s2=scoreSTH(val('sth')),s3=scoreSOPR(val('sopr')),s4=scoreCapital(val('rcap'),val('lth')),s5=scoreLiquidity(val('etf'),val('liq'));const total=Math.round(s1+s2+s3+s4+s5);[['p1',s1,30],['p2',s2,20],['p3',s3,15],['p4',s4,20],['p5',s5,15]].forEach(([id,s,m],i)=>{document.getElementById(id).innerHTML=`${s.toFixed(1)} <small>/ ${m}</small>`;setBar('b'+(i+1),s,m)});document.getElementById('score').textContent=total;document.getElementById('gauge').style.background=`conic-gradient(var(--accent) ${3.6*total}deg,#2a2a2a 0deg)`;const [st,cls,msg]=action(total,val('alloc'),val('target'),val('maxAlloc'),document.getElementById('thesis').checked);const state=document.getElementById('state');state.textContent=st;state.className='state '+cls;document.getElementById('summary').innerHTML=`<b>${st}</b><br>${msg}<br><br><span style="color:var(--muted)">Component score: ${s1.toFixed(1)} + ${s2.toFixed(1)} + ${s3.toFixed(1)} + ${s4.toFixed(1)} + ${s5.toFixed(1)} = <b style="color:#fff">${total}/100</b>.</span>`;const snap={};ids.forEach(id=>snap[id]=id==='thesis'?document.getElementById(id).checked:document.getElementById(id).value);localStorage.setItem('btc-bas-v1',JSON.stringify(snap))}
-function load(){try{const s=JSON.parse(localStorage.getItem('btc-bas-v1')||'null');if(s){ids.forEach(id=>{if(s[id]!==undefined){if(id==='thesis')document.getElementById(id).checked=!!s[id];else document.getElementById(id).value=s[id]}})}}catch(e){}render()}
-ids.forEach(id=>document.getElementById(id).addEventListener('input',render));document.getElementById('reset').addEventListener('click',()=>{ids.forEach(id=>{if(id==='thesis')document.getElementById(id).checked=defaults[id];else document.getElementById(id).value=defaults[id]});localStorage.removeItem('btc-bas-v1');render()});load();
+var CM_URL='https://community-api.coinmetrics.io/v4/timeseries/asset-metrics?assets=btc&metrics=PriceUSD,CapMrktCurUSD,SplyCur,CapMVRVCur&frequency=1d&page_size=10000&start_time=2010-01-01';
+var BG='https://bitcoin-data.com/v1/';
+var CACHE18=18*60*60*1000,CACHE3=3*60*60*1000;
+var clamp=function(x,a,b){return Math.max(a,Math.min(b,x));};
+var lerp=function(x,x0,x1,y0,y1){return x<=x0?y0:x>=x1?y1:y0+(x-x0)*(y1-y0)/(x1-x0);};
+var val=function(id){return parseFloat(document.getElementById(id).value)||0;};
+function fetchCached(key,url,ttl){var old=null;try{old=JSON.parse(localStorage.getItem(key)||'null');}catch(e){}if(old&&Date.now()-old.ts<ttl)return Promise.resolve(old.data);return fetch(url).then(function(r){if(!r.ok)throw new Error(r.status+' '+r.statusText);return r.json();}).then(function(data){try{localStorage.setItem(key,JSON.stringify({ts:Date.now(),data:data}));}catch(e){}return data;}).catch(function(err){if(old&&old.data)return old.data;throw err;});}
+function bgeoSeries(payload){if(!Array.isArray(payload))return[];var out=[];payload.forEach(function(row){if(!row||typeof row!=='object')return;var t=Number(row.unixTs);t=Number.isFinite(t)?t*1000:Date.parse(String(row.d||''));var x=NaN;Object.keys(row).some(function(k){if(k==='d'||k==='unixTs')return false;var n=Number(row[k]);if(Number.isFinite(n)){x=n;return true;}return false;});if(Number.isFinite(t)&&Number.isFinite(x))out.push({t:t,v:x});});out.sort(function(a,b){return a.t-b.t;});return out;}
+function cmSeries(payload){var out=[];((payload&&payload.data)||[]).forEach(function(r){var t=Date.parse(r.time),v=Number(r.CapMVRVCur);if(Number.isFinite(t)&&Number.isFinite(v)&&v>0)out.push({t:t,v:v});});return out;}
+function pctRank(s,x){if(!s.length)return 50;var n=0;s.forEach(function(p){if(p.v<=x)n++;});return 100*n/s.length;}
+function rollingPct(s,days){var out=[];for(var i=days;i<s.length;i++){var a=s[i-days].v,b=s[i].v;if(Number.isFinite(a)&&a!==0&&Number.isFinite(b))out.push({t:s[i].t,v:100*(b/a-1)});}return out;}
+function rollingSum(s,n){var out=[],sum=0;for(var i=0;i<s.length;i++){sum+=s[i].v;if(i>=n)sum-=s[i-n].v;if(i>=n-1)out.push({t:s[i].t,v:sum});}return out;}
+function thin(s,max){if(s.length<=max)return s;var step=(s.length-1)/(max-1),out=[];for(var i=0;i<max;i++)out.push(s[Math.round(i*step)]);return out;}
+function fmtDate(t){var d=new Date(t);return d.toLocaleDateString(undefined,{year:'2-digit',month:'short'});}
+function svgChart(id,series,opts){opts=opts||{};var el=document.getElementById(id);if(!series||series.length<2){el.innerHTML='<div style="padding:70px 14px;text-align:center;color:#777">History unavailable</div>';return;}var s=thin(series,260),W=600,H=190,p=28,vals=s.map(function(x){return x.v;});var min=Math.min.apply(null,vals),max=Math.max.apply(null,vals);if(opts.baseline!==undefined){min=Math.min(min,opts.baseline);max=Math.max(max,opts.baseline);}if(max===min){max+=1;min-=1;}var pad=(max-min)*.08;max+=pad;min-=pad;function X(i){return p+i*(W-2*p)/(s.length-1);}function Y(v){return p+(max-v)*(H-2*p)/(max-min);}var path='';s.forEach(function(pt,i){path+=(i?' L ':'M ')+X(i).toFixed(1)+' '+Y(pt.v).toFixed(1);});var grid='';for(var g=0;g<4;g++){var y=p+g*(H-2*p)/3;grid+='<line x1="'+p+'" y1="'+y+'" x2="'+(W-p)+'" y2="'+y+'" stroke="#242424" stroke-width="1"/>';}var base='';if(opts.baseline!==undefined&&opts.baseline>=min&&opts.baseline<=max){var by=Y(opts.baseline);base='<line x1="'+p+'" y1="'+by+'" x2="'+(W-p)+'" y2="'+by+'" stroke="#666" stroke-width="1" stroke-dasharray="4 4"/>';}var last=s[s.length-1],ly=Y(last.v),lx=X(s.length-1);var f=opts.format||function(v){return v.toFixed(2);};el.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">'+grid+base+'<path d="'+path+'" fill="none" stroke="#4a9eff" stroke-width="2" vector-effect="non-scaling-stroke"/><circle cx="'+lx+'" cy="'+ly+'" r="4" fill="#f7931a"/><text x="'+p+'" y="16" fill="#777" font-size="11">'+f(max)+'</text><text x="'+p+'" y="'+(H-7)+'" fill="#777" font-size="11">'+f(min)+'</text><text x="'+p+'" y="'+(H-7)+'" dx="55" fill="#555" font-size="10">'+fmtDate(s[0].t)+'</text><text x="'+(W-p)+'" y="'+(H-7)+'" text-anchor="end" fill="#555" font-size="10">'+fmtDate(last.t)+'</text></svg>';}
+function scoreMvrv(p){return clamp(30*(1-clamp(p,0,100)/100),0,30);}
+function scoreSTH(x){if(x<=.90)return 20;if(x<=.95)return lerp(x,.90,.95,20,18);if(x<=1)return lerp(x,.95,1,18,15);if(x<=1.08)return lerp(x,1,1.08,15,10);if(x<=1.20)return lerp(x,1.08,1.20,10,5);if(x<=1.35)return lerp(x,1.20,1.35,5,1);return 0;}
+function scoreSOPR(x){if(x>=1.08)return 0;if(x>=1.03)return lerp(x,1.03,1.08,5,0);if(x>=1.005)return lerp(x,1.005,1.03,10,5);if(x>=.985)return 15;if(x>=.95)return lerp(x,.95,.985,11,15);if(x>=.90)return lerp(x,.90,.95,7,11);return 5;}
+function scoreCapital(x){if(x<=-2)return 0;if(x<0)return lerp(x,-2,0,0,8);if(x<1)return lerp(x,0,1,8,14);if(x<3)return lerp(x,1,3,14,20);return 20;}
+function scoreEtf(p){return 8*clamp(p,0,100)/100;}
+function scoreStable(x){if(x<=-3)return 0;if(x<0)return lerp(x,-3,0,0,2);if(x<2)return lerp(x,0,2,2,5);if(x<5)return lerp(x,2,5,5,7);return 7;}
+function setBar(id,x,m){document.getElementById(id).style.width=(100*x/m).toFixed(1)+'%';}
+function action(score,alloc,target,maxAlloc,thesis){if(!thesis)return['REASSESS THESIS','danger','Score suspended because the thesis veto is active.'];if(alloc>maxAlloc)return['REBALANCE WATCH','danger','BTC is above your maximum portfolio allocation even if valuation is attractive.'];if(score>=75)return['AGGRESSIVE ADD','good','Multiple valuation, holder-stress, capital and liquidity signals are aligned.'];if(score>=55){if(alloc>=target)return['HOLD / LIGHT ADD','warn','Setup is favorable, but you are already at or above target allocation; preserve dry powder for a stronger dislocation.'];return['ADD','warn','Setup is favorable but not a full capitulation signal.'];}return['HOLD','','No strong accumulation signal; existing exposure already preserves upside participation.'];}
+function render(){var s1=scoreMvrv(val('mvrvPct')),s2=scoreSTH(val('sth')),s3=scoreSOPR(val('sopr')),s4=scoreCapital(val('rcap')),s5a=scoreEtf(val('etfPct')),s5b=scoreStable(val('stableGrowth'));var total=Math.round(s1+s2+s3+s4+s5a+s5b);[['p1',s1,30,'b1'],['p2',s2,20,'b2'],['p3',s3,15,'b3'],['p4',s4,20,'b4'],['p5a',s5a,8,'b5a'],['p5b',s5b,7,'b5b']].forEach(function(a){document.getElementById(a[0]).textContent=a[1].toFixed(1)+' / '+a[2];setBar(a[3],a[1],a[2]);});document.getElementById('score').textContent=total;document.getElementById('gauge').style.background='conic-gradient(var(--accent) '+(3.6*total)+'deg,#2a2a2a 0deg)';var r=action(total,val('alloc'),val('target'),val('maxAlloc'),document.getElementById('thesis').checked);var st=document.getElementById('state');st.textContent=r[0];st.className='state '+r[1];document.getElementById('summary').innerHTML='<b>'+r[0]+'</b><br>'+r[2]+'<br><br><span style="color:var(--muted)">Score components: '+s1.toFixed(1)+' + '+s2.toFixed(1)+' + '+s3.toFixed(1)+' + '+s4.toFixed(1)+' + '+s5a.toFixed(1)+' + '+s5b.toFixed(1)+' = <b style="color:#fff">'+total+'/100</b>.</span>';try{localStorage.setItem('btc-bas-portfolio',JSON.stringify({alloc:val('alloc'),target:val('target'),maxAlloc:val('maxAlloc'),thesis:document.getElementById('thesis').checked}));}catch(e){}}
+function applyHistory(cm,sth,sopr,rcap,etf,stable){var latestM=cm[cm.length-1],cut=latestM.t-4*365.25*86400000,trail=cm.filter(function(p){return p.t>=cut;}),mPct=pctRank(trail,latestM.v);document.getElementById('mvrvPct').value=mPct.toFixed(1);document.getElementById('v1').textContent=latestM.v.toFixed(2)+' · '+mPct.toFixed(0)+'th pct';document.getElementById('n1').textContent='full history · score uses trailing 4y percentile';svgChart('c1',cm,{baseline:1,format:function(v){return v.toFixed(1);}});
+if(sth.length){var x=sth[sth.length-1].v;document.getElementById('sth').value=x.toFixed(3);document.getElementById('v2').textContent=x.toFixed(2);document.getElementById('n2').textContent='4y history · breakeven = 1.0';svgChart('c2',sth,{baseline:1,format:function(v){return v.toFixed(2);}});}
+if(sopr.length){var y=sopr[sopr.length-1].v;document.getElementById('sopr').value=y.toFixed(4);document.getElementById('v3').textContent=y.toFixed(3);document.getElementById('n3').textContent='4y history · breakeven = 1.0';svgChart('c3',sopr,{baseline:1,format:function(v){return v.toFixed(2);}});}
+var rg=rollingPct(rcap,30);if(rg.length){var z=rg[rg.length-1].v;document.getElementById('rcap').value=z.toFixed(2);document.getElementById('v4').textContent=(z>=0?'+':'')+z.toFixed(2)+'%';document.getElementById('n4').textContent='rolling 30d change';svgChart('c4',rg,{baseline:0,format:function(v){return v.toFixed(1)+'%';}});}
+var ef=rollingSum(etf,5);if(ef.length){var ev=ef[ef.length-1].v,ep=pctRank(ef,ev);document.getElementById('etfPct').value=ep.toFixed(1);document.getElementById('v5').textContent=ep.toFixed(0)+'th pct';document.getElementById('n5').textContent='5d rolling flow · percentile-based scoring';svgChart('c5',ef,{baseline:0,format:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(0);}});}
+var sg=rollingPct(stable,30);if(sg.length){var sv=sg[sg.length-1].v;document.getElementById('stableGrowth').value=sv.toFixed(2);document.getElementById('v6').textContent=(sv>=0?'+':'')+sv.toFixed(2)+'%';document.getElementById('n6').textContent='rolling 30d supply growth';svgChart('c6',sg,{baseline:0,format:function(v){return v.toFixed(1)+'%';}});}render();}
+function load(){try{var p=JSON.parse(localStorage.getItem('btc-bas-portfolio')||'null');if(p){document.getElementById('alloc').value=p.alloc;document.getElementById('target').value=p.target;document.getElementById('maxAlloc').value=p.maxAlloc;document.getElementById('thesis').checked=p.thesis;}}catch(e){}var jobs=[fetchCached('btc-cm-v1',CM_URL,CACHE3).then(cmSeries),fetchCached('btc-bg-sth-v1',BG+'sth-mvrv',CACHE18).then(bgeoSeries),fetchCached('btc-bg-sopr-v1',BG+'asopr',CACHE18).then(bgeoSeries),fetchCached('btc-bg-rcap-v1',BG+'realized-cap',CACHE18).then(bgeoSeries),fetchCached('btc-bg-etf-v1',BG+'etf-flow-btc',CACHE18).then(bgeoSeries),fetchCached('btc-bg-stable-v1',BG+'stablecoin-supply',CACHE18).then(bgeoSeries)];Promise.allSettled(jobs).then(function(r){var data=r.map(function(x){return x.status==='fulfilled'?x.value:[];});if(data[0].length)applyHistory(data[0],data[1],data[2],data[3],data[4],data[5]);else render();var ok=r.filter(function(x){return x.status==='fulfilled';}).length;var s=document.getElementById('status');s.className=ok===6?'good':'warn';s.textContent=ok===6?'Historical data loaded ('+ok+'/6 sources).':'Loaded '+ok+'/6 histories; missing series use manual fallback.';});}
+['alloc','target','maxAlloc','thesis','mvrvPct','sth','sopr','rcap','etfPct','stableGrowth'].forEach(function(id){document.getElementById(id).addEventListener('input',render);});load();render();
 </script>
 </body>
 </html>
