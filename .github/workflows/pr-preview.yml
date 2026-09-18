@@ -1,0 +1,101 @@
+name: PR Preview Links
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to refresh
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+  issues: write
+
+jobs:
+  preview-links:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post or update preview links
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const marker = '<!-- pr-preview-links -->';
+            const prNumber = context.eventName === 'workflow_dispatch'
+              ? Number(context.payload.inputs.pr_number)
+              : context.payload.pull_request.number;
+
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+              per_page: 100,
+            });
+
+            const changedHtml = files
+              .filter((file) => file.status !== 'removed' && file.filename.endsWith('.html'))
+              .map((file) => file.filename);
+
+            // Always include the site root so navigation/layout changes are easy to inspect.
+            const previewPaths = [...new Set(['index.html', ...changedHtml])];
+
+            const headOwner = pr.head.repo.owner.login;
+            const headRepo = pr.head.repo.name;
+            const headSha = pr.head.sha;
+
+            const encodePath = (path) =>
+              path.split('/').map((part) => encodeURIComponent(part)).join('/');
+
+            const previewUrl = (path) =>
+              `https://rawcdn.githack.com/${headOwner}/${headRepo}/${headSha}/${encodePath(path)}`;
+
+            const links = previewPaths.map((path) => {
+              const label = path === 'index.html' ? 'Homepage' : path;
+              return `- [Preview ${label}](${previewUrl(path)})`;
+            }).join('\n');
+
+            const body = `${marker}
+            ### PR preview
+
+            Generated from commit \`${headSha.slice(0, 7)}\`.
+
+            ${links}
+
+            > These links are automatically refreshed when new commits are pushed to this PR. They render the public PR commit via raw.githack and do not deploy or modify the production site.
+            `;
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              per_page: 100,
+            });
+
+            const existing = comments.find(
+              (comment) => comment.user?.type === 'Bot' && comment.body?.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body,
+              });
+            }
