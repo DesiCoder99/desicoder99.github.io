@@ -1,1 +1,55 @@
-<!-- Sell vs Rent US Home → India calculator: implementation follows -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sell vs Rent US Home Before Moving to India</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0a; --panel: #1a1a1a; --panel2: #111; --border: #333;
+  --text: #e0e0e0; --muted: #969696; --blue: #4a9eff; --green: #51cf66;
+  --red: #ff6b6b; --amber: #ffd166; --purple: #c586c0; --cyan: #9cdcfe;
+}
+body {
+  font-family: 'Monaco','Menlo','Ubuntu Mono',monospace;
+  background: var(--bg); color: var(--text); padding: 20px; line-height: 1.45;
+}
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.container { max-width: 1600px; margin: 0 auto; display: grid; grid-template-columns: 410px 1fr; gap: 20px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 20px; min-width: 0; }
+.back { display: inline-block; color: #888; font-size: 11px; margin-bottom: 10px; }
+h1 { color: var(--blue); font-size: 20px; margin-bottom: 10px; }
+h2 { color: var(--blue); margin: 18px 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+h3 { color: var(--cyan); font-size: 12px; margin: 12px 0 8px; }
+.lede { color: #bbb; font-size: 11px; line-height: 1.55; margin-bottom: 12px; }
+.note, .warning, .info { padding: 10px 12px; border-radius: 3px; font-size: 10.5px; line-height: 1.55; margin: 10px 0; }
+.note { background: #0f2016; border-left: 3px solid var(--green); }
+.warning { background: #2a1b0f; border-left: 3px solid var(--amber); }
+.info { background: #0f1824; border-left: 3px solid var(--blue); }
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.input-group { margin-bottom: 8px; min-width: 0; }
+.input-group.full { grid-column: 1 / -1; }
+label { display: block; color: #a5a5a5; font-size: 10px; margin-bottom: 3px; }
+input, select {
+  width: 100%; padding: 7px 9px; background: #090909; border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font: inherit; font-size: 11px;
+}
+input:focus, select:focus { outline: none; border-color: var(--blue); }
+.checkbox-row { display: flex; align-items: flex-start; gap: 8px; font-size: 10.5px; color: #aaa; margin: 8px 0; }
+.checkbox-row input { width: auto; margin-top: 2px; }
+.button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+button { background: #222; color: var(--text); border: 1px solid #3b3b3b; border-radius: 3px; padding: 8px 10px; font: inherit; font-size: 10.5px; cursor: pointer; }
+button:hover { border-color: var(--blue); color: var(--cyan); }
+.stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--panel); padding: 12px; border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 3px; min-width: 0; }
+.stat.green { border-left-color: var(--green); }
+.stat.red { border-left-color: var(--red); }
+.stat.amber { border-left-color: var(--amber); }
+.stat.purple { border-left-color: var(--purple); }
+.stat-label { color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+.stat-value { margin-top: 4px; font-size: 18px; font-weight: 700; color: var(--blue); overflow-wrap: anywhere; }
+.stat.green .stat-value { color: var(--green); }
+.stat.red .stat-value { color: var(--red); }
+.stat.amber .stat-value
