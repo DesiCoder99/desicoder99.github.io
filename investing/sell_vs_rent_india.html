@@ -427,4 +427,47 @@ function updateTaxModeNote(p) {
   const el=$('taxModeNote');
   if (p.taxStatus==='us') el.textContent='US-person mode: rental tax is estimated on positive net taxable rental income after expenses, mortgage interest and depreciation. The 30% NRA gross-rent rule and FIRPTA withholding are not applied.';
   else if (p.taxStatus==='nra871') el.textContent='NRA + 871(d) mode: rental income is modeled on a net basis with deductions, using your marginal rental-tax rate. FIRPTA withholding is shown separately at sale as a cash-flow issue, not an additional tax.';
-  else el.textContent='NRA without 871(d): rental income is modeled with the entered gross-rent tax rate (30%
+  else el.textContent='NRA without 871(d): rental income is modeled with the entered gross-rent tax rate (30% default), without expense deductions. FIRPTA withholding is shown separately at sale.';
+}
+
+function update() {
+  const p=inputs();
+  const r=simulate(p);
+  const be=breakEvenAppreciation(p);
+  const fx=p.usdInr;
+  $('keepValue').textContent=money(r.keepTotal); $('keepSub').textContent=`after ${p.holdYears} years${inr(r.keepTotal,fx)}`;
+  $('sellValue').textContent=money(r.sellFuture); $('sellSub').textContent=`$${Math.round(r.sellNowNet).toLocaleString('en-US')} investable today${inr(r.sellFuture,fx)}`;
+  $('difference').textContent=(r.diff>=0?'+':'')+money(r.diff).replace('-$','-$'); $('diffSub').textContent=r.diff>=0?'keep path ahead':'sell-now path ahead';
+  if (!be) $('breakEven').textContent='—';
+  else if (be.kind==='below') $('breakEven').textContent='< -20%';
+  else if (be.kind==='above') $('breakEven').textContent='> 30%';
+  else $('breakEven').textContent=percent(be.value,2);
+
+  const denom=Math.max(1,Math.max(Math.abs(r.keepTotal),Math.abs(r.sellFuture)));
+  const rel=Math.abs(r.diff)/denom;
+  const verdict=$('verdict');
+  verdict.className='verdict '+(rel<0.02?'near':r.diff>0?'keep':'sell');
+  if (rel<0.02) verdict.innerHTML=`The two paths are essentially tied under these assumptions: the gap is <strong>${moneyFull(Math.abs(r.diff))}</strong> (${(rel*100).toFixed(1)}% of the larger outcome). Small changes in rent, repairs, taxes or appreciation can flip the result.`;
+  else if (r.diff>0) verdict.innerHTML=`Under these assumptions, renting and selling later produces about <strong>${moneyFull(r.diff)}</strong> more after tax at year ${p.holdYears}. The model needs roughly <strong>${be&&be.kind==='within'?percent(be.value,2):$('breakEven').textContent}</strong> annual home appreciation to break even with selling now.`;
+  else verdict.innerHTML=`Under these assumptions, selling now and investing the released equity produces about <strong>${moneyFull(-r.diff)}</strong> more by year ${p.holdYears}. Keeping needs roughly <strong>${be&&be.kind==='within'?percent(be.value,2):$('breakEven').textContent}</strong> annual home appreciation to catch up.`;
+
+  const y1=r.rows[0];
+  $('year1CF').textContent=money(y1?.afterTaxCF||0); $('year1CFSub').textContent=`pre-tax ${money(y1?.preTaxCF||0)} • NOI ${money(y1?.noi||0)}`;
+  $('endingLoan').textContent=money(r.balance); $('principalPaid').textContent=`principal paid ${money(r.totalPrincipal)}`;
+  $('depreciation').textContent=money(r.cumulativeDep); $('depSub').textContent=`basis ${money(r.depBasis)} • approx ${money(r.annualDep)}/yr`;
+  $('firptaCard').classList.toggle('hidden',p.taxStatus==='us'); $('firpta').textContent=money(r.firptaWithholding);
+
+  const sec=r.eligible121Later ? `yes (approx.; exclusion up to ${money(p.section121Exclusion)})` : 'no under entered timing';
+  const firstYield=p.homeValue>0 ? (y1.noi/p.homeValue) : 0;
+  const equity=Math.max(0,p.homeValue-p.loanBalance);
+  const cashOnEquity=equity>0 ? y1.afterTaxCF/equity : 0;
+  $('driverGrid').innerHTML = [
+    ['Current gross equity',moneyFull(equity)],
+    ['Year-1 cap rate (NOI / value)',percent(firstYield,2)],
+    ['Year-1 after-tax cash-on-equity',percent(cashOnEquity,2)],
+    ['Section 121 at future sale',sec],
+    ['Future sale tax (modeled)',moneyFull(r.laterTax.total)],
+    ['Future selling costs',moneyFull(r.laterTax.saleCosts)],
+    ['Future rental cash flow at horizon',moneyFull(r.cashFlowAtHorizon)],
+    ['Future home value',moneyFull(r.homeValue)]
+  ].map(x=>`<div>${x[0]}</div><div>${x[1]}</div>`).join('');
