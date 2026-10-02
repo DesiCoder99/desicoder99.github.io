@@ -364,4 +364,67 @@ function simulate(p, holdYears=p.holdYears, appreciation=p.appreciation) {
 
   const firptaWithholding = (p.taxStatus === 'us') ? 0 : homeValue * 0.15;
 
-  return {annualPayment,depBasis,annualDep,rows,balance,homeValue,cumulativeDep,cashFlowAtHorizon,totalAfterTaxCF,totalPrincipal,eligible121Later,laterTax,late
+  return {annualPayment,depBasis,annualDep,rows,balance,homeValue,cumulativeDep,cashFlowAtHorizon,totalAfterTaxCF,totalPrincipal,eligible121Later,laterTax,laterSaleNet,keepTotal,eligible121Now,nowTax,sellNowNet,sellFuture,diff:keepTotal-sellFuture,firptaWithholding};
+}
+
+function breakEvenAppreciation(p) {
+  let lo=-0.20, hi=0.30;
+  let dlo=simulate(p,p.holdYears,lo).diff, dhi=simulate(p,p.holdYears,hi).diff;
+  if (!Number.isFinite(dlo) || !Number.isFinite(dhi)) return null;
+  if (dlo > 0 && dhi > 0) return {kind:'below',value:lo};
+  if (dlo < 0 && dhi < 0) return {kind:'above',value:hi};
+  for (let i=0;i<70;i++) {
+    const mid=(lo+hi)/2;
+    const d=simulate(p,p.holdYears,mid).diff;
+    if ((dlo<=0 && d>=0) || (dlo>=0 && d<=0)) { hi=mid; dhi=d; }
+    else { lo=mid; dlo=d; }
+  }
+  return {kind:'within',value:(lo+hi)/2};
+}
+
+function drawChart(p, finalResult) {
+  const canvas=$('pathChart');
+  const rect=canvas.getBoundingClientRect();
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  canvas.width=Math.max(500,Math.round(rect.width*dpr));
+  canvas.height=Math.round(300*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.width/dpr,H=canvas.height/dpr;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:58,r:16,t:18,b:34};
+  const years=[0], sell=[finalResult.sellNowNet], keep=[finalResult.sellNowNet];
+  for(let y=1;y<=p.holdYears;y++) {
+    const r=simulate(p,y,p.appreciation);
+    years.push(y); sell.push(r.sellFuture); keep.push(r.keepTotal);
+  }
+  let minY=Math.min(...sell,...keep), maxY=Math.max(...sell,...keep);
+  if (Math.abs(maxY-minY)<1) { maxY+=1; minY-=1; }
+  const margin=(maxY-minY)*0.12; minY-=margin; maxY+=margin;
+  const x=y=>pad.l+(W-pad.l-pad.r)*(y/p.holdYears);
+  const yv=v=>pad.t+(H-pad.t-pad.b)*(1-(v-minY)/(maxY-minY));
+
+  ctx.strokeStyle='#2a2a2a';ctx.fillStyle='#888';ctx.font='10px Monaco, monospace';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const v=minY+(maxY-minY)*i/4, py=yv(v);
+    ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(W-pad.r,py);ctx.stroke();
+    ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(money(v),pad.l-6,py);
+  }
+  const tickStep=p.holdYears<=10?1:Math.ceil(p.holdYears/10);
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let yr=0;yr<=p.holdYears;yr+=tickStep){const px=x(yr);ctx.fillText(String(yr),px,H-pad.b+7);} 
+  if (p.holdYears%tickStep!==0) ctx.fillText(String(p.holdYears),x(p.holdYears),H-pad.b+7);
+  ctx.fillStyle='#777';ctx.fillText('years',W-pad.r-8,H-12);
+
+  function line(vals,color){ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.beginPath();vals.forEach((v,i)=>{const px=x(years[i]),py=yv(v); if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);});ctx.stroke();}
+  line(sell,'#4a9eff'); line(keep,'#51cf66');
+  const fy=p.holdYears;
+  ctx.fillStyle='#4a9eff';ctx.beginPath();ctx.arc(x(fy),yv(sell[sell.length-1]),3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#51cf66';ctx.beginPath();ctx.arc(x(fy),yv(keep[keep.length-1]),3.5,0,Math.PI*2);ctx.fill();
+}
+
+function updateTaxModeNote(p) {
+  const el=$('taxModeNote');
+  if (p.taxStatus==='us') el.textContent='US-person mode: rental tax is estimated on positive net taxable rental income after expenses, mortgage interest and depreciation. The 30% NRA gross-rent rule and FIRPTA withholding are not applied.';
+  else if (p.taxStatus==='nra871') el.textContent='NRA + 871(d) mode: rental income is modeled on a net basis with deductions, using your marginal rental-tax rate. FIRPTA withholding is shown separately at sale as a cash-flow issue, not an additional tax.';
+  else el.textContent='NRA without 871(d): rental income is modeled with the entered gross-rent tax rate (30%
