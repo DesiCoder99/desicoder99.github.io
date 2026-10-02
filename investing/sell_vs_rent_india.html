@@ -138,4 +138,36 @@ th:first-child, td:first-child { text-align: left; }
       </div>
       <div class="input-group"><label>Marginal tax on net rental income (%)</label><input id="rentalTaxRate" type="number" value="24" step="1" min="0" max="60"></div>
       <div class="input-group"><label>NRA gross-rent tax (%)</label><input id="nraGrossRate" type="number" value="30" step="1" min="0" max="50"></div>
-      <d
+      <div class="input-group"><label>Federal LTCG rate (%)</label><input id="capitalGainsRate" type="number" value="15" step="1" min="0" max="40"></div>
+      <div class="input-group"><label>Depreciation-gain rate (%)</label><input id="recaptureRate" type="number" value="25" step="1" min="0" max="40"></div>
+      <div class="input-group"><label>State tax on taxable sale gain (%)</label><input id="stateSaleTaxRate" type="number" value="0" step="0.5" min="0" max="20"></div>
+      <div class="input-group"><label>Section 121 exclusion ($)</label><input id="section121Exclusion" type="number" value="500000" step="50000" min="0"></div>
+      <div class="input-group"><label>Approx. years Section 121 remains available</label><input id="section121Years" type="number" value="3" step="0.25" min="0" max="5"></div>
+      <div class="input-group"><label>India rental-tax top-up after FTC (%)</label><input id="indiaRentTopup" type="number" value="0" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>India sale-tax top-up after FTC (%)</label><input id="indiaSaleTopup" type="number" value="0" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>Future USD/INR for display (0 = off)</label><input id="usdInr" type="number" value="0" step="0.5" min="0" max="200"></div>
+    </div>
+    <div id="taxModeNote" class="info"></div>
+    <div class="warning">Tax model is deliberately simplified: it ignores passive-loss limitations, NIIT, exact state sourcing, mid-month depreciation, capital improvements after conversion, partial years, and detailed India ROR/RNOR/foreign-tax-credit rules. Use it to frame the decision, not file a return.</div>
+  </aside>
+
+  <main>
+    <div class="stats">
+      <div class="stat green"><div class="stat-label">Rent + sell later</div><div class="stat-value" id="keepValue">—</div><div class="stat-sub" id="keepSub"></div></div>
+      <div class="stat"><div class="stat-label">Sell now + invest</div><div class="stat-value" id="sellValue">—</div><div class="stat-sub" id="sellSub"></div></div>
+      <div class="stat purple"><div class="stat-label">Difference</div><div class="stat-value" id="difference">—</div><div class="stat-sub" id="diffSub"></div></div>
+      <div class="stat amber"><div class="stat-label">Break-even appreciation</div><div class="stat-value" id="breakEven">—</div><div class="stat-sub">Annual home-price growth where both paths converge</div></div>
+    </div>
+
+    <div id="verdict" class="verdict near">Enter your assumptions to compare the two paths.</div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Year-1 after-tax cash flow</div><div class="stat-value" id="year1CF">—</div><div class="stat-sub" id="year1CFSub"></div></div>
+      <div class="stat"><div class="stat-label">Mortgage at sale</div><div class="stat-value" id="endingLoan">—</div><div class="stat-sub" id="principalPaid"></div></div>
+      <div class="stat"><div class="stat-label">Depreciation used</div><div class="stat-value" id="depreciation">—</div><div class="stat-sub" id="depSub"></div></div>
+      <div class="stat" id="firptaCard"><div class="stat-label">FIRPTA withholding at sale</div><div class="stat-value" id="firpta">—</div><div class="stat-sub">Cash-flow withholding only; not modeled as extra tax</div></div>
+    </div>
+
+    <section class="chart-card">
+      <div class="chart-title">After-tax value if the decision is liquidated at each year</div>
+      <canvas id="pathChart" aria-label="Sell versus 
