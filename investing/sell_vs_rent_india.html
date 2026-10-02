@@ -52,4 +52,52 @@ button:hover { border-color: var(--blue); color: var(--cyan); }
 .stat-value { margin-top: 4px; font-size: 18px; font-weight: 700; color: var(--blue); overflow-wrap: anywhere; }
 .stat.green .stat-value { color: var(--green); }
 .stat.red .stat-value { color: var(--red); }
-.stat.amber .stat-value
+.stat.amber .stat-valuee { color: var(--amber); }
+.stat.purple .stat-value { color: var(--purple); }
+.stat-sub { margin-top: 3px; color: #888; font-size: 9px; line-height: 1.35; }
+.verdict { padding: 13px 15px; margin-bottom: 14px; border-radius: 3px; font-size: 12px; line-height: 1.55; background: #101010; border: 1px solid var(--border); }
+.verdict.keep { border-left: 3px solid var(--green); }
+.verdict.sell { border-left: 3px solid var(--blue); }
+.verdict.near { border-left: 3px solid var(--amber); }
+.chart-card, .table-card, .detail-card { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 14px; margin-bottom: 14px; min-width: 0; }
+.chart-title { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+canvas { display: block; width: 100%; height: 300px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; color: #aaa; font-size: 10px; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-line { width: 18px; height: 3px; border-radius: 2px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 10px; min-width: 760px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid #252525; text-align: right; white-space: nowrap; }
+th { color: var(--blue); font-size: 9px; text-transform: uppercase; letter-spacing: .4px; }
+th:first-child, td:first-child { text-align: left; }
+.small { font-size: 9.5px; color: #888; line-height: 1.55; }
+.source-list { margin: 8px 0 0 18px; }
+.source-list li { margin: 5px 0; }
+.hidden { display: none !important; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-size: 10px; margin-top: 6px; }
+.kv div:nth-child(odd) { color: #999; }
+.kv div:nth-child(even) { color: #ddd; text-align: right; }
+@media (max-width: 1100px) { .container { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { body { padding: 10px; } .panel { padding: 14px; } .input-grid { grid-template-columns: 1fr; } .input-group.full { grid-column: auto; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 15px; } canvas { height: 260px; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <aside class="panel">
+    <a class="back" href="/">&larr; home</a>
+    <h1>Sell vs Rent: US Home → India</h1>
+    <p class="lede">A year-by-year decision model for selling a US home now versus renting it and selling later after moving to India.</p>
+    <div class="note">The default values mirror the illustrative example in the International Real Estate article. Change them to your actual house.</div>
+
+    <div class="button-row">
+      <button type="button" id="articlePreset">Load article example</button>
+      <button type="button" id="fairPreset">Fair-comparison mode</button>
+    </div>
+
+    <h2>Property & mortgage</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Current home value ($)</label><input id="homeValue" type="number" value="600000" step="10000" min="0"></div>
+      <div class="input-group"><label>Adjusted cost basis ($)</label><input id="costBasis" type="number" value="500000" step="10000" min="0"></div>
+      <div class="input-group"><label>Mortgage balance ($)</label><input id="loanBalance" type="number" value="300000" step="10000" min="0"></div>
+      <div class="input-group"><label>Mortgage rate (%)</label><input id="mortgageRate" type="number" value="3.5" step="0.1" min="0" max="20"></div>
+      <div class="input-group"><label>Remaining 
