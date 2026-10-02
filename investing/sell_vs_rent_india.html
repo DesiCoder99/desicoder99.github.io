@@ -303,4 +303,65 @@ function saleTax(p, salePrice, cumulativeDep, eligible121) {
   const depGain = Math.min(Math.max(0,cumulativeDep), gain);
   const remainingGain = Math.max(0, gain - depGain);
   const excluded = eligible121 ? Math.min(p.section121Exclusion, remainingGain) : 0;
-  const taxableCapitalGain = Math
+  const taxableCapitalGain = Math.max(0, remainingGain - excluded);
+  const federal = depGain * p.recaptureRate + taxableCapitalGain * p.capitalGainsRate;
+  const stateTaxBase = depGain + taxableCapitalGain;
+  const state = stateTaxBase * p.stateSaleTaxRate;
+  const indiaTopup = stateTaxBase * p.indiaSaleTopup;
+  return { saleCosts, amountRealized, adjustedBasis, gain, depGain, remainingGain, excluded, taxableCapitalGain, federal, state, indiaTopup, total: federal + state + indiaTopup };
+}
+
+function simulate(p, holdYears=p.holdYears, appreciation=p.appreciation) {
+  const annualPayment = mortgagePayment(p.loanBalance,p.mortgageRate,p.mortgageYears) * 12;
+  const depBasis = Math.max(0, Math.min(p.costBasis,p.homeValue) * (1-p.landPct));
+  const annualDep = depBasis / 27.5;
+  let balance = p.loanBalance;
+  let homeValue = p.homeValue;
+  let annualRent = p.monthlyRent * 12;
+  let propertyTax = p.propertyTax, insurance=p.insurance, hoa=p.hoa, otherCosts=p.otherCosts;
+  let cumulativeDep = 0;
+  let cashFlowAtHorizon = 0;
+  let totalAfterTaxCF = 0;
+  let totalPrincipal = 0;
+  const rows = [];
+
+  for (let y=1; y<=holdYears; y++) {
+    const collectedRent = annualRent * (1-p.vacancy);
+    const management = collectedRent * p.managementPct;
+    const maintenance = collectedRent * p.maintenancePct;
+    const operating = propertyTax + insurance + hoa + otherCosts + management + maintenance;
+    const noi = collectedRent - operating;
+    const amort = amortizeYear(balance,p.mortgageRate,annualPayment/12);
+    const dep = Math.min(annualDep, Math.max(0,depBasis-cumulativeDep));
+    const taxableNetRent = Math.max(0, collectedRent - operating - amort.interest - dep);
+    let usRentalTax = 0;
+    if (p.taxStatus === 'nraGross') usRentalTax = collectedRent * p.nraGrossRate;
+    else usRentalTax = taxableNetRent * p.rentalTaxRate;
+    const indiaRentalTax = taxableNetRent * p.indiaRentTopup;
+    const preTaxCF = noi - amort.payments;
+    const afterTaxCF = preTaxCF - usRentalTax - indiaRentalTax;
+    const growthYears = p.reinvestCF ? (holdYears-y) : 0;
+    cashFlowAtHorizon += afterTaxCF * Math.pow(1+p.altReturn,growthYears);
+    totalAfterTaxCF += afterTaxCF;
+    totalPrincipal += amort.principal;
+    balance = amort.endingBalance;
+    cumulativeDep += dep;
+    homeValue *= (1+appreciation);
+    rows.push({year:y,homeValue,collectedRent,operating,noi,interest:amort.interest,principal:amort.principal,payments:amort.payments,taxableNetRent,usRentalTax,indiaRentalTax,preTaxCF,afterTaxCF,balance,dep,cumulativeDep});
+    annualRent *= (1+p.rentGrowth);
+    propertyTax *= (1+p.expenseGrowth); insurance *= (1+p.expenseGrowth); hoa *= (1+p.expenseGrowth); otherCosts *= (1+p.expenseGrowth);
+  }
+
+  const eligible121Later = p.section121Exclusion > 0 && holdYears <= p.section121Years + 1e-9;
+  const laterTax = saleTax(p,homeValue,cumulativeDep,eligible121Later);
+  const laterSaleNet = laterTax.amountRealized - balance - laterTax.total;
+  const keepTotal = laterSaleNet + cashFlowAtHorizon;
+
+  const eligible121Now = p.section121Exclusion > 0 && p.section121Years > 0;
+  const nowTax = saleTax(p,p.homeValue,0,eligible121Now);
+  const sellNowNet = nowTax.amountRealized - p.loanBalance - nowTax.total;
+  const sellFuture = sellNowNet * Math.pow(1+p.altReturn,holdYears);
+
+  const firptaWithholding = (p.taxStatus === 'us') ? 0 : homeValue * 0.15;
+
+  return {annualPayment,depBasis,annualDep,rows,balance,homeValue,cumulativeDep,cashFlowAtHorizon,totalAfterTaxCF,totalPrincipal,eligible121Later,laterTax,late
