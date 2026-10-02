@@ -100,4 +100,42 @@ th:first-child, td:first-child { text-align: left; }
       <div class="input-group"><label>Adjusted cost basis ($)</label><input id="costBasis" type="number" value="500000" step="10000" min="0"></div>
       <div class="input-group"><label>Mortgage balance ($)</label><input id="loanBalance" type="number" value="300000" step="10000" min="0"></div>
       <div class="input-group"><label>Mortgage rate (%)</label><input id="mortgageRate" type="number" value="3.5" step="0.1" min="0" max="20"></div>
-      <div class="input-group"><label>Remaining 
+      <div class="input-group"><label>Remaining term (years)</label><input id="mortgageYears" type="number" value="25" step="1" min="1" max="40"></div>
+      <div class="input-group"><label>Land share of basis (%)</label><input id="landPct" type="number" value="20" step="1" min="0" max="90"></div>
+    </div>
+
+    <h2>Rental economics</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Monthly market rent ($)</label><input id="monthlyRent" type="number" value="3800" step="100" min="0"></div>
+      <div class="input-group"><label>Vacancy (%)</label><input id="vacancy" type="number" value="5" step="0.5" min="0" max="100"></div>
+      <div class="input-group"><label>Property tax / yr ($)</label><input id="propertyTax" type="number" value="9000" step="500" min="0"></div>
+      <div class="input-group"><label>Insurance / yr ($)</label><input id="insurance" type="number" value="2000" step="100" min="0"></div>
+      <div class="input-group"><label>HOA / yr ($)</label><input id="hoa" type="number" value="1800" step="100" min="0"></div>
+      <div class="input-group"><label>Other fixed costs / yr ($)</label><input id="otherCosts" type="number" value="0" step="100" min="0"></div>
+      <div class="input-group"><label>Management (% collected rent)</label><input id="managementPct" type="number" value="8" step="0.5" min="0" max="50"></div>
+      <div class="input-group"><label>Maintenance reserve (%)</label><input id="maintenancePct" type="number" value="5" step="0.5" min="0" max="50"></div>
+      <div class="input-group"><label>Annual rent growth (%)</label><input id="rentGrowth" type="number" value="0" step="0.25" min="-20" max="30"></div>
+      <div class="input-group"><label>Annual fixed-cost growth (%)</label><input id="expenseGrowth" type="number" value="0" step="0.25" min="-20" max="30"></div>
+    </div>
+
+    <h2>Hold vs sell</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Hold period (years)</label><input id="holdYears" type="number" value="5" step="1" min="1" max="30"></div>
+      <div class="input-group"><label>Home appreciation / yr (%)</label><input id="appreciation" type="number" value="3" step="0.25" min="-20" max="30"></div>
+      <div class="input-group"><label>Selling costs (%)</label><input id="sellingCostPct" type="number" value="6" step="0.25" min="0" max="20"></div>
+      <div class="input-group"><label>Alternative after-tax return (%)</label><input id="altReturn" type="number" value="5" step="0.25" min="-20" max="30"></div>
+    </div>
+    <label class="checkbox-row"><input id="reinvestCF" type="checkbox"><span>Reinvest annual rental cash flow at the alternative-return rate. Off matches the article methodology more closely; on is a more apples-to-apples opportunity-cost comparison.</span></label>
+
+    <h2>Tax assumptions</h2>
+    <div class="input-grid">
+      <div class="input-group full"><label>US tax status while renting</label>
+        <select id="taxStatus">
+          <option value="us">US person / resident alien</option>
+          <option value="nra871">Nonresident alien + IRC 871(d) election</option>
+          <option value="nraGross">Nonresident alien without 871(d)</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Marginal tax on net rental income (%)</label><input id="rentalTaxRate" type="number" value="24" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>NRA gross-rent tax (%)</label><input id="nraGrossRate" type="number" value="30" step="1" min="0" max="50"></div>
+      <d
