@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sell vs Rent US Home Before Moving to India</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0a0a0a; --panel: #1a1a1a; --panel2: #111; --border: #333;
+  --text: #e0e0e0; --muted: #969696; --blue: #4a9eff; --green: #51cf66;
+  --red: #ff6b6b; --amber: #ffd166; --purple: #c586c0; --cyan: #9cdcfe;
+}
+body {
+  font-family: 'Monaco','Menlo','Ubuntu Mono',monospace;
+  background: var(--bg); color: var(--text); padding: 20px; line-height: 1.45;
+}
+a { color: var(--blue); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.container { max-width: 1600px; margin: 0 auto; display: grid; grid-template-columns: 410px 1fr; gap: 20px; }
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 20px; min-width: 0; }
+.back { display: inline-block; color: #888; font-size: 11px; margin-bottom: 10px; }
+h1 { color: var(--blue); font-size: 20px; margin-bottom: 10px; }
+h2 { color: var(--blue); margin: 18px 0 10px; font-size: 12px; text-transform: uppercase; letter-spacing: .6px; border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+h3 { color: var(--cyan); font-size: 12px; margin: 12px 0 8px; }
+.lede { color: #bbb; font-size: 11px; line-height: 1.55; margin-bottom: 12px; }
+.note, .warning, .info { padding: 10px 12px; border-radius: 3px; font-size: 10.5px; line-height: 1.55; margin: 10px 0; }
+.note { background: #0f2016; border-left: 3px solid var(--green); }
+.warning { background: #2a1b0f; border-left: 3px solid var(--amber); }
+.info { background: #0f1824; border-left: 3px solid var(--blue); }
+.input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+.input-group { margin-bottom: 8px; min-width: 0; }
+.input-group.full { grid-column: 1 / -1; }
+label { display: block; color: #a5a5a5; font-size: 10px; margin-bottom: 3px; }
+input, select {
+  width: 100%; padding: 7px 9px; background: #090909; border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text); font: inherit; font-size: 11px;
+}
+input:focus, select:focus { outline: none; border-color: var(--blue); }
+.checkbox-row { display: flex; align-items: flex-start; gap: 8px; font-size: 10.5px; color: #aaa; margin: 8px 0; }
+.checkbox-row input { width: auto; margin-top: 2px; }
+.button-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+button { background: #222; color: var(--text); border: 1px solid #3b3b3b; border-radius: 3px; padding: 8px 10px; font: inherit; font-size: 10.5px; cursor: pointer; }
+button:hover { border-color: var(--blue); color: var(--cyan); }
+.stats { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px; margin-bottom: 14px; }
+.stat { background: var(--panel); padding: 12px; border: 1px solid var(--border); border-left: 3px solid var(--blue); border-radius: 3px; min-width: 0; }
+.stat.green { border-left-color: var(--green); }
+.stat.red { border-left-color: var(--red); }
+.stat.amber { border-left-color: var(--amber); }
+.stat.purple { border-left-color: var(--purple); }
+.stat-label { color: #888; font-size: 9px; text-transform: uppercase; letter-spacing: .5px; }
+.stat-value { margin-top: 4px; font-size: 18px; font-weight: 700; color: var(--blue); overflow-wrap: anywhere; }
+.stat.green .stat-value { color: var(--green); }
+.stat.red .stat-value { color: var(--red); }
+.stat.amber .stat-value { color: var(--amber); }
+.stat.purple .stat-value { color: var(--purple); }
+.stat-sub { margin-top: 3px; color: #888; font-size: 9px; line-height: 1.35; }
+.verdict { padding: 13px 15px; margin-bottom: 14px; border-radius: 3px; font-size: 12px; line-height: 1.55; background: #101010; border: 1px solid var(--border); }
+.verdict.keep { border-left: 3px solid var(--green); }
+.verdict.sell { border-left: 3px solid var(--blue); }
+.verdict.near { border-left: 3px solid var(--amber); }
+.chart-card, .table-card, .detail-card { background: var(--panel); border: 1px solid var(--border); border-radius: 4px; padding: 14px; margin-bottom: 14px; min-width: 0; }
+.chart-title { font-size: 11px; color: #aaa; margin-bottom: 8px; }
+canvas { display: block; width: 100%; height: 300px; }
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 8px; color: #aaa; font-size: 10px; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+.legend-line { width: 18px; height: 3px; border-radius: 2px; }
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 10px; min-width: 760px; }
+th, td { padding: 7px 8px; border-bottom: 1px solid #252525; text-align: right; white-space: nowrap; }
+th { color: var(--blue); font-size: 9px; text-transform: uppercase; letter-spacing: .4px; }
+th:first-child, td:first-child { text-align: left; }
+.small { font-size: 9.5px; color: #888; line-height: 1.55; }
+.source-list { margin: 8px 0 0 18px; }
+.source-list li { margin: 5px 0; }
+.hidden { display: none !important; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 8px 16px; font-size: 10px; margin-top: 6px; }
+.kv div:nth-child(odd) { color: #999; }
+.kv div:nth-child(even) { color: #ddd; text-align: right; }
+@media (max-width: 1100px) { .container { grid-template-columns: 1fr; } .stats { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media (max-width: 600px) { body { padding: 10px; } .panel { padding: 14px; } .input-grid { grid-template-columns: 1fr; } .input-group.full { grid-column: auto; } .stats { grid-template-columns: 1fr 1fr; } .stat-value { font-size: 15px; } canvas { height: 260px; } }
+</style>
+</head>
+<body>
+<div class="container">
+  <aside class="panel">
+    <a class="back" href="/">&larr; home</a>
+    <h1>Sell vs Rent: US Home → India</h1>
+    <p class="lede">A year-by-year decision model for selling a US home now versus renting it and selling later after moving to India.</p>
+    <div class="note">The default values mirror the illustrative example in the International Real Estate article. Change them to your actual house.</div>
+
+    <div class="button-row">
+      <button type="button" id="articlePreset">Load article example</button>
+      <button type="button" id="fairPreset">Fair-comparison mode</button>
+    </div>
+
+    <h2>Property & mortgage</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Current home value ($)</label><input id="homeValue" type="number" value="600000" step="10000" min="0"></div>
+      <div class="input-group"><label>Adjusted cost basis ($)</label><input id="costBasis" type="number" value="500000" step="10000" min="0"></div>
+      <div class="input-group"><label>Mortgage balance ($)</label><input id="loanBalance" type="number" value="300000" step="10000" min="0"></div>
+      <div class="input-group"><label>Mortgage rate (%)</label><input id="mortgageRate" type="number" value="3.5" step="0.1" min="0" max="20"></div>
+      <div class="input-group"><label>Remaining term (years)</label><input id="mortgageYears" type="number" value="25" step="1" min="1" max="40"></div>
+      <div class="input-group"><label>Land share of basis (%)</label><input id="landPct" type="number" value="20" step="1" min="0" max="90"></div>
+    </div>
+
+    <h2>Rental economics</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Monthly market rent ($)</label><input id="monthlyRent" type="number" value="3800" step="100" min="0"></div>
+      <div class="input-group"><label>Vacancy (%)</label><input id="vacancy" type="number" value="5" step="0.5" min="0" max="100"></div>
+      <div class="input-group"><label>Property tax / yr ($)</label><input id="propertyTax" type="number" value="9000" step="500" min="0"></div>
+      <div class="input-group"><label>Insurance / yr ($)</label><input id="insurance" type="number" value="2000" step="100" min="0"></div>
+      <div class="input-group"><label>HOA / yr ($)</label><input id="hoa" type="number" value="1800" step="100" min="0"></div>
+      <div class="input-group"><label>Other fixed costs / yr ($)</label><input id="otherCosts" type="number" value="0" step="100" min="0"></div>
+      <div class="input-group"><label>Management (% collected rent)</label><input id="managementPct" type="number" value="8" step="0.5" min="0" max="50"></div>
+      <div class="input-group"><label>Maintenance reserve (%)</label><input id="maintenancePct" type="number" value="5" step="0.5" min="0" max="50"></div>
+      <div class="input-group"><label>Annual rent growth (%)</label><input id="rentGrowth" type="number" value="0" step="0.25" min="-20" max="30"></div>
+      <div class="input-group"><label>Annual fixed-cost growth (%)</label><input id="expenseGrowth" type="number" value="0" step="0.25" min="-20" max="30"></div>
+    </div>
+
+    <h2>Hold vs sell</h2>
+    <div class="input-grid">
+      <div class="input-group"><label>Hold period (years)</label><input id="holdYears" type="number" value="5" step="1" min="1" max="30"></div>
+      <div class="input-group"><label>Home appreciation / yr (%)</label><input id="appreciation" type="number" value="3" step="0.25" min="-20" max="30"></div>
+      <div class="input-group"><label>Selling costs (%)</label><input id="sellingCostPct" type="number" value="6" step="0.25" min="0" max="20"></div>
+      <div class="input-group"><label>Alternative after-tax return (%)</label><input id="altReturn" type="number" value="5" step="0.25" min="-20" max="30"></div>
+    </div>
+    <label class="checkbox-row"><input id="reinvestCF" type="checkbox"><span>Reinvest annual rental cash flow at the alternative-return rate. Off matches the article methodology more closely; on is a more apples-to-apples opportunity-cost comparison.</span></label>
+
+    <h2>Tax assumptions</h2>
+    <div class="input-grid">
+      <div class="input-group full"><label>US tax status while renting</label>
+        <select id="taxStatus">
+          <option value="us">US person / resident alien</option>
+          <option value="nra871">Nonresident alien + IRC 871(d) election</option>
+          <option value="nraGross">Nonresident alien without 871(d)</option>
+        </select>
+      </div>
+      <div class="input-group"><label>Marginal tax on net rental income (%)</label><input id="rentalTaxRate" type="number" value="24" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>NRA gross-rent tax (%)</label><input id="nraGrossRate" type="number" value="30" step="1" min="0" max="50"></div>
+      <div class="input-group"><label>Federal LTCG rate (%)</label><input id="capitalGainsRate" type="number" value="15" step="1" min="0" max="40"></div>
+      <div class="input-group"><label>Depreciation-gain rate (%)</label><input id="recaptureRate" type="number" value="25" step="1" min="0" max="40"></div>
+      <div class="input-group"><label>State tax on taxable sale gain (%)</label><input id="stateSaleTaxRate" type="number" value="0" step="0.5" min="0" max="20"></div>
+      <div class="input-group"><label>Section 121 exclusion ($)</label><input id="section121Exclusion" type="number" value="500000" step="50000" min="0"></div>
+      <div class="input-group"><label>Approx. years Section 121 remains available</label><input id="section121Years" type="number" value="3" step="0.25" min="0" max="5"></div>
+      <div class="input-group"><label>India rental-tax top-up after FTC (%)</label><input id="indiaRentTopup" type="number" value="0" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>India sale-tax top-up after FTC (%)</label><input id="indiaSaleTopup" type="number" value="0" step="1" min="0" max="60"></div>
+      <div class="input-group"><label>Future USD/INR for display (0 = off)</label><input id="usdInr" type="number" value="0" step="0.5" min="0" max="200"></div>
+    </div>
+    <div id="taxModeNote" class="info"></div>
+    <div class="warning">Tax model is deliberately simplified: it ignores passive-loss limitations, NIIT, exact state sourcing, mid-month depreciation, capital improvements after conversion, partial years, and detailed India ROR/RNOR/foreign-tax-credit rules. Use it to frame the decision, not file a return.</div>
+  </aside>
+
+  <main>
+    <div class="stats">
+      <div class="stat green"><div class="stat-label">Rent + sell later</div><div class="stat-value" id="keepValue">—</div><div class="stat-sub" id="keepSub"></div></div>
+      <div class="stat"><div class="stat-label">Sell now + invest</div><div class="stat-value" id="sellValue">—</div><div class="stat-sub" id="sellSub"></div></div>
+      <div class="stat purple"><div class="stat-label">Difference</div><div class="stat-value" id="difference">—</div><div class="stat-sub" id="diffSub"></div></div>
+      <div class="stat amber"><div class="stat-label">Break-even appreciation</div><div class="stat-value" id="breakEven">—</div><div class="stat-sub">Annual home-price growth where both paths converge</div></div>
+    </div>
+
+    <div id="verdict" class="verdict near">Enter your assumptions to compare the two paths.</div>
+
+    <div class="stats">
+      <div class="stat"><div class="stat-label">Year-1 after-tax cash flow</div><div class="stat-value" id="year1CF">—</div><div class="stat-sub" id="year1CFSub"></div></div>
+      <div class="stat"><div class="stat-label">Mortgage at sale</div><div class="stat-value" id="endingLoan">—</div><div class="stat-sub" id="principalPaid"></div></div>
+      <div class="stat"><div class="stat-label">Depreciation used</div><div class="stat-value" id="depreciation">—</div><div class="stat-sub" id="depSub"></div></div>
+      <div class="stat" id="firptaCard"><div class="stat-label">FIRPTA withholding at sale</div><div class="stat-value" id="firpta">—</div><div class="stat-sub">Cash-flow withholding only; not modeled as extra tax</div></div>
+    </div>
+
+    <section class="chart-card">
+      <div class="chart-title">After-tax value if the decision is liquidated at each year</div>
+      <canvas id="pathChart" aria-label="Sell versus rent value paths"></canvas>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-line" style="background:#4a9eff"></span>Sell now + invest</div>
+        <div class="legend-item"><span class="legend-line" style="background:#51cf66"></span>Rent, then sell</div>
+      </div>
+    </section>
+
+    <section class="detail-card">
+      <h3>What drives the result</h3>
+      <div class="kv" id="driverGrid"></div>
+    </section>
+
+    <section class="table-card">
+      <div class="chart-title">Year-by-year rental model</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Year</th><th>Home value</th><th>Collected rent</th><th>NOI</th><th>Interest</th><th>Principal</th><th>Rental tax</th><th>After-tax CF</th><th>Loan balance</th></tr></thead>
+          <tbody id="yearRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="detail-card small">
+      <h3>Model notes & sources</h3>
+      <p>This tool is inspired by the September 2026 International Real Estate research note. The source example compares a $600,000 home, a $300,000 mortgage at 3.5%, $3,800 monthly rent and a five-year hold.</p>
+      <ul class="source-list">
+        <li><a href="https://internationalreal.estate/insights/sell-or-rent-us-home-before-moving-back-to-india" target="_blank" rel="noopener">Source article: Sell or Rent Your US Home Before Moving Back to India?</a></li>
+        <li><a href="https://www.irs.gov/individuals/international-taxpayers/nonresident-aliens-real-property-located-in-the-us" target="_blank" rel="noopener">IRS: NRA real-property rental income and IRC 871(d)</a></li>
+        <li><a href="https://www.irs.gov/publications/p527" target="_blank" rel="noopener">IRS Publication 527: residential rental property and 27.5-year depreciation</a></li>
+        <li><a href="https://www.irs.gov/publications/p523" target="_blank" rel="noopener">IRS Publication 523: home-sale exclusion and depreciation after rental use</a></li>
+        <li><a href="https://www.irs.gov/individuals/international-taxpayers/firpta-withholding" target="_blank" rel="noopener">IRS: FIRPTA withholding on foreign sellers</a></li>
+      </ul>
+      <p style="margin-top:10px">Section 121 eligibility is approximated by the user-entered “years remaining” rather than reconstructed from exact occupancy dates. Depreciation uses a full-year straight-line approximation on the lower of adjusted basis or current FMV, excluding land; the IRS normally applies the mid-month convention.</p>
+    </section>
+  </main>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const ids = [
+  'homeValue','costBasis','loanBalance','mortgageRate','mortgageYears','landPct','monthlyRent','vacancy',
+  'propertyTax','insurance','hoa','otherCosts','managementPct','maintenancePct','rentGrowth','expenseGrowth',
+  'holdYears','appreciation','sellingCostPct','altReturn','taxStatus','rentalTaxRate','nraGrossRate',
+  'capitalGainsRate','recaptureRate','stateSaleTaxRate','section121Exclusion','section121Years','indiaRentTopup',
+  'indiaSaleTopup','usdInr','reinvestCF'
+];
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo)); }
+function n(id) { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : 0; }
+function pct(id) { return n(id) / 100; }
+function money(v) {
+  if (!Number.isFinite(v)) return '—';
+  const sign = v < 0 ? '-' : '';
+  const x = Math.abs(v);
+  if (x >= 1e6) return sign + '$' + (x/1e6).toFixed(x >= 1e7 ? 1 : 2) + 'M';
+  return sign + '$' + Math.round(x).toLocaleString('en-US');
+}
+function moneyFull(v) { return Number.isFinite(v) ? v.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}) : '—'; }
+function percent(v, digits=2) { return Number.isFinite(v) ? (v*100).toFixed(digits) + '%' : '—'; }
+function inr(v, rate) {
+  if (!(rate > 0) || !Number.isFinite(v)) return '';
+  const rupees = v * rate;
+  if (Math.abs(rupees) >= 1e7) return ' • ₹' + (rupees/1e7).toFixed(2) + ' cr';
+  if (Math.abs(rupees) >= 1e5) return ' • ₹' + (rupees/1e5).toFixed(1) + 'L';
+  return ' • ₹' + Math.round(rupees).toLocaleString('en-IN');
+}
+
+function inputs() {
+  return {
+    homeValue: Math.max(0,n('homeValue')),
+    costBasis: Math.max(0,n('costBasis')),
+    loanBalance: Math.max(0,n('loanBalance')),
+    mortgageRate: clamp(pct('mortgageRate'),0,1),
+    mortgageYears: clamp(Math.round(n('mortgageYears')),1,50),
+    landPct: clamp(pct('landPct'),0,.95),
+    monthlyRent: Math.max(0,n('monthlyRent')),
+    vacancy: clamp(pct('vacancy'),0,1),
+    propertyTax: Math.max(0,n('propertyTax')),
+    insurance: Math.max(0,n('insurance')),
+    hoa: Math.max(0,n('hoa')),
+    otherCosts: Math.max(0,n('otherCosts')),
+    managementPct: clamp(pct('managementPct'),0,1),
+    maintenancePct: clamp(pct('maintenancePct'),0,1),
+    rentGrowth: clamp(pct('rentGrowth'),-.5,1),
+    expenseGrowth: clamp(pct('expenseGrowth'),-.5,1),
+    holdYears: clamp(Math.round(n('holdYears')),1,30),
+    appreciation: clamp(pct('appreciation'),-.5,1),
+    sellingCostPct: clamp(pct('sellingCostPct'),0,.5),
+    altReturn: clamp(pct('altReturn'),-.5,1),
+    taxStatus: $('taxStatus').value,
+    rentalTaxRate: clamp(pct('rentalTaxRate'),0,1),
+    nraGrossRate: clamp(pct('nraGrossRate'),0,1),
+    capitalGainsRate: clamp(pct('capitalGainsRate'),0,1),
+    recaptureRate: clamp(pct('recaptureRate'),0,1),
+    stateSaleTaxRate: clamp(pct('stateSaleTaxRate'),0,1),
+    section121Exclusion: Math.max(0,n('section121Exclusion')),
+    section121Years: clamp(n('section121Years'),0,5),
+    indiaRentTopup: clamp(pct('indiaRentTopup'),0,1),
+    indiaSaleTopup: clamp(pct('indiaSaleTopup'),0,1),
+    usdInr: Math.max(0,n('usdInr')),
+    reinvestCF: $('reinvestCF').checked
+  };
+}
+
+function mortgagePayment(balance, annualRate, years) {
+  const months = Math.max(1, Math.round(years * 12));
+  if (balance <= 0) return 0;
+  if (annualRate <= 0) return balance / months;
+  const r = annualRate / 12;
+  return balance * r / (1 - Math.pow(1+r,-months));
+}
+
+function amortizeYear(balance, annualRate, payment) {
+  let interest = 0, principal = 0, payments = 0, b = balance;
+  const r = annualRate / 12;
+  for (let m=0; m<12 && b>0.005; m++) {
+    const i = b * r;
+    const due = Math.min(payment, b + i);
+    const p = Math.max(0, due - i);
+    interest += i; principal += p; payments += due; b = Math.max(0, b - p);
+  }
+  return { endingBalance:b, interest, principal, payments };
+}
+
+function saleTax(p, salePrice, cumulativeDep, eligible121) {
+  const saleCosts = salePrice * p.sellingCostPct;
+  const amountRealized = salePrice - saleCosts;
+  const adjustedBasis = Math.max(0, p.costBasis - cumulativeDep);
+  const gain = Math.max(0, amountRealized - adjustedBasis);
+  const depGain = Math.min(Math.max(0,cumulativeDep), gain);
+  const remainingGain = Math.max(0, gain - depGain);
+  const excluded = eligible121 ? Math.min(p.section121Exclusion, remainingGain) : 0;
+  const taxableCapitalGain = Math.max(0, remainingGain - excluded);
+  const federal = depGain * p.recaptureRate + taxableCapitalGain * p.capitalGainsRate;
+  const stateTaxBase = depGain + taxableCapitalGain;
+  const state = stateTaxBase * p.stateSaleTaxRate;
+  const indiaTopup = stateTaxBase * p.indiaSaleTopup;
+  return { saleCosts, amountRealized, adjustedBasis, gain, depGain, remainingGain, excluded, taxableCapitalGain, federal, state, indiaTopup, total: federal + state + indiaTopup };
+}
+
+function simulate(p, holdYears=p.holdYears, appreciation=p.appreciation) {
+  const annualPayment = mortgagePayment(p.loanBalance,p.mortgageRate,p.mortgageYears) * 12;
+  const depBasis = Math.max(0, Math.min(p.costBasis,p.homeValue) * (1-p.landPct));
+  const annualDep = depBasis / 27.5;
+  let balance = p.loanBalance;
+  let homeValue = p.homeValue;
+  let annualRent = p.monthlyRent * 12;
+  let propertyTax = p.propertyTax, insurance=p.insurance, hoa=p.hoa, otherCosts=p.otherCosts;
+  let cumulativeDep = 0;
+  let cashFlowAtHorizon = 0;
+  let totalAfterTaxCF = 0;
+  let totalPrincipal = 0;
+  const rows = [];
+
+  for (let y=1; y<=holdYears; y++) {
+    const collectedRent = annualRent * (1-p.vacancy);
+    const management = collectedRent * p.managementPct;
+    const maintenance = collectedRent * p.maintenancePct;
+    const operating = propertyTax + insurance + hoa + otherCosts + management + maintenance;
+    const noi = collectedRent - operating;
+    const amort = amortizeYear(balance,p.mortgageRate,annualPayment/12);
+    const dep = Math.min(annualDep, Math.max(0,depBasis-cumulativeDep));
+    const taxableNetRent = Math.max(0, collectedRent - operating - amort.interest - dep);
+    let usRentalTax = 0;
+    if (p.taxStatus === 'nraGross') usRentalTax = collectedRent * p.nraGrossRate;
+    else usRentalTax = taxableNetRent * p.rentalTaxRate;
+    const indiaRentalTax = taxableNetRent * p.indiaRentTopup;
+    const preTaxCF = noi - amort.payments;
+    const afterTaxCF = preTaxCF - usRentalTax - indiaRentalTax;
+    const growthYears = p.reinvestCF ? (holdYears-y) : 0;
+    cashFlowAtHorizon += afterTaxCF * Math.pow(1+p.altReturn,growthYears);
+    totalAfterTaxCF += afterTaxCF;
+    totalPrincipal += amort.principal;
+    balance = amort.endingBalance;
+    cumulativeDep += dep;
+    homeValue *= (1+appreciation);
+    rows.push({year:y,homeValue,collectedRent,operating,noi,interest:amort.interest,principal:amort.principal,payments:amort.payments,taxableNetRent,usRentalTax,indiaRentalTax,preTaxCF,afterTaxCF,balance,dep,cumulativeDep});
+    annualRent *= (1+p.rentGrowth);
+    propertyTax *= (1+p.expenseGrowth); insurance *= (1+p.expenseGrowth); hoa *= (1+p.expenseGrowth); otherCosts *= (1+p.expenseGrowth);
+  }
+
+  const eligible121Later = p.section121Exclusion > 0 && holdYears <= p.section121Years + 1e-9;
+  const laterTax = saleTax(p,homeValue,cumulativeDep,eligible121Later);
+  const laterSaleNet = laterTax.amountRealized - balance - laterTax.total;
+  const keepTotal = laterSaleNet + cashFlowAtHorizon;
+
+  const eligible121Now = p.section121Exclusion > 0 && p.section121Years > 0;
+  const nowTax = saleTax(p,p.homeValue,0,eligible121Now);
+  const sellNowNet = nowTax.amountRealized - p.loanBalance - nowTax.total;
+  const sellFuture = sellNowNet * Math.pow(1+p.altReturn,holdYears);
+
+  const firptaWithholding = (p.taxStatus === 'us') ? 0 : homeValue * 0.15;
+
+  return {annualPayment,depBasis,annualDep,rows,balance,homeValue,cumulativeDep,cashFlowAtHorizon,totalAfterTaxCF,totalPrincipal,eligible121Later,laterTax,laterSaleNet,keepTotal,eligible121Now,nowTax,sellNowNet,sellFuture,diff:keepTotal-sellFuture,firptaWithholding};
+}
+
+function breakEvenAppreciation(p) {
+  let lo=-0.20, hi=0.30;
+  let dlo=simulate(p,p.holdYears,lo).diff, dhi=simulate(p,p.holdYears,hi).diff;
+  if (!Number.isFinite(dlo) || !Number.isFinite(dhi)) return null;
+  if (dlo > 0 && dhi > 0) return {kind:'below',value:lo};
+  if (dlo < 0 && dhi < 0) return {kind:'above',value:hi};
+  for (let i=0;i<70;i++) {
+    const mid=(lo+hi)/2;
+    const d=simulate(p,p.holdYears,mid).diff;
+    if ((dlo<=0 && d>=0) || (dlo>=0 && d<=0)) { hi=mid; dhi=d; }
+    else { lo=mid; dlo=d; }
+  }
+  return {kind:'within',value:(lo+hi)/2};
+}
+
+function drawChart(p, finalResult) {
+  const canvas=$('pathChart');
+  const rect=canvas.getBoundingClientRect();
+  const dpr=Math.min(2,window.devicePixelRatio||1);
+  canvas.width=Math.max(500,Math.round(rect.width*dpr));
+  canvas.height=Math.round(300*dpr);
+  const ctx=canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  const W=canvas.width/dpr,H=canvas.height/dpr;
+  ctx.clearRect(0,0,W,H);
+  const pad={l:58,r:16,t:18,b:34};
+  const years=[0], sell=[finalResult.sellNowNet], keep=[finalResult.sellNowNet];
+  for(let y=1;y<=p.holdYears;y++) {
+    const r=simulate(p,y,p.appreciation);
+    years.push(y); sell.push(r.sellFuture); keep.push(r.keepTotal);
+  }
+  let minY=Math.min(...sell,...keep), maxY=Math.max(...sell,...keep);
+  if (Math.abs(maxY-minY)<1) { maxY+=1; minY-=1; }
+  const margin=(maxY-minY)*0.12; minY-=margin; maxY+=margin;
+  const x=y=>pad.l+(W-pad.l-pad.r)*(y/p.holdYears);
+  const yv=v=>pad.t+(H-pad.t-pad.b)*(1-(v-minY)/(maxY-minY));
+
+  ctx.strokeStyle='#2a2a2a';ctx.fillStyle='#888';ctx.font='10px Monaco, monospace';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){
+    const v=minY+(maxY-minY)*i/4, py=yv(v);
+    ctx.beginPath();ctx.moveTo(pad.l,py);ctx.lineTo(W-pad.r,py);ctx.stroke();
+    ctx.textAlign='right';ctx.textBaseline='middle';ctx.fillText(money(v),pad.l-6,py);
+  }
+  const tickStep=p.holdYears<=10?1:Math.ceil(p.holdYears/10);
+  ctx.textAlign='center';ctx.textBaseline='top';
+  for(let yr=0;yr<=p.holdYears;yr+=tickStep){const px=x(yr);ctx.fillText(String(yr),px,H-pad.b+7);} 
+  if (p.holdYears%tickStep!==0) ctx.fillText(String(p.holdYears),x(p.holdYears),H-pad.b+7);
+  ctx.fillStyle='#777';ctx.fillText('years',W-pad.r-8,H-12);
+
+  function line(vals,color){ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.beginPath();vals.forEach((v,i)=>{const px=x(years[i]),py=yv(v); if(i===0)ctx.moveTo(px,py);else ctx.lineTo(px,py);});ctx.stroke();}
+  line(sell,'#4a9eff'); line(keep,'#51cf66');
+  const fy=p.holdYears;
+  ctx.fillStyle='#4a9eff';ctx.beginPath();ctx.arc(x(fy),yv(sell[sell.length-1]),3.5,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#51cf66';ctx.beginPath();ctx.arc(x(fy),yv(keep[keep.length-1]),3.5,0,Math.PI*2);ctx.fill();
+}
+
+function updateTaxModeNote(p) {
+  const el=$('taxModeNote');
+  if (p.taxStatus==='us') el.textContent='US-person mode: rental tax is estimated on positive net taxable rental income after expenses, mortgage interest and depreciation. The 30% NRA gross-rent rule and FIRPTA withholding are not applied.';
+  else if (p.taxStatus==='nra871') el.textContent='NRA + 871(d) mode: rental income is modeled on a net basis with deductions, using your marginal rental-tax rate. FIRPTA withholding is shown separately at sale as a cash-flow issue, not an additional tax.';
+  else el.textContent='NRA without 871(d): rental income is modeled with the entered gross-rent tax rate (30% default), without expense deductions. FIRPTA withholding is shown separately at sale.';
+}
+
+function update() {
+  const p=inputs();
+  const r=simulate(p);
+  const be=breakEvenAppreciation(p);
+  const fx=p.usdInr;
+  $('keepValue').textContent=money(r.keepTotal); $('keepSub').textContent=`after ${p.holdYears} years${inr(r.keepTotal,fx)}`;
+  $('sellValue').textContent=money(r.sellFuture); $('sellSub').textContent=`$${Math.round(r.sellNowNet).toLocaleString('en-US')} investable today${inr(r.sellFuture,fx)}`;
+  $('difference').textContent=(r.diff>=0?'+':'')+money(r.diff).replace('-$','-$'); $('diffSub').textContent=r.diff>=0?'keep path ahead':'sell-now path ahead';
+  if (!be) $('breakEven').textContent='—';
+  else if (be.kind==='below') $('breakEven').textContent='< -20%';
+  else if (be.kind==='above') $('breakEven').textContent='> 30%';
+  else $('breakEven').textContent=percent(be.value,2);
+
+  const denom=Math.max(1,Math.max(Math.abs(r.keepTotal),Math.abs(r.sellFuture)));
+  const rel=Math.abs(r.diff)/denom;
+  const verdict=$('verdict');
+  verdict.className='verdict '+(rel<0.02?'near':r.diff>0?'keep':'sell');
+  if (rel<0.02) verdict.innerHTML=`The two paths are essentially tied under these assumptions: the gap is <strong>${moneyFull(Math.abs(r.diff))}</strong> (${(rel*100).toFixed(1)}% of the larger outcome). Small changes in rent, repairs, taxes or appreciation can flip the result.`;
+  else if (r.diff>0) verdict.innerHTML=`Under these assumptions, renting and selling later produces about <strong>${moneyFull(r.diff)}</strong> more after tax at year ${p.holdYears}. The model needs roughly <strong>${be&&be.kind==='within'?percent(be.value,2):$('breakEven').textContent}</strong> annual home appreciation to break even with selling now.`;
+  else verdict.innerHTML=`Under these assumptions, selling now and investing the released equity produces about <strong>${moneyFull(-r.diff)}</strong> more by year ${p.holdYears}. Keeping needs roughly <strong>${be&&be.kind==='within'?percent(be.value,2):$('breakEven').textContent}</strong> annual home appreciation to catch up.`;
+
+  const y1=r.rows[0];
+  $('year1CF').textContent=money(y1?.afterTaxCF||0); $('year1CFSub').textContent=`pre-tax ${money(y1?.preTaxCF||0)} • NOI ${money(y1?.noi||0)}`;
+  $('endingLoan').textContent=money(r.balance); $('principalPaid').textContent=`principal paid ${money(r.totalPrincipal)}`;
+  $('depreciation').textContent=money(r.cumulativeDep); $('depSub').textContent=`basis ${money(r.depBasis)} • approx ${money(r.annualDep)}/yr`;
+  $('firptaCard').classList.toggle('hidden',p.taxStatus==='us'); $('firpta').textContent=money(r.firptaWithholding);
+
+  const sec=r.eligible121Later ? `yes (approx.; exclusion up to ${money(p.section121Exclusion)})` : 'no under entered timing';
+  const firstYield=p.homeValue>0 ? (y1.noi/p.homeValue) : 0;
+  const equity=Math.max(0,p.homeValue-p.loanBalance);
+  const cashOnEquity=equity>0 ? y1.afterTaxCF/equity : 0;
+  $('driverGrid').innerHTML = [
+    ['Current gross equity',moneyFull(equity)],
+    ['Year-1 cap rate (NOI / value)',percent(firstYield,2)],
+    ['Year-1 after-tax cash-on-equity',percent(cashOnEquity,2)],
+    ['Section 121 at future sale',sec],
+    ['Future sale tax (modeled)',moneyFull(r.laterTax.total)],
+    ['Future selling costs',moneyFull(r.laterTax.saleCosts)],
+    ['Future rental cash flow at horizon',moneyFull(r.cashFlowAtHorizon)],
+    ['Future home value',moneyFull(r.homeValue)]
+  ].map(x=>`<div>${x[0]}</div><div>${x[1]}</div>`).join('');
+
+  $('yearRows').innerHTML=r.rows.map(x=>`<tr><td>${x.year}</td><td>${moneyFull(x.homeValue)}</td><td>${moneyFull(x.collectedRent)}</td><td>${moneyFull(x.noi)}</td><td>${moneyFull(x.interest)}</td><td>${moneyFull(x.principal)}</td><td>${moneyFull(x.usRentalTax+x.indiaRentalTax)}</td><td>${moneyFull(x.afterTaxCF)}</td><td>${moneyFull(x.balance)}</td></tr>`).join('');
+  updateTaxModeNote(p); drawChart(p,r);
+}
+
+function setValues(values) {
+  Object.entries(values).forEach(([k,v])=>{const el=$(k); if(!el)return; if(el.type==='checkbox')el.checked=!!v; else el.value=v;});
+  update();
+}
+$('articlePreset').addEventListener('click',()=>setValues({homeValue:600000,costBasis:500000,loanBalance:300000,mortgageRate:3.5,mortgageYears:25,landPct:20,monthlyRent:3800,vacancy:5,propertyTax:9000,insurance:2000,hoa:1800,otherCosts:0,managementPct:8,maintenancePct:5,rentGrowth:0,expenseGrowth:0,holdYears:5,appreciation:3,sellingCostPct:6,altReturn:5,reinvestCF:false,taxStatus:'nra871',rentalTaxRate:24,nraGrossRate:30,capitalGainsRate:15,recaptureRate:25,stateSaleTaxRate:0,section121Exclusion:500000,section121Years:3,indiaRentTopup:0,indiaSaleTopup:0,usdInr:0}));
+$('fairPreset').addEventListener('click',()=>{ $('reinvestCF').checked=true; update(); });
+ids.forEach(id=>{const el=$(id); if(el) el.addEventListener(el.tagName==='SELECT'||el.type==='checkbox'?'change':'input',update);});
+window.addEventListener('resize',()=>drawChart(inputs(),simulate(inputs())));
+update();
+})();
+</script>
+</body>
+</html>
