@@ -225,4 +225,82 @@ function money(v) {
   if (!Number.isFinite(v)) return '—';
   const sign = v < 0 ? '-' : '';
   const x = Math.abs(v);
-  if (x >= 1e6) return sign + '$
+  if (x >= 1e6) return sign + '$' + (x/1e6).toFixed(x >= 1e7 ? 1 : 2) + 'M';
+  return sign + '$' + Math.round(x).toLocaleString('en-US');
+}
+function moneyFull(v) { return Number.isFinite(v) ? v.toLocaleString('en-US',{style:'currency',currency:'USD',maximumFractionDigits:0}) : '—'; }
+function percent(v, digits=2) { return Number.isFinite(v) ? (v*100).toFixed(digits) + '%' : '—'; }
+function inr(v, rate) {
+  if (!(rate > 0) || !Number.isFinite(v)) return '';
+  const rupees = v * rate;
+  if (Math.abs(rupees) >= 1e7) return ' • ₹' + (rupees/1e7).toFixed(2) + ' cr';
+  if (Math.abs(rupees) >= 1e5) return ' • ₹' + (rupees/1e5).toFixed(1) + 'L';
+  return ' • ₹' + Math.round(rupees).toLocaleString('en-IN');
+}
+
+function inputs() {
+  return {
+    homeValue: Math.max(0,n('homeValue')),
+    costBasis: Math.max(0,n('costBasis')),
+    loanBalance: Math.max(0,n('loanBalance')),
+    mortgageRate: clamp(pct('mortgageRate'),0,1),
+    mortgageYears: clamp(Math.round(n('mortgageYears')),1,50),
+    landPct: clamp(pct('landPct'),0,.95),
+    monthlyRent: Math.max(0,n('monthlyRent')),
+    vacancy: clamp(pct('vacancy'),0,1),
+    propertyTax: Math.max(0,n('propertyTax')),
+    insurance: Math.max(0,n('insurance')),
+    hoa: Math.max(0,n('hoa')),
+    otherCosts: Math.max(0,n('otherCosts')),
+    managementPct: clamp(pct('managementPct'),0,1),
+    maintenancePct: clamp(pct('maintenancePct'),0,1),
+    rentGrowth: clamp(pct('rentGrowth'),-.5,1),
+    expenseGrowth: clamp(pct('expenseGrowth'),-.5,1),
+    holdYears: clamp(Math.round(n('holdYears')),1,30),
+    appreciation: clamp(pct('appreciation'),-.5,1),
+    sellingCostPct: clamp(pct('sellingCostPct'),0,.5),
+    altReturn: clamp(pct('altReturn'),-.5,1),
+    taxStatus: $('taxStatus').value,
+    rentalTaxRate: clamp(pct('rentalTaxRate'),0,1),
+    nraGrossRate: clamp(pct('nraGrossRate'),0,1),
+    capitalGainsRate: clamp(pct('capitalGainsRate'),0,1),
+    recaptureRate: clamp(pct('recaptureRate'),0,1),
+    stateSaleTaxRate: clamp(pct('stateSaleTaxRate'),0,1),
+    section121Exclusion: Math.max(0,n('section121Exclusion')),
+    section121Years: clamp(n('section121Years'),0,5),
+    indiaRentTopup: clamp(pct('indiaRentTopup'),0,1),
+    indiaSaleTopup: clamp(pct('indiaSaleTopup'),0,1),
+    usdInr: Math.max(0,n('usdInr')),
+    reinvestCF: $('reinvestCF').checked
+  };
+}
+
+function mortgagePayment(balance, annualRate, years) {
+  const months = Math.max(1, Math.round(years * 12));
+  if (balance <= 0) return 0;
+  if (annualRate <= 0) return balance / months;
+  const r = annualRate / 12;
+  return balance * r / (1 - Math.pow(1+r,-months));
+}
+
+function amortizeYear(balance, annualRate, payment) {
+  let interest = 0, principal = 0, payments = 0, b = balance;
+  const r = annualRate / 12;
+  for (let m=0; m<12 && b>0.005; m++) {
+    const i = b * r;
+    const due = Math.min(payment, b + i);
+    const p = Math.max(0, due - i);
+    interest += i; principal += p; payments += due; b = Math.max(0, b - p);
+  }
+  return { endingBalance:b, interest, principal, payments };
+}
+
+function saleTax(p, salePrice, cumulativeDep, eligible121) {
+  const saleCosts = salePrice * p.sellingCostPct;
+  const amountRealized = salePrice - saleCosts;
+  const adjustedBasis = Math.max(0, p.costBasis - cumulativeDep);
+  const gain = Math.max(0, amountRealized - adjustedBasis);
+  const depGain = Math.min(Math.max(0,cumulativeDep), gain);
+  const remainingGain = Math.max(0, gain - depGain);
+  const excluded = eligible121 ? Math.min(p.section121Exclusion, remainingGain) : 0;
+  const taxableCapitalGain = Math
