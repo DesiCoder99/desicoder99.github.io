@@ -471,3 +471,21 @@ function update() {
     ['Future rental cash flow at horizon',moneyFull(r.cashFlowAtHorizon)],
     ['Future home value',moneyFull(r.homeValue)]
   ].map(x=>`<div>${x[0]}</div><div>${x[1]}</div>`).join('');
+
+  $('yearRows').innerHTML=r.rows.map(x=>`<tr><td>${x.year}</td><td>${moneyFull(x.homeValue)}</td><td>${moneyFull(x.collectedRent)}</td><td>${moneyFull(x.noi)}</td><td>${moneyFull(x.interest)}</td><td>${moneyFull(x.principal)}</td><td>${moneyFull(x.usRentalTax+x.indiaRentalTax)}</td><td>${moneyFull(x.afterTaxCF)}</td><td>${moneyFull(x.balance)}</td></tr>`).join('');
+  updateTaxModeNote(p); drawChart(p,r);
+}
+
+function setValues(values) {
+  Object.entries(values).forEach(([k,v])=>{const el=$(k); if(!el)return; if(el.type==='checkbox')el.checked=!!v; else el.value=v;});
+  update();
+}
+$('articlePreset').addEventListener('click',()=>setValues({homeValue:600000,costBasis:500000,loanBalance:300000,mortgageRate:3.5,mortgageYears:25,landPct:20,monthlyRent:3800,vacancy:5,propertyTax:9000,insurance:2000,hoa:1800,otherCosts:0,managementPct:8,maintenancePct:5,rentGrowth:0,expenseGrowth:0,holdYears:5,appreciation:3,sellingCostPct:6,altReturn:5,reinvestCF:false,taxStatus:'nra871',rentalTaxRate:24,nraGrossRate:30,capitalGainsRate:15,recaptureRate:25,stateSaleTaxRate:0,section121Exclusion:500000,section121Years:3,indiaRentTopup:0,indiaSaleTopup:0,usdInr:0}));
+$('fairPreset').addEventListener('click',()=>{ $('reinvestCF').checked=true; update(); });
+ids.forEach(id=>{const el=$(id); if(el) el.addEventListener(el.tagName==='SELECT'||el.type==='checkbox'?'change':'input',update);});
+window.addEventListener('resize',()=>drawChart(inputs(),simulate(inputs())));
+update();
+})();
+</script>
+</body>
+</html>
