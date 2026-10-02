@@ -170,4 +170,59 @@ th:first-child, td:first-child { text-align: left; }
 
     <section class="chart-card">
       <div class="chart-title">After-tax value if the decision is liquidated at each year</div>
-      <canvas id="pathChart" aria-label="Sell versus 
+      <canvas id="pathChart" aria-label="Sell versus rent value paths"></canvas>
+      <div class="legend">
+        <div class="legend-item"><span class="legend-line" style="background:#4a9eff"></span>Sell now + invest</div>
+        <div class="legend-item"><span class="legend-line" style="background:#51cf66"></span>Rent, then sell</div>
+      </div>
+    </section>
+
+    <section class="detail-card">
+      <h3>What drives the result</h3>
+      <div class="kv" id="driverGrid"></div>
+    </section>
+
+    <section class="table-card">
+      <div class="chart-title">Year-by-year rental model</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Year</th><th>Home value</th><th>Collected rent</th><th>NOI</th><th>Interest</th><th>Principal</th><th>Rental tax</th><th>After-tax CF</th><th>Loan balance</th></tr></thead>
+          <tbody id="yearRows"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="detail-card small">
+      <h3>Model notes & sources</h3>
+      <p>This tool is inspired by the September 2026 International Real Estate research note. The source example compares a $600,000 home, a $300,000 mortgage at 3.5%, $3,800 monthly rent and a five-year hold.</p>
+      <ul class="source-list">
+        <li><a href="https://internationalreal.estate/insights/sell-or-rent-us-home-before-moving-back-to-india" target="_blank" rel="noopener">Source article: Sell or Rent Your US Home Before Moving Back to India?</a></li>
+        <li><a href="https://www.irs.gov/individuals/international-taxpayers/nonresident-aliens-real-property-located-in-the-us" target="_blank" rel="noopener">IRS: NRA real-property rental income and IRC 871(d)</a></li>
+        <li><a href="https://www.irs.gov/publications/p527" target="_blank" rel="noopener">IRS Publication 527: residential rental property and 27.5-year depreciation</a></li>
+        <li><a href="https://www.irs.gov/publications/p523" target="_blank" rel="noopener">IRS Publication 523: home-sale exclusion and depreciation after rental use</a></li>
+        <li><a href="https://www.irs.gov/individuals/international-taxpayers/firpta-withholding" target="_blank" rel="noopener">IRS: FIRPTA withholding on foreign sellers</a></li>
+      </ul>
+      <p style="margin-top:10px">Section 121 eligibility is approximated by the user-entered “years remaining” rather than reconstructed from exact occupancy dates. Depreciation uses a full-year straight-line approximation on the lower of adjusted basis or current FMV, excluding land; the IRS normally applies the mid-month convention.</p>
+    </section>
+  </main>
+</div>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const ids = [
+  'homeValue','costBasis','loanBalance','mortgageRate','mortgageYears','landPct','monthlyRent','vacancy',
+  'propertyTax','insurance','hoa','otherCosts','managementPct','maintenancePct','rentGrowth','expenseGrowth',
+  'holdYears','appreciation','sellingCostPct','altReturn','taxStatus','rentalTaxRate','nraGrossRate',
+  'capitalGainsRate','recaptureRate','stateSaleTaxRate','section121Exclusion','section121Years','indiaRentTopup',
+  'indiaSaleTopup','usdInr','reinvestCF'
+];
+
+function clamp(v, lo, hi) { return Math.min(hi, Math.max(lo, Number.isFinite(v) ? v : lo)); }
+function n(id) { const v = parseFloat($(id).value); return Number.isFinite(v) ? v : 0; }
+function pct(id) { return n(id) / 100; }
+function money(v) {
+  if (!Number.isFinite(v)) return '—';
+  const sign = v < 0 ? '-' : '';
+  const x = Math.abs(v);
+  if (x >= 1e6) return sign + '$
