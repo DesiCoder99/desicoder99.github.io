@@ -481,6 +481,9 @@
     .barrier-types { grid-template-columns: 1fr; }
   }
 </style>
+<link rel="stylesheet" href="vulkan-sync-demo.css?v=2">
+<script type="module" src="vulkan-sync-demo.js"></script>
+<script type="module" src="vulkan-timeline-demo.js"></script>
 </head>
 <body>
 <div class="container">
@@ -490,6 +493,87 @@
     <h1>Vulkan <span>Synchronization</span></h1>
     <div class="subtitle">Complete reference of all primitives & mechanisms</div>
   </div>
+
+  <nav class="demo-jumps" aria-label="Interactive examples"><a href="#sync-lab">Memory barrier demo</a><a href="#timeline-lab">Timeline semaphore demo</a></nav>
+
+  <section class="sync-lab" id="sync-lab" aria-labelledby="lab-title" hidden>
+    <div class="lab-heading">
+      <div><p class="lab-kicker">INTERACTIVE / READ-AFTER-WRITE</p><h2 id="lab-title">Same buffer. Two dispatches. What can B read?</h2></div>
+      <span class="lab-badge">Vulkan 1.3 · Synchronization2</span>
+    </div>
+    <p class="lab-intro">Dispatch A writes <code>42</code> to a storage buffer. Dispatch B reads the same location. Both are submitted to the same queue, in that order. Compare what each dependency guarantees.</p>
+    <fieldset class="lab-modes"><legend>Choose a dependency</legend>
+      <label><input type="radio" name="sync-mode" value="none"><span><strong>01 / No barrier</strong><small>Submission order alone</small></span></label>
+      <label><input type="radio" name="sync-mode" value="execution"><span><strong>02 / Execution only</strong><small>Stage masks, no access masks</small></span></label>
+      <label><input type="radio" name="sync-mode" value="memory" checked><span><strong>03 / Memory barrier</strong><small>Stage masks + access masks</small></span></label>
+    </fieldset>
+    <div class="lab-layout">
+      <div class="lab-visual">
+        <div class="lab-timeline-label"><strong>One possible GPU schedule</strong><span>conceptual time →</span></div>
+        <div class="lab-timeline" aria-label="Producer, dependency, and consumer timeline">
+          <div class="lab-lane"><span class="lab-lane-label">A <small>compute write</small></span><div class="lab-track"><div class="lab-block lab-producer" id="lab-producer"><span>A writes 42</span><i></i></div></div></div>
+          <div class="lab-lane"><span class="lab-lane-label">Dependency <small id="lab-dependency-label">order + memory</small></span><div class="lab-track"><div class="lab-block lab-dependency" id="lab-dependency"><span>make visible</span><i></i></div></div></div>
+          <div class="lab-lane"><span class="lab-lane-label">B <small>compute read</small></span><div class="lab-track"><div class="lab-block lab-consumer" id="lab-consumer"><span>B reads</span><i></i></div></div></div>
+          <div class="lab-playhead-area" aria-hidden="true"><div id="lab-playhead"></div></div>
+        </div>
+        <div class="lab-values">
+          <div><span>A's write</span><strong id="lab-write">pending</strong></div>
+          <div><span>Visible to B?</span><strong id="lab-visible">not yet</strong></div>
+          <div><span>B's result</span><strong id="lab-result">waiting</strong></div>
+        </div>
+        <div class="lab-explanation" id="lab-explanation"><strong id="lab-phase"></strong><p id="lab-detail"></p></div>
+        <div class="lab-controls">
+          <button type="button" id="lab-play">Play</button><button type="button" id="lab-step">Step →</button><button type="button" id="lab-reset">Reset</button>
+          <label class="lab-speed">Speed <select id="lab-speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+        </div>
+        <label class="lab-scrub-label" for="lab-progress">Scrub the timeline <output id="lab-position">0%</output></label>
+        <input id="lab-progress" type="range" min="0" max="100" value="0" step="1">
+        <p class="lab-sr" id="lab-announcement" role="status"></p>
+      </div>
+      <div class="lab-code-panel"><div class="lab-code-heading"><strong>Command buffer</strong><span id="lab-code-status">Correct dependency</span></div><pre tabindex="0" aria-label="Vulkan synchronization code"><code id="lab-code"></code></pre><p>Snippet assumes Synchronization2 is enabled, compute pipelines and descriptors are bound, and both dispatches access the same storage-buffer location. Setup is omitted.</p></div>
+    </div>
+    <p class="lab-footnote">This is an explanatory animation, not Vulkan running in the browser or a hardware timing trace. An unsynchronized read has no guaranteed value; it can appear to work. Availability and visibility are logical guarantees, not a literal cache diagram. <a href="https://docs.vulkan.org/guide/latest/synchronization_examples.html#_compute_to_compute_dependencies">Khronos example ↗</a> · <a href="https://docs.vulkan.org/spec/latest/chapters/synchronization.html">Specification ↗</a></p>
+  </section>
+
+  <section class="sync-lab timeline-lab" id="timeline-lab" aria-labelledby="tl-title" hidden>
+    <div class="lab-heading">
+      <div><p class="lab-kicker">INTERACTIVE / TIMELINE SEMAPHORE</p><h2 id="tl-title">One counter. Multiple waiters.</h2></div>
+      <span class="lab-badge">Timeline + Synchronization2</span>
+    </div>
+    <p class="lab-intro">Queue A uploads a buffer. Queue B waits for that upload, then processes it. The CPU waits for a chosen milestone. A timeline wait is satisfied when <code>counter ≥ target</code>; waiting never decrements the counter.</p>
+    <fieldset class="lab-modes"><legend>Choose a timeline scenario</legend>
+      <label><input type="radio" name="timeline-mode" value="chain" checked><span><strong>01 / Completion chain</strong><small>Upload → process → CPU</small></span></label>
+      <label><input type="radio" name="timeline-mode" value="skip"><span><strong>02 / Skip a value</strong><small>Signal 3 satisfies both waits for 2</small></span></label>
+      <label><input type="radio" name="timeline-mode" value="missing"><span><strong>03 / Unreached value</strong><small>CPU waits for 3; final signal is 2</small></span></label>
+    </fieldset>
+    <div class="lab-layout">
+      <div class="lab-visual">
+        <div class="tl-counter-panel"><div><span>SEMAPHORE COUNTER</span><strong id="tl-counter">0</strong></div><div class="tl-milestones" id="tl-milestones" aria-label="Signaled values"></div></div>
+        <div class="lab-timeline-label"><strong>Two GPU queues + the host</strong><span>conceptual time →</span></div>
+        <div class="lab-timeline" aria-label="Upload queue, processing queue, and CPU waits">
+          <div class="lab-lane"><span class="lab-lane-label">Queue A<small>upload buffer</small></span><div class="lab-track"><div class="lab-block tl-upload" id="tl-upload"><span>upload</span><i></i></div><span class="tl-signal tl-signal-a" id="tl-signal-a">↑ 1</span></div></div>
+          <div class="lab-lane"><span class="lab-lane-label">Queue B<small>process buffer</small></span><div class="lab-track"><div class="lab-block tl-wait" id="tl-gpu-wait"><span>wait ≥ 1</span><i></i></div><div class="lab-block tl-work" id="tl-work"><span>process</span><i></i></div><span class="tl-signal tl-signal-b" id="tl-signal-b">↑ 2</span></div></div>
+          <div class="lab-lane"><span class="lab-lane-label">CPU<small>host wait</small></span><div class="lab-track"><div class="lab-block tl-host-wait" id="tl-host-wait"><span>wait ≥ 2</span><i></i></div></div></div>
+          <div class="lab-playhead-area" aria-hidden="true"><div class="tl-playhead" id="tl-playhead"></div></div>
+        </div>
+        <div class="lab-values tl-wait-values">
+          <div><span id="tl-gpu-target">Queue B waits ≥ 1</span><strong id="tl-gpu-status">not submitted</strong></div>
+          <div><span id="tl-host-target">CPU waits ≥ 2</span><strong id="tl-host-status">not waiting</strong></div>
+        </div>
+        <div class="lab-explanation"><strong id="tl-phase"></strong><p id="tl-detail"></p></div>
+        <div class="lab-controls">
+          <button type="button" id="tl-play">Play</button><button type="button" id="tl-step">Step →</button><button type="button" id="tl-reset">Reset</button>
+          <label class="lab-speed">Speed <select id="tl-speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label>
+        </div>
+        <label class="lab-scrub-label" for="tl-progress">Scrub the semaphore timeline <output id="tl-position">0%</output></label>
+        <input id="tl-progress" type="range" min="0" max="100" value="0" step="1">
+        <p class="lab-sr" id="tl-announcement" role="status"></p>
+      </div>
+      <div class="lab-code-panel"><div class="lab-code-heading"><strong>Queue submissions &amp; host wait</strong><span id="tl-code-status">Wait for completion</span></div><pre tabindex="0" aria-label="Timeline semaphore example code"><code id="tl-code"></code></pre><p><code>submit()</code> is defined below. It uses <code>vkQueueSubmit2</code> with deliberately broad <code>ALL_COMMANDS</code> signal/wait scopes. Only the waiting CPU thread blocks; submitting the GPU wait does not block it.</p></div>
+    </div>
+    <details class="tl-setup"><summary>Show semaphore creation and the submit() helper</summary><pre tabindex="0" aria-label="Timeline semaphore setup and submission helper"><code id="tl-setup-code"></code></pre></details>
+    <p class="lab-footnote">Conceptual schedule, not a device timing trace. Two distinct queues from the same queue family are assumed, so this buffer needs no queue-family ownership transfer. Timeline semaphores and Synchronization2 must be enabled. Waits here observe completion; host buffer reads may also need cache management. Signals are ordered by the Queue A → Queue B dependency. Reset and scrubbing rewind this simulation; a live semaphore counter never decreases. <a href="https://docs.vulkan.org/samples/latest/samples/extensions/timeline_semaphore/README.html">Khronos timeline example ↗</a></p>
+  </section>
 
   <!-- Legend -->
   <div class="legend">
@@ -510,7 +594,7 @@
         <div class="scope-tag">Host ↔ Device</div>
       </div>
       <div class="card-desc">
-        <strong>CPU waits for GPU work to complete.</strong> Coarsest synchronization — signals when an entire queue submission finishes. Only mechanism visible to the host.
+        <strong>CPU waits for GPU work to complete.</strong> Coarsest synchronization — signals when an entire queue submission finishes. Timeline semaphores also support host waits.
       </div>
       <div class="flow">
         <div class="flow-node">CPU</div>
@@ -801,7 +885,7 @@
         <tr>
           <td>CPU needs to wait for GPU work</td>
           <td><span class="dt-prim green">Fence</span></td>
-          <td class="dt-why">Only host-visible signal mechanism</td>
+          <td class="dt-why">Host wait for submission completion</td>
         </tr>
         <tr>
           <td>Queue A done → Queue B starts (simple)</td>
