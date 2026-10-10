@@ -47,6 +47,8 @@ footer { display: flex; justify-content: space-between; gap: 20px; align-items: 
 .contact-links span { color: #748392; }
 button { font: inherit; color: #c3ccd7; border: 1px solid #ffffff30; background: #080c13; border-radius: 4px; padding: 8px 10px; cursor: pointer; }
 button:hover { border-color: #a9dfff; color: #fff; }
+.tip-jar, .tip-jar:hover { border: 0; background: none; border-radius: 0; padding: 12px 0; font-size: inherit; color: #aab3c0; }
+.tip-jar:hover { color: #fff; }
 .skip-link { position: fixed; top: 8px; left: 8px; transform: translateY(-200%); background: #030408; padding: 12px; z-index: 10; }
 .skip-link:focus { transform: translateY(0); }
 @media (min-width: 1500px) { .intro { padding-top: 80px; padding-bottom: 58px; } }

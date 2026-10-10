@@ -37,3 +37,14 @@ reducedMotion.addEventListener('change', () => {
   render();
 });
 render();
+
+const tipJar = document.querySelector('#tip-jar');
+const tipLabel = tipJar.textContent;
+let tipTimer;
+tipJar.addEventListener('click', () => {
+  navigator.clipboard.writeText(tipJar.dataset.btc).then(() => {
+    tipJar.textContent = 'Address copied';
+    clearTimeout(tipTimer);
+    tipTimer = setTimeout(() => { tipJar.textContent = tipLabel; }, 1600);
+  }, () => { tipJar.textContent = tipJar.dataset.btc; }); // clipboard blocked: show it
+});
