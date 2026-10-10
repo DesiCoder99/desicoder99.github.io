@@ -8,6 +8,7 @@
   <title>DesiCoder99's Devpit</title>
   <link rel="stylesheet" href="assets/landing.css">
   <script type="module" src="assets/landing.js"></script>
+<!-- Cloudflare Web Analytics --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "7dc12387e402485a95b9d4806838764c"}'></script><!-- End Cloudflare Web Analytics -->
 </head>
 <body>
   <div class="earthrise" aria-hidden="true"><canvas id="earthrise" style="width: 100%"></canvas></div>
@@ -18,7 +19,6 @@
       <a href="/" aria-current="page">Home</a>
       <a href="about.html">About</a>
       <a href="blog">Blog</a>
-      <a href="investing/btc_accumulation_score.html">BTC Score</a>
     </nav>
   </header>
   <main>
@@ -27,23 +27,40 @@
       <h1 id="title">The Devpit<span>.</span></h1>
       <p class="tagline">Code, crypto, and a little chaos.</p>
     </section>
-    <section id="projects" aria-labelledby="projects-title">
-      <div class="section-heading"><h2 id="projects-title">Things I've built &amp; written</h2><span>13 / EXPLORE</span></div>
-      <div class="project-grid">
-        <a class="card" href="investing/rolling.html"><span class="category">INVESTING</span><h3>Rolling returns <span aria-hidden="true">↗</span></h3><p>Explore returns over time.</p></a>
-        <a class="card" href="investing/btc_accumulation_score.html"><span class="category">BITCOIN</span><h3>BTC accumulation score <span aria-hidden="true">↗</span></h3><p>On-chain signals &amp; historical context.</p></a>
-        <a class="card" href="blog"><span class="category">WRITING</span><h3>The blog <span aria-hidden="true">↗</span></h3><p>Thoughts on code, crypto, and chaos.</p></a>
-        <a class="card" href="investing/mstr_heatmap.html"><span class="category">INVESTING</span><h3>MSTR calculator <span aria-hidden="true">↗</span></h3><p>Valuation, preferred stock &amp; mNAV.</p></a>
-        <a class="card" href="fun/find_duplicate_game.html"><span class="category category-fun">PLAY</span><h3>Movie match <span aria-hidden="true">↗</span></h3><p>Find the duplicate Christmas poster.</p></a>
-        <a class="card" href="fun/coloroid.html"><span class="category category-fun">PLAY</span><h3>Coloroid <span aria-hidden="true">↗</span></h3><p>A 3D flood-fill puzzle in WebGPU.</p></a>
-        <a class="card" href="fun/penrose_stego.html"><span class="category category-fun">PLAY</span><h3>Penrose Stego <span aria-hidden="true">↗</span></h3><p>Hidden messages in aperiodic tiles.</p></a>
-        <a class="card" href="investing/retirement_analyzer_real.html"><span class="category">PLANNING</span><h3>Retirement analyzer <span aria-hidden="true">↗</span></h3><p>Plan ahead with Monte Carlo simulation.</p></a>
-        <a class="card" href="investing/rmd_threshold.html"><span class="category">PLANNING</span><h3>RMD threshold <span aria-hidden="true">↗</span></h3><p>Find the threshold of indifference.</p></a>
-        <a class="card" href="investing/sell_vs_rent_india.html"><span class="category">REAL ESTATE</span><h3>Sell vs. rent <span aria-hidden="true">↗</span></h3><p>A US home, a move to India: compare.</p></a>
-        <a class="card" href="fun/dice_waves.html"><span class="category category-fun">PLAY</span><h3>Dice Waves <span aria-hidden="true">↗</span></h3><p>3D cubes tumbling across a dot grid.</p></a>
-        <a class="card" href="graphics/vulkan_sync_infographic.html"><span class="category category-data">GRAPHICS</span><h3>Vulkan synchronization <span aria-hidden="true">↗</span></h3><p>A complete visual reference.</p></a>
-        <a class="card" href="misc/national/"><span class="category category-data">DATA</span><h3>US income atlas <span aria-hidden="true">↗</span></h3><p>Household income by state &amp; ZIP code.</p></a>
-      </div>
+    <section id="projects" aria-label="Things I've built &amp; written">
+      <section class="project-group" aria-labelledby="g-invest">
+        <div class="section-heading"><h2 id="g-invest">Investing &amp; planning</h2><span>06 / MONEY</span></div>
+        <div class="project-grid">
+          <a class="card" href="investing/rolling.html"><span class="category">INVESTING</span><h3>Rolling returns <span aria-hidden="true">↗</span></h3><p>Explore returns over time.</p></a>
+          <a class="card" href="investing/btc_accumulation_score.html"><span class="category">BITCOIN</span><h3>BTC accumulation score <span aria-hidden="true">↗</span></h3><p>On-chain signals &amp; historical context.</p></a>
+          <a class="card" href="investing/mstr_heatmap.html"><span class="category">INVESTING</span><h3>MSTR calculator <span aria-hidden="true">↗</span></h3><p>Valuation, preferred stock &amp; mNAV.</p></a>
+          <a class="card" href="investing/retirement_analyzer_real.html"><span class="category">PLANNING</span><h3>Retirement analyzer <span aria-hidden="true">↗</span></h3><p>Plan ahead with Monte Carlo simulation.</p></a>
+          <a class="card" href="investing/rmd_threshold.html"><span class="category">PLANNING</span><h3>RMD threshold <span aria-hidden="true">↗</span></h3><p>Find the threshold of indifference.</p></a>
+          <a class="card" href="investing/sell_vs_rent_india.html"><span class="category">REAL ESTATE</span><h3>Sell vs. rent <span aria-hidden="true">↗</span></h3><p>A US home, a move to India: compare.</p></a>
+        </div>
+      </section>
+      <section class="project-group" aria-labelledby="g-play">
+        <div class="section-heading"><h2 id="g-play">Games &amp; toys</h2><span>04 / PLAY</span></div>
+        <div class="project-grid">
+          <a class="card" href="fun/find_duplicate_game.html"><span class="category category-fun">PLAY</span><h3>Movie match <span aria-hidden="true">↗</span></h3><p>Find the duplicate Christmas poster.</p></a>
+          <a class="card" href="fun/coloroid.html"><span class="category category-fun">PLAY</span><h3>Coloroid <span aria-hidden="true">↗</span></h3><p>A 3D flood-fill puzzle in WebGPU.</p></a>
+          <a class="card" href="fun/penrose_stego.html"><span class="category category-fun">PLAY</span><h3>Penrose Stego <span aria-hidden="true">↗</span></h3><p>Hidden messages in aperiodic tiles.</p></a>
+          <a class="card" href="fun/dice_waves.html"><span class="category category-fun">PLAY</span><h3>Dice Waves <span aria-hidden="true">↗</span></h3><p>3D cubes tumbling across a dot grid.</p></a>
+        </div>
+      </section>
+      <section class="project-group" aria-labelledby="g-deep">
+        <div class="section-heading"><h2 id="g-deep">Graphics &amp; data</h2><span>02 / DEEP DIVES</span></div>
+        <div class="project-grid">
+          <a class="card" href="graphics/vulkan_sync_infographic.html"><span class="category category-data">GRAPHICS</span><h3>Vulkan synchronization <span aria-hidden="true">↗</span></h3><p>A complete visual reference.</p></a>
+          <a class="card" href="misc/national/"><span class="category category-data">DATA</span><h3>US income atlas <span aria-hidden="true">↗</span></h3><p>Household income by state &amp; ZIP code.</p></a>
+        </div>
+      </section>
+      <section class="project-group" aria-labelledby="g-writing">
+        <div class="section-heading"><h2 id="g-writing">Writing</h2><span>01 / BLOG</span></div>
+        <div class="project-grid">
+          <a class="card" href="blog"><span class="category">WRITING</span><h3>The blog <span aria-hidden="true">↗</span></h3><p>Thoughts on code, crypto, and chaos.</p></a>
+        </div>
+      </section>
     </section>
   </main>
   <footer>
