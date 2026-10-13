@@ -198,6 +198,28 @@
                 <div class="input-group"><label>Cut 2: reduce spend %</label><input type="number" id="gr2Cut" value="25" step="5"></div>
             </div>
 
+            <h2>Return Model</h2>
+            <div class="input-group">
+                <label>Equity return source</label>
+                <select id="retModel">
+                    <option value="bootstrap" selected>Monte Carlo: block bootstrap of history</option>
+                    <option value="hist">Historical windows (1928-2023, deterministic)</option>
+                    <option value="normal">Monte Carlo: normal + autocorrelation</option>
+                </select>
+            </div>
+            <div class="row2">
+                <div class="input-group"><label>MC paths</label><input type="number" id="mcPaths" value="1000" step="100"></div>
+                <div class="input-group"><label>Seed (blank = random)</label><input type="number" id="seed" value="42"></div>
+            </div>
+            <div class="row2">
+                <div class="input-group"><label>Expected real return %</label><input type="number" id="expRet" value="6.5" step="0.5"></div>
+                <div class="input-group"><label>Volatility %</label><input type="number" id="vol" value="18" step="1"></div>
+            </div>
+            <div class="row2">
+                <div class="input-group"><label>Autocorrelation</label><input type="number" id="autocorr" value="0" step="0.05"></div>
+                <div class="input-group"><label>Bootstrap block (yrs)</label><input type="number" id="blockSize" value="10" step="1"></div>
+            </div>
+
             <h2>Target</h2>
             <div class="input-group"><label>Acceptable failure rate %</label><input type="number" id="targetFail" value="10" step="1"></div>
 
@@ -208,13 +230,18 @@
                 bucket 3 (100% equities) gets the remainder. Buckets are spent in time order; a depleted
                 bucket falls through to the next. Inflation 2.5% for the nominal-mortgage decay.
                 No taxes or fees. Overlapping historical windows are not independent samples.
+                Monte Carlo modes: block bootstrap resamples blocks of actual history (keeps fat tails
+                and momentum, breaks long-cycle ordering); normal AR(1) draws from a normal distribution
+                with optional year-over-year autocorrelation (thin tails; expected return, volatility and
+                autocorrelation apply to this mode only). The same seeded paths are reused across the
+                corpus solver and the chart sweep.
             </div>
         </div>
 
         <div class="panel">
             <div id="verdict" class="verdict"></div>
             <div class="stats">
-                <div class="stat" id="stFail"><div class="stat-label">Historical fail rate</div><div class="stat-value" id="failRate">-</div><div class="stat-sub" id="failSub"></div></div>
+                <div class="stat" id="stFail"><div class="stat-label">Failure rate</div><div class="stat-value" id="failRate">-</div><div class="stat-sub" id="failSub"></div></div>
                 <div class="stat" id="stReq"><div class="stat-label">Corpus needed for target</div><div class="stat-value" id="reqCorpus">-</div><div class="stat-sub" id="reqSub"></div></div>
                 <div class="stat"><div class="stat-label">Initial withdrawal rate</div><div class="stat-value" id="initWr">-</div><div class="stat-sub">year-1 outflow / corpus</div></div>
                 <div class="stat"><div class="stat-label">Bucket split</div><div class="stat-value" id="bSplit">-</div><div class="stat-sub">cash / 60-40 / equity</div></div>
@@ -253,16 +280,69 @@
 
         const FIELDS = ['curAge','endAge','corpus','spendEarly','stepAge','spendLate','ss','ssAge',
                         'mort','mortEndAge','b1Years','b1Ret','b2Eq','b2Disc',
-                        'gr1Thresh','gr1Cut','gr2Thresh','gr2Cut','targetFail'];
+                        'gr1Thresh','gr1Cut','gr2Thresh','gr2Cut','targetFail',
+                        'mcPaths','expRet','vol','autocorr','blockSize'];
         const $ = id => document.getElementById(id);
 
         function getInputs() {
             const v = {};
             FIELDS.forEach(f => v[f] = parseFloat($(f).value) || 0);
             v.mortNominal = $('mortNominal').checked;
+            v.retModel = $('retModel').value;
+            v.seed = $('seed').value.trim() === '' ? null : parseInt($('seed').value, 10);
+            v.mcPaths = Math.max(100, Math.min(5000, Math.round(v.mcPaths) || 1000));
+            v.blockSize = Math.max(1, Math.min(HISTORICAL_RETURNS.length, Math.round(v.blockSize) || 10));
             v.horizon = Math.max(5, Math.min(HISTORICAL_RETURNS.length, Math.round(v.endAge - v.curAge)));
             v.b1Years = Math.max(0, Math.min(v.horizon, Math.round(v.b1Years)));
             return v;
+        }
+
+        function mulberry32(a) {
+            return function() {
+                a |= 0; a = a + 0x6D2B79F5 | 0;
+                let t = Math.imul(a ^ a >>> 15, 1 | a);
+                t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            };
+        }
+
+        // Pre-generate equity return paths once per update; every corpus evaluation
+        // (solver, chart sweep) reuses them so comparisons use common random numbers.
+        function buildPaths(v) {
+            const H = v.horizon, n = HISTORICAL_RETURNS.length;
+            if (v.retModel === 'hist') {
+                const paths = [];
+                for (let s = 0; s + H <= n; s++) paths.push(HISTORICAL_RETURNS.slice(s, s + H));
+                return paths;
+            }
+            const rand = mulberry32(v.seed === null ? (Math.random() * 2 ** 32) | 0 : v.seed);
+            const paths = [];
+            if (v.retModel === 'bootstrap') {
+                for (let p = 0; p < v.mcPaths; p++) {
+                    const path = [];
+                    while (path.length < H) {
+                        const start = Math.floor(rand() * n);
+                        for (let i = 0; i < v.blockSize && path.length < H; i++)
+                            path.push(HISTORICAL_RETURNS[(start + i) % n]);
+                    }
+                    paths.push(path);
+                }
+            } else { // normal + AR(1)
+                const mu = v.expRet / 100, sigma = v.vol / 100, rho = Math.max(-0.9, Math.min(0.9, v.autocorr));
+                const innov = sigma * Math.sqrt(1 - rho * rho);
+                for (let p = 0; p < v.mcPaths; p++) {
+                    const path = [];
+                    let prev = mu;
+                    for (let t = 0; t < H; t++) {
+                        const z = Math.sqrt(-2 * Math.log(1 - rand())) * Math.cos(2 * Math.PI * rand());
+                        const r = mu + rho * (prev - mu) + innov * z;
+                        path.push(Math.max(-0.95, r));
+                        prev = r;
+                    }
+                    paths.push(path);
+                }
+            }
+            return paths;
         }
 
         // Net portfolio need in year t (real $), before guardrail cuts
@@ -296,7 +376,7 @@
             return [b1, b2, corpus - b1 - b2];
         }
 
-        function runWindow(v, corpus, startIdx) {
+        function runPath(v, corpus, rets) {
             const b = sizeBuckets(v, corpus);
             const bEnd = bridgeEnd(v);
             const cashR = v.b1Ret / 100, eqW = v.b2Eq / 100;
@@ -312,7 +392,7 @@
                 const order = t < v.b1Years ? [0, 1, 2] : t < bEnd ? [1, 0, 2] : [2, 1, 0];
                 for (const i of order) { const take = Math.min(b[i], need); b[i] -= take; need -= take; }
                 if (need > 1 && failYear === null) failYear = v.curAge + t;
-                const r = HISTORICAL_RETURNS[startIdx + t];
+                const r = rets[t];
                 b[0] *= 1 + cashR;
                 b[1] *= 1 + (eqW * r + (1 - eqW) * cashR);
                 b[2] *= 1 + r;
@@ -320,29 +400,29 @@
             return { failYear, cumCut, final: b[0] + b[1] + b[2] };
         }
 
-        function evaluate(v, corpus) {
-            const nWin = HISTORICAL_RETURNS.length - v.horizon + 1;
-            const res = [];
-            for (let s = 0; s < nWin; s++) res.push(runWindow(v, corpus, s));
+        function evaluate(v, corpus, paths) {
+            const res = paths.map(p => runPath(v, corpus, p));
             const med = a => a.slice().sort((x, y) => x - y)[Math.floor(a.length / 2)];
             return {
-                nWin,
+                nWin: paths.length,
                 fails: res.filter(r => r.failYear !== null).length,
-                failList: res.map((r, i) => r.failYear ? { start: DATA_START + i, age: r.failYear } : null).filter(Boolean),
+                failList: v.retModel === 'hist'
+                    ? res.map((r, i) => r.failYear ? { start: DATA_START + i, age: r.failYear } : null).filter(Boolean)
+                    : [],
                 medEstate: med(res.map(r => r.final)),
                 medCut: med(res.map(r => r.cumCut)),
             };
         }
 
-        // Smallest corpus whose historical failure rate <= target
-        function solveCorpus(v, targetPct) {
+        // Smallest corpus whose failure rate <= target, on the same set of paths
+        function solveCorpus(v, targetPct, paths) {
             let hi = 0;
             for (let t = 0; t < v.horizon; t++) {
                 const n = needAt(v, t);
                 hi += Math.max(0, n.base + n.mort - n.inc) / Math.pow(1 + v.b1Ret / 100, t);
             }
-            hi *= 1.25;
-            const ok = c => { const e = evaluate(v, c); return 100 * e.fails / e.nWin <= targetPct; };
+            hi *= 1.5;
+            const ok = c => { const e = evaluate(v, c, paths); return 100 * e.fails / e.nWin <= targetPct; };
             if (!ok(hi)) return null;
             let lo = 0;
             for (let i = 0; i < 24; i++) {
@@ -355,7 +435,7 @@
         const fmt$ = x => '$' + (Math.abs(x) >= 1e6 ? (x / 1e6).toFixed(2) + 'M'
                        : Math.round(x / 1000) + 'k');
 
-        function drawChart(v, corpus, required, targetPct) {
+        function drawChart(v, corpus, required, targetPct, paths) {
             const canvas = $('chart');
             const dpr = window.devicePixelRatio || 1;
             const W = canvas.clientWidth, H = 320;
@@ -369,7 +449,7 @@
             const N = 36, pts = [];
             for (let i = 0; i <= N; i++) {
                 const c = cMin + (cMax - cMin) * i / N;
-                const e = evaluate(v, c);
+                const e = evaluate(v, c, paths);
                 pts.push({ c, f: 100 * e.fails / e.nWin });
             }
             const padL = 46, padR = 14, padT = 12, padB = 34;
@@ -401,7 +481,7 @@
             ctx.lineWidth = 1;
 
             if (corpus >= cMin && corpus <= cMax) {
-                const e = evaluate(v, corpus);
+                const e = evaluate(v, corpus, paths);
                 const fy = 100 * e.fails / e.nWin;
                 ctx.fillStyle = '#ff6b6b';
                 ctx.beginPath(); ctx.arc(x(corpus), y(fy), 5, 0, 7); ctx.fill();
@@ -419,15 +499,19 @@
         function update() {
             const v = getInputs();
             const corpus = v.corpus;
-            const e = evaluate(v, corpus);
+            const paths = buildPaths(v);
+            const e = evaluate(v, corpus, paths);
             const failPct = 100 * e.fails / e.nWin;
-            const required = solveCorpus(v, v.targetFail);
+            const required = solveCorpus(v, v.targetFail, paths);
             const [b1, b2, b3] = sizeBuckets(v, corpus);
             const n0 = needAt(v, 0);
             const outflow0 = n0.base + n0.mort - n0.inc;
 
-            $('failRate').textContent = failPct.toFixed(0) + '%';
-            $('failSub').textContent = e.fails + ' of ' + e.nWin + ' start years (' + DATA_START + '-' + (DATA_START + e.nWin - 1) + ')';
+            $('failRate').textContent = failPct.toFixed(failPct && failPct < 10 ? 1 : 0) + '%';
+            $('failSub').textContent = v.retModel === 'hist'
+                ? e.fails + ' of ' + e.nWin + ' start years (' + DATA_START + '-' + (DATA_START + e.nWin - 1) + ')'
+                : e.fails + ' of ' + e.nWin + ' simulated paths (' +
+                  (v.retModel === 'bootstrap' ? 'block bootstrap' : 'normal AR(1)') + ')';
             $('stFail').className = 'stat ' + (failPct <= v.targetFail ? 'success' : failPct <= 2 * v.targetFail ? 'amber' : 'warn');
             $('reqCorpus').textContent = required === null ? 'n/a' : fmt$(required);
             $('reqSub').textContent = required === null ? 'target unreachable with these rules'
@@ -444,27 +528,36 @@
             if (failPct <= v.targetFail) {
                 verdict.className = 'verdict pass';
                 verdict.innerHTML = '<strong>PASS.</strong> ' + fmt$(corpus) + ' survived ' + (e.nWin - e.fails) + ' of ' + e.nWin +
-                    ' historical start years (' + failPct.toFixed(0) + '% failure vs ' + v.targetFail + '% target). ' +
+                    (v.retModel === 'hist' ? ' historical start years (' : ' simulated paths (') +
+                    failPct.toFixed(0) + '% failure vs ' + v.targetFail + '% target). ' +
                     'Minimum corpus for target: ' + (required === null ? 'n/a' : fmt$(required)) + '.';
             } else {
                 verdict.className = 'verdict fail';
                 verdict.innerHTML = '<strong>SHORT.</strong> ' + fmt$(corpus) + ' failed in ' + e.fails + ' of ' + e.nWin +
-                    ' historical start years (' + failPct.toFixed(0) + '% vs ' + v.targetFail + '% target). ' +
+                    (v.retModel === 'hist' ? ' historical start years (' : ' simulated paths (') +
+                    failPct.toFixed(0) + '% vs ' + v.targetFail + '% target). ' +
                     (required === null ? 'Target unreachable with these rules.' : 'You need about ' + fmt$(required) + '.');
             }
 
-            $('failListTitle').textContent = e.failList.length
-                ? 'Failing start years (' + e.failList.length + ')' : 'Failing start years: none';
-            $('failChips').innerHTML = e.failList
-                .map(f => '<span class="chip">' + f.start + ' @ age ' + f.age + '</span>').join('');
+            if (v.retModel === 'hist') {
+                $('failListTitle').textContent = e.failList.length
+                    ? 'Failing start years (' + e.failList.length + ')' : 'Failing start years: none';
+                $('failChips').innerHTML = e.failList
+                    .map(f => '<span class="chip">' + f.start + ' @ age ' + f.age + '</span>').join('');
+            } else {
+                $('failListTitle').textContent = 'Failing start years (historical mode only)';
+                $('failChips').innerHTML = '';
+            }
 
-            drawChart(v, corpus, required, v.targetFail);
+            drawChart(v, corpus, required, v.targetFail, paths);
         }
 
         function saveToURL() {
             const params = new URLSearchParams();
             FIELDS.forEach(f => params.set(f, $(f).value));
             params.set('mortNominal', $('mortNominal').checked ? '1' : '0');
+            params.set('retModel', $('retModel').value);
+            if ($('seed').value.trim() !== '') params.set('seed', $('seed').value);
             const url = window.location.origin + window.location.pathname + '?' + params.toString();
             navigator.clipboard.writeText(url).then(
                 () => alert('Configuration URL copied to clipboard!'),
@@ -476,12 +569,16 @@
             const params = new URLSearchParams(window.location.search);
             FIELDS.forEach(f => { if (params.has(f)) $(f).value = params.get(f); });
             if (params.has('mortNominal')) $('mortNominal').checked = params.get('mortNominal') === '1';
+            if (params.has('retModel')) $('retModel').value = params.get('retModel');
+            if (params.has('seed')) $('seed').value = params.get('seed');
         }
 
         FIELDS.forEach(f => $(f).addEventListener('input', update));
         $('mortNominal').addEventListener('change', update);
+        $('retModel').addEventListener('change', update);
+        $('seed').addEventListener('input', update);
         $('saveUrl').addEventListener('click', saveToURL);
-        window.addEventListener('resize', () => drawChart(getInputs(), getInputs().corpus, null, getInputs().targetFail));
+        window.addEventListener('resize', update);
 
         loadFromURL();
         update();
