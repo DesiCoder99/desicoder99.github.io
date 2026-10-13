@@ -324,25 +324,25 @@
                 <div class="slider-group">
                     <label>
                         mNAV Premium
-                        <span class="slider-value" id="premiumValue">1.50x</span>
+                        <span class="slider-value" id="premiumValue">1.00x</span>
                     </label>
-                    <input type="range" id="premium" min="0.5" max="3.5" step="0.05" value="1.5">
+                    <input type="range" id="premium" min="0.5" max="3" step="0.05" value="1">
                 </div>
                 
                 <div class="slider-group">
                     <label>
                         Current BTC Price
-                        <span class="slider-value" id="btcPriceValue">$77,718</span>
+                        <span class="slider-value" id="btcPriceValue">$83,000</span>
                     </label>
-                    <input type="range" id="btcPrice" min="50000" max="150000" step="1000" value="77718">
+                    <input type="range" id="btcPrice" min="40000" max="150000" step="1000" value="83000">
                 </div>
                 
                 <div class="slider-group">
                     <label>
                         Current MSTR Price
-                        <span class="slider-value" id="mstrPriceValue">$177</span>
+                        <span class="slider-value" id="mstrPriceValue">$155</span>
                     </label>
-                    <input type="range" id="mstrPrice" min="100" max="500" step="1" value="177">
+                    <input type="range" id="mstrPrice" min="50" max="400" step="1" value="155">
                 </div>
                 
                 <div class="slider-group">
@@ -371,17 +371,17 @@
                     <div>
                         <div class="legend-gradient"></div>
                         <div class="legend-labels">
+                            <span>0.5x</span>
                             <span>1.0x</span>
+                            <span>1.5x</span>
                             <span>2.0x</span>
-                            <span>3.0x</span>
-                            <span>4.0x</span>
-                            <span>5.0x</span>
+                            <span>2.5x</span>
                         </div>
                     </div>
                 </div>
                 <div class="legend-info">
                     <strong>Red box</strong> = Base case<br>
-                    (20% CAGR, $10B STRC)
+                    (15% CAGR, $10B STRC)
                 </div>
             </div>
         </div>
@@ -407,21 +407,22 @@
     </div>
 
     <script>
-        const CURRENT_BTC_HOLDINGS = 641000;
-        const SHARES_OUTSTANDING = 287000000;
+        // As of Oct 2026: 848k BTC held, ~420M fully diluted shares, STRC at 12%
+        const CURRENT_BTC_HOLDINGS = 848000;
+        const SHARES_OUTSTANDING = 420000000;
         const YEARS = 5;
-        const STRC_DIVIDEND_RATE = 0.10;
+        const STRC_DIVIDEND_RATE = 0.12;
         const SOFTWARE_INCOME = 100000000;
-        
+
         // Heatmap ranges
         const STRC_RANGE = [];
-        for (let i = 0; i <= 30; i += 2.5) {
+        for (let i = 0; i <= 20; i += 2.5) {
             STRC_RANGE.push(i * 1e9);
         }
-        
+
         const BTC_CAGR_RANGE = [];
-        for (let i = 0.05; i <= 0.50; i += 0.025) {
-            BTC_CAGR_RANGE.push(i);
+        for (let i = -4; i <= 12; i++) {
+            BTC_CAGR_RANGE.push(i * 0.025);
         }
         
         function calculateMstrPrice(btcCagr, finalPremium, baseStrcIssuance, currentBtcPrice, strcGrowthRate) {
@@ -451,12 +452,12 @@
         }
         
         function getColor(ratio) {
-            if (ratio < 1.5) return '#c51b1a';
-            if (ratio < 2.0) return '#e67c30';
-            if (ratio < 2.5) return '#f5d033';
-            if (ratio < 3.0) return '#b8d645';
-            if (ratio < 3.5) return '#7fb03d';
-            if (ratio < 4.0) return '#4d9645';
+            if (ratio < 0.8) return '#c51b1a';
+            if (ratio < 1.0) return '#e67c30';
+            if (ratio < 1.2) return '#f5d033';
+            if (ratio < 1.5) return '#b8d645';
+            if (ratio < 1.8) return '#7fb03d';
+            if (ratio < 2.2) return '#4d9645';
             return '#2a7e3e';
         }
         
@@ -517,7 +518,7 @@
                     cell.className = 'cell';
                     cell.textContent = ratio.toFixed(2);
                     cell.style.backgroundColor = getColor(ratio);
-                    cell.style.color = ratio < 2.0 ? '#000' : '#fff';
+                    cell.style.color = ratio < 1.8 ? '#000' : '#fff';
                     
                     // Store data for click handler
                     cell.dataset.ratio = ratio;
@@ -527,8 +528,8 @@
                     cell.dataset.cagr = cagr;
                     cell.dataset.strc = strcBase;
                     
-                    // Highlight base case: 20% CAGR, $10B STRC
-                    if (Math.abs(cagr - 0.20) < 0.01 && Math.abs(strcBase - 10e9) < 1e8) {
+                    // Highlight base case: 15% CAGR, $10B STRC
+                    if (Math.abs(cagr - 0.15) < 0.01 && Math.abs(strcBase - 10e9) < 1e8) {
                         cell.classList.add('highlight');
                         
                         // Set as initial selected cell
