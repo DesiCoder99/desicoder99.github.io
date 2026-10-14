@@ -266,17 +266,17 @@
         <div class="info-box">
             <strong>About:</strong> This tool calculates rolling Compound Annual Growth Rate (CAGR) for any stock ticker.
             Uses <strong>adjusted close prices</strong> which include dividends and stock splits for accurate total return calculations.
-            <br><em style="color: var(--text-secondary); font-size: 0.85rem;">Powered by Yahoo Finance - completely free, no API key required.</em>
+            <br><em style="color: var(--text-secondary); font-size: 0.85rem;">Yahoo Finance adjusted prices, loaded through this site. No API key required.</em>
         </div>
 
         <div id="inputContainer">
-            <input type="text" id="tickerInput" placeholder="Ticker (e.g., AAPL)" value="SPY">
-            <input type="number" id="startYearInput" placeholder="Start Year" value="2000" min="1970" max="2025">
-            <input type="number" id="durationInput" placeholder="Duration (years)" value="5" min="1" max="30">
+            <input type="text" id="tickerInput" aria-label="Ticker" placeholder="Ticker (e.g., AAPL)" value="SPY">
+            <input type="number" id="startYearInput" placeholder="Start Year" value="2000" min="1990" aria-label="Start year">
+            <input type="number" id="durationInput" aria-label="Duration in years" placeholder="Duration (years)" value="5" min="1" max="30">
             <button id="updateButton">Update Chart</button>
         </div>
 
-        <div id="errorMessage"></div>
+        <div id="errorMessage" role="status" aria-live="polite"></div>
 
         <div id="chartContainer">
             <canvas id="scatterChart"></canvas>
@@ -292,6 +292,7 @@
 
     <script>
         let chart;
+        let isLoading = false;
 
         function calculateCAGR(data, durationYears) {
             // Calculate CAGR for all N-year windows starting at each week
@@ -446,80 +447,54 @@
         }
 
         async function fetchYahooFinanceData(ticker, startDate, endDate) {
-            // Convert dates to Unix timestamps
-            const period1 = Math.floor(new Date(startDate).getTime() / 1000);
-            const period2 = Math.floor(new Date(endDate).getTime() / 1000);
-
-            const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?period1=${period1}&period2=${period2}&interval=1wk`;
-            // Use CORS proxy to bypass browser restrictions
-            const url = `https://corsproxy.io/?${encodeURIComponent(yahooUrl)}`;
-
-            console.log(`Fetching: ${yahooUrl}`);
-
-            const response = await fetch(url);
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('API Response Error:', response.status, errorText);
-                throw new Error(`HTTP ${response.status}: Failed to fetch data from Yahoo Finance`);
+            const params = new URLSearchParams({ ticker, start: startDate, end: endDate });
+            // GitHub Pages is static; both sites share the Netlify price service.
+            const apiOrigin = location.hostname === 'desicoder99.github.io'
+                ? 'https://voidstar99.netlify.app' : '';
+            let response;
+            try {
+                response = await fetch(`${apiOrigin}/.netlify/functions/rolling-prices?${params}`, {
+                    credentials: 'omit',
+                    signal: AbortSignal.timeout(20000)
+                });
+            } catch (error) {
+                throw new Error(error.name === 'TimeoutError'
+                    ? 'The price request timed out. Please try again.'
+                    : 'Could not reach the price service. Check your connection and try again.');
             }
-
+            if (!response.headers.get('content-type')?.includes('application/json')) {
+                throw new Error('The price service is temporarily unavailable. Please try again later.');
+            }
             const data = await response.json();
-            console.log('API Response:', data);
-
-            if (!data.chart || !data.chart.result || data.chart.result.length === 0) {
-                throw new Error(`No data available for ${ticker}. Check if the ticker is valid.`);
-            }
-
-            const result = data.chart.result[0];
-
-            if (data.chart.error) {
-                throw new Error(`API Error: ${data.chart.error.description}`);
-            }
-
-            // Use adjusted close for accurate total return (includes dividends & splits)
-            const timestamps = result.timestamp;
-            let closes;
-
-            // Prefer adjusted close if available, fallback to regular close
-            if (result.indicators.adjclose && result.indicators.adjclose[0] && result.indicators.adjclose[0].adjclose) {
-                closes = result.indicators.adjclose[0].adjclose;
-                console.log('Using adjusted close prices (includes dividends & splits)');
-            } else if (result.indicators.quote && result.indicators.quote[0] && result.indicators.quote[0].close) {
-                closes = result.indicators.quote[0].close;
-                console.warn('Using raw close prices (dividends NOT included)');
-            } else {
-                throw new Error(`No price data returned for ${ticker}`);
-            }
-
-            // Convert to our format, filtering out null values
-            return timestamps
-                .map((timestamp, i) => ({
-                    date: new Date(timestamp * 1000).toISOString().split('T')[0],
-                    close: closes[i]
-                }))
-                .filter(item => item.close !== null)
-                .sort((a, b) => new Date(a.date) - new Date(b.date));
+            if (!response.ok) throw new Error(data.error || 'Unable to load price history. Please try again.');
+            if (!Array.isArray(data.prices)) throw new Error('The price service returned an invalid response.');
+            return data.prices;
         }
 
         async function updateChart() {
-            const ticker = document.getElementById('tickerInput').value.toUpperCase();
-            const startYear = parseInt(document.getElementById('startYearInput').value);
-            const durationYears = parseInt(document.getElementById('durationInput').value);
+            if (isLoading) return;
+            const ticker = document.getElementById('tickerInput').value.trim().toUpperCase();
+            const startYear = Number(document.getElementById('startYearInput').value);
+            const durationYears = Number(document.getElementById('durationInput').value);
             const errorMessageElement = document.getElementById('errorMessage');
 
-            errorMessageElement.textContent = 'Fetching data...';
+            const button = document.getElementById('updateButton');
+            isLoading = true;
+            button.disabled = true;
+            button.textContent = 'Loading…';
+            document.getElementById('chartContainer').hidden = true;
+            errorMessageElement.textContent = 'Fetching data…';
 
             try {
-                if (!ticker || ticker.trim() === '') {
+                if (!/^[A-Z0-9^][A-Z0-9.^=\-]{0,24}$/.test(ticker)) {
                     throw new Error('Please enter a valid ticker symbol');
                 }
 
-                if (!durationYears || durationYears < 1) {
-                    throw new Error('Duration must be at least 1 year');
+                if (!Number.isInteger(durationYears) || durationYears < 1 || durationYears > 30) {
+                    throw new Error('Duration must be a whole number between 1 and 30 years');
                 }
 
-                if (!startYear || startYear < 1990 || startYear > new Date().getFullYear()) {
+                if (!Number.isInteger(startYear) || startYear < 1990 || startYear > new Date().getFullYear()) {
                     throw new Error('Please enter a valid start year (1990-present)');
                 }
 
@@ -558,15 +533,23 @@
                     );
                 }
 
+                document.getElementById('chartContainer').hidden = false;
                 createChart(cagrData, durationYears, ticker);
                 errorMessageElement.textContent = '';
             } catch (error) {
                 console.error('Error:', error);
+                document.getElementById('chartContainer').hidden = true;
                 errorMessageElement.textContent = `Error: ${error.message}`;
+            } finally {
+                isLoading = false;
+                button.disabled = false;
+                button.textContent = 'Update Chart';
             }
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+            document.getElementById('startYearInput').max = new Date().getFullYear();
+            updateChart();
             document.getElementById('updateButton').addEventListener('click', updateChart);
 
             // Allow Enter key to trigger update
